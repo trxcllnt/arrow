@@ -31,6 +31,7 @@ import ByteBuffer = flatbuffers.ByteBuffer;
 import Footer = File_.org.apache.arrow.flatbuf.Footer;
 import Field = Schema_.org.apache.arrow.flatbuf.Field;
 import Schema = Schema_.org.apache.arrow.flatbuf.Schema;
+import Buffer = Schema_.org.apache.arrow.flatbuf.Buffer;
 import Message = Message_.org.apache.arrow.flatbuf.Message;
 import ArrowBuffer = Schema_.org.apache.arrow.flatbuf.Buffer;
 import FieldNode = Message_.org.apache.arrow.flatbuf.FieldNode;
