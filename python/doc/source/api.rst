@@ -50,7 +50,7 @@ Type and Schema Factory Functions
    date64
    binary
    string
-   decimal
+   decimal128
    list_
    struct
    dictionary
@@ -195,7 +195,11 @@ Input / Output and Shared Memory
    :toctree: generated/
 
    allocate_buffer
+   compress
+   decompress
+   frombuffer
    Buffer
+   ResizableBuffer
    BufferReader
    BufferOutputStream
    NativeFile
@@ -241,6 +245,7 @@ Serialization and IPC
    serialize
    serialize_to
    deserialize
+   deserialize_components
    deserialize_from
    read_serialized
    SerializedPyObject
