@@ -15,10 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { IndexOfVisitor } from './vector/indexof';
 import { Data, ChunkedData, FlatData, BoolData, FlatListData, NestedData, DictionaryData } from './data';
-import { VisitorNode, TypeVisitor, VectorVisitor } from './visitor';
+import { VisitorNode, TypeVisitor, VectorVisitor, OperatorVisitor } from './visitor';
 import { DataType, ListType, FlatType, NestedType, FlatListType, TimeUnit } from './type';
 import { IterableArrayLike, Precision, DateUnit, IntervalUnit, UnionMode } from './type';
+
+const indexOfVisitor = new IndexOfVisitor();
 
 export interface VectorLike { length: number; nullCount: number; }
 
@@ -28,7 +31,6 @@ export interface View<T extends DataType> {
     get(index: number): T['TValue'] | null;
     set(index: number, value: T['TValue']): void;
     toArray(): IterableArrayLike<T['TValue'] | null>;
-    indexOf(search: T['TValue']): number;
     [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
 }
 
@@ -78,8 +80,8 @@ export class Vector<T extends DataType = any> implements VectorLike, View<T>, Vi
     public toArray(): IterableArrayLike<T['TValue'] | null> {
         return this.view.toArray();
     }
-    public indexOf(value: T['TValue']) {
-        return this.view.indexOf(value);
+    public indexOf(value: T['TValue'] | null): number {
+        return indexOfVisitor.visit(this, -1, value);
     }
     public [Symbol.iterator](): IterableIterator<T['TValue'] | null> {
         return this.view[Symbol.iterator]();
@@ -115,6 +117,9 @@ export class Vector<T extends DataType = any> implements VectorLike, View<T>, Vi
     }
     public acceptVectorVisitor(visitor: VectorVisitor): any {
         return VectorVisitor.visitTypeInline(visitor, this.type, this);
+    }
+    public acceptOperatorVisitor<R extends T>(visitor: OperatorVisitor, index: number, value: R['TValue'] | null): any {
+        return OperatorVisitor.visitTypeInline(visitor, this.type, this, index, value);
     }
 }
 
@@ -182,7 +187,7 @@ import { Struct, Union, SparseUnion, DenseUnion, FixedSizeBinary, FixedSizeList,
 import { ChunkedView } from './vector/chunked';
 import { DictionaryView } from './vector/dictionary';
 import { ListView, FixedSizeListView, BinaryView, Utf8View } from './vector/list';
-import { UnionView, DenseUnionView, NestedView, StructView, MapView } from './vector/nested';
+import { UnionView, DenseUnionView, NestedView, StructView, MapView, MapRowView, RowView } from './vector/nested';
 import { FlatView, NullView, BoolView, ValidityView, PrimitiveView, FixedSizeView, Float16View } from './vector/flat';
 import { DateDayView, DateMillisecondView, IntervalYearMonthView } from './vector/flat';
 import { TimestampDayView, TimestampSecondView, TimestampMillisecondView, TimestampMicrosecondView, TimestampNanosecondView } from './vector/flat';
@@ -191,6 +196,9 @@ import { packBools } from './util/bit';
 export class NullVector extends Vector<Null> {
     constructor(data: Data<Null>, view: View<Null> = new NullView(data)) {
         super(data, view);
+    }
+    public indexOf(value: Null['TValue'] | null): number {
+        return indexOfVisitor.visitNull(this, -1, value);
     }
 }
 
@@ -201,6 +209,9 @@ export class BoolVector extends Vector<Bool> {
     public get values() { return this.data.values; }
     constructor(data: Data<Bool>, view: View<Bool> = new BoolView(data)) {
         super(data, view);
+    }
+    public indexOf(value: Bool['TValue'] | null): number {
+        return indexOfVisitor.visitBool(this, -1, value);
     }
 }
 
@@ -235,6 +246,9 @@ export class IntVector<T extends Int = Int<any>> extends FlatVector<T> {
     constructor(data: Data<T>, view: View<T> = IntVector.defaultView(data)) {
         super(data, view);
     }
+    public indexOf(value: T['TValue'] | null): number {
+        return indexOfVisitor.visitInt(this, -1, value);
+    }
 }
 
 export class FloatVector<T extends Float = Float<any>> extends FlatVector<T> {
@@ -254,6 +268,9 @@ export class FloatVector<T extends Float = Float<any>> extends FlatVector<T> {
     }
     constructor(data: Data<T>, view: View<T> = FloatVector.defaultView(data)) {
         super(data, view);
+    }
+    public indexOf(value: T['TValue'] | null): number {
+        return indexOfVisitor.visitFloat(this, -1, value);
     }
 }
 
@@ -278,11 +295,17 @@ export class DateVector extends FlatVector<Date_> {
         }
         throw new TypeError(`Unrecognized date unit "${DateUnit[this.type.unit]}"`);
     }
+    public indexOf(value: Date_['TValue'] | null): number {
+        return indexOfVisitor.visitDate(this, -1, value);
+    }
 }
 
 export class DecimalVector extends FlatVector<Decimal> {
     constructor(data: Data<Decimal>, view: View<Decimal> = new FixedSizeView(data, 4)) {
         super(data, view);
+    }
+    public indexOf(value: Decimal['TValue'] | null): number {
+        return indexOfVisitor.visitDecimal(this, -1, value);
     }
 }
 
@@ -298,6 +321,9 @@ export class TimeVector extends FlatVector<Time> {
     }
     public highs(): IntVector<Int32> {
         return this.type.bitWidth <= 32 ? this.asInt32(0, 1) : this.asInt32(1, 2);
+    }
+    public indexOf(value: Time['TValue'] | null): number {
+        return indexOfVisitor.visitTime(this, -1, value);
     }
 }
 
@@ -315,6 +341,9 @@ export class TimestampVector extends FlatVector<Timestamp> {
         }
         throw new TypeError(`Unrecognized time unit "${TimeUnit[this.type.unit]}"`);
     }
+    public indexOf(value: Timestamp['TValue'] | null): number {
+        return indexOfVisitor.visitTimestamp(this, -1, value);
+    }
 }
 
 export class IntervalVector extends FlatVector<Interval> {
@@ -330,6 +359,9 @@ export class IntervalVector extends FlatVector<Interval> {
     public highs(): IntVector<Int32> {
         return this.type.unit === IntervalUnit.YEAR_MONTH ? this.asInt32(0, 1) : this.asInt32(1, 2);
     }
+    public indexOf(value: Interval['TValue'] | null): number {
+        return indexOfVisitor.visitInterval(this, -1, value);
+    }
 }
 
 export class BinaryVector extends ListVectorBase<Binary> {
@@ -339,11 +371,17 @@ export class BinaryVector extends ListVectorBase<Binary> {
     public asUtf8() {
         return new Utf8Vector((this.data as FlatListData<any>).clone(new Utf8()));
     }
+    public indexOf(value: Binary['TValue'] | null): number {
+        return indexOfVisitor.visitBinary(this, -1, value);
+    }
 }
 
 export class FixedSizeBinaryVector extends FlatVector<FixedSizeBinary> {
     constructor(data: Data<FixedSizeBinary>, view: View<FixedSizeBinary> = new FixedSizeView(data, data.type.byteWidth)) {
         super(data, view);
+    }
+    public indexOf(value: FixedSizeBinary['TValue'] | null): number {
+        return indexOfVisitor.visitFixedSizeBinary(this, -1, value);
     }
 }
 
@@ -354,17 +392,26 @@ export class Utf8Vector extends ListVectorBase<Utf8> {
     public asBinary() {
         return new BinaryVector((this.data as FlatListData<any>).clone(new Binary()));
     }
+    public indexOf(value: Utf8['TValue'] | null): number {
+        return indexOfVisitor.visitUtf8(this, -1, value);
+    }
 }
 
 export class ListVector<T extends DataType = DataType> extends ListVectorBase<List<T>> {
     constructor(data: Data<List<T>>, view: View<List<T>> = new ListView(data)) {
         super(data, view);
     }
+    public indexOf(value: List<T>['TValue'] | null): number {
+        return indexOfVisitor.visitList(this, -1, value);
+    }
 }
 
-export class FixedSizeListVector extends Vector<FixedSizeList> {
+export class FixedSizeListVector<T extends DataType = DataType> extends Vector<FixedSizeList> {
     constructor(data: Data<FixedSizeList>, view: View<FixedSizeList> = new FixedSizeListView(data)) {
         super(data, view);
+    }
+    public indexOf(value: FixedSizeList<T>['TValue'] | null): number {
+        return indexOfVisitor.visitFixedSizeList(this, -1, value);
     }
 }
 
@@ -375,6 +422,9 @@ export class MapVector extends NestedVector<Map_> {
     public asStruct() {
         return new StructVector((this.data as NestedData<any>).clone(new Struct(this.type.children)));
     }
+    public indexOf(value: Map_['TValue'] | null): number {
+        return indexOfVisitor.visitMap(this, -1, value);
+    }
 }
 
 export class StructVector extends NestedVector<Struct> {
@@ -384,11 +434,17 @@ export class StructVector extends NestedVector<Struct> {
     public asMap(keysSorted: boolean = false) {
         return new MapVector((this.data as NestedData<any>).clone(new Map_(keysSorted, this.type.children)));
     }
+    public indexOf(value: Struct['TValue'] | null): number {
+        return indexOfVisitor.visitStruct(this, -1, value);
+    }
 }
 
 export class UnionVector<T extends (SparseUnion | DenseUnion) = any> extends NestedVector<T> {
     constructor(data: Data<T>, view: View<T> = <any> (data.type.mode === UnionMode.Sparse ? new UnionView<SparseUnion>(data as Data<SparseUnion>) : new DenseUnionView(data as Data<DenseUnion>))) {
         super(data, view);
+    }
+    public indexOf(value: T['TValue'] | null): number {
+        return indexOfVisitor.visitUnion(this, -1, value);
     }
 }
 
@@ -402,10 +458,10 @@ export class DictionaryVector<T extends DataType = DataType> extends Vector<Dict
         if (view instanceof ValidityView) {
             view = (view as any).view;
         }
-        if (data instanceof DictionaryData && view instanceof DictionaryView) {
+        if ((data instanceof DictionaryData) && view instanceof DictionaryView) {
             this.indices = view.indices;
             this.dictionary = data.dictionary;
-        } else if (data instanceof ChunkedData && view instanceof ChunkedView) {
+        } else if ((data instanceof ChunkedData) && view instanceof ChunkedView) {
             const chunks = view.chunkVectors as DictionaryVector<T>[];
             // Assume the last chunk's dictionary data is the most up-to-date,
             // including data from DictionaryBatches that were marked as deltas
@@ -422,6 +478,9 @@ export class DictionaryVector<T extends DataType = DataType> extends Vector<Dict
     public getKey(index: number) { return this.indices.get(index); }
     public getValue(key: number) { return this.dictionary.get(key); }
     public reverseLookup(value: T) { return this.dictionary.indexOf(value); }
+    public indexOf(value: T['TValue'] | null): number {
+        return indexOfVisitor.visitDictionary(this, -1, value);
+    }
 }
 
 export const createVector = ((VectorLoader: new <T extends DataType>(data: Data<T>) => TypeVisitor) => (
