@@ -1,0 +1,398 @@
+//Proposed Arrow/Flatbuffer Schemas for Graph Data
+// v1.0 Beta
+//We will provide several classes of graph schemas, for the 4 main graph classes of simple directed, vertex labeled directed, edge labeled directed and property graphs. 
+
+//We also provide various embedded type assumptions, related to the total number of vertices and edges in the graphs, to enable efficient representation of small graphs while enabling exact representation of even the largest graphs.
+// Last, we provide both CSR/CSC and edge-list formats, since each is common
+// There is no overhead of allowing both CSR and CSC to coexist 
+//   in Arrow, if the data fields are named but not used they take no space.
+
+include "Schema.fbs";
+
+namespace org.apache.arrow.flatbuf;
+//namespace GOAI.Graph;
+file_extension "gdf";
+file_identifier "GDFG";
+enum GraphType : byte { SimpleDirected=10, VertexLabeled =20,
+                        EdgeLabeled=30, Property=40 }  
+enum GraphPart : byte { Offsets = 1, Indices = 2, Edge = 3,
+                        VertexValues=64, EdgeValues=128 }
+enum GraphSize : byte { tiny = 8, medium=16, large=32, huge=64}
+
+table DataTable {
+    name:string;
+    num_col:ushort;
+    data:[Field];
+}  
+struct tiny_Edge {
+    from:ubyte;
+    to:  ubyte; 
+}
+struct medium_Edge {
+    from:ushort;
+    to:  ushort; 
+}
+struct large_Edge {
+    from:uint;
+    to:  uint; 
+}
+struct huge_Edge {
+    from:ulong;
+    to:  ulong; 
+}
+//Simple Directed Graph in various sizes, CSR/CSC format:
+// name:string
+// num_vert: uint [0,max_int]
+// num_edge: uint [0,max_int]
+// srce_offsets [uint]
+// out_indices [uint]
+// dest_offsets [uint]
+// in_indices [uint]
+// dest_to_srce [uint]
+// uint here is replaced by each size type from {tiny,medium,large,huge}
+table tiny_SimpleDirectedGraphCSRCSC{
+    name:string;
+    num_vert: ubyte;
+    num_edge: ushort;
+    srce_offsets:[ushort];
+    dest_offsets:[ushort];
+    out_indices:[ubyte];
+    in_indices:[ubyte];
+    dest_to_srce:[ushort];
+}
+table medium_SimpleDirectedGraphCSRCSC{
+    name:string;
+    num_vert: ushort;
+    num_edge: uint;
+    srce_offsets:[uint];
+    dest_offsets:[uint];
+    out_indices:[ushort];
+    in_indices:[ushort];
+    dest_to_srce:[uint];
+}
+table large_SimpleDirectedGraphCSRCSC{
+    name:string;
+    num_vert: uint;
+    num_edge: ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[uint];
+    in_indices:[uint];
+    dest_to_srce:[ulong];
+}
+table huge_SimpleDirectedGraphCSRCSC{
+    name:string;
+    num_vert: ulong;
+    num_edge: ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[ulong];
+    in_indices:[ulong];
+    dest_to_srce:[ulong];
+}
+//Simple Directed Graph in various sizes, EdgeList format:
+// name:string
+// num_vert: uint [0,max_int]
+// num_edge: uint [0,max_int]
+// edges [Edge]
+//  uint here is replaced by each size type from {tiny,medium,large,huge}
+//  Edge is one of the Edge structs for the correct size
+table tiny_SimpleDirectedGraphEdgeList{
+    name:string;
+    num_vert: ubyte;
+    num_edge: ushort;
+    edges:[tiny_Edge];
+}
+table medium_SimpleDirectedGraphEdgeList{
+    name:string;
+    num_vert: ushort;
+    num_edge: uint;
+    edges:[medium_Edge];
+}
+table large_SimpleDirectedGraphEdgeList{
+    name:string;
+    num_vert:uint;
+    num_edge:ulong;
+    edges:[large_Edge];
+}
+table huge_SimpleDirectedGraphEdgeList{
+    name:string;
+    num_vert:ulong;
+    num_edge:ulong;
+    edges:[huge_Edge];
+}
+//Vertex Labeled Graph
+table tiny_VertexLabeledGraphCSRCSC{
+    name:string;
+    num_vert:ubyte;
+    num_edge:ushort;
+    srce_offsets:[ushort];
+    dest_offsets:[ushort];
+    out_indices:[ubyte];
+    in_indices:[ubyte];
+    dest_to_srce:[ushort];
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table medium_VertexLabeledGraphCSRCSC{
+    name:string;
+    num_vert:ushort;
+    num_edge:uint;
+    srce_offsets:[uint];
+    dest_offsets:[uint];
+    out_indices:[ushort];
+    in_indices:[ushort];
+    dest_to_srce:[uint];
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table large_VertexLabeledGraphCSRCSC{
+    name:string;
+    num_vert: uint;
+    num_edge: ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[uint];
+    in_indices:[uint];
+    dest_to_srce:[ulong];
+    vertexdata: [ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table huge_VertexLabeledGraphCSRCSC{
+    name:string;
+    num_vert: ulong;
+    num_edge: ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[ulong];
+    in_indices:[ulong];
+    dest_to_srce:[ulong];
+    offsets:[ulong];
+    indices:[ulong];
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table tiny_VertexLabeledGraphEdgeList{
+    name:string;
+    num_vert: ubyte;
+    num_edge: ushort;
+    edges:[tiny_Edge];
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table medium_VertexLabeledGraphEdgeList{
+    name:string;
+    num_vert: ushort;
+    num_edge: uint;
+    edges:[medium_Edge];
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table large_VertexLabeledGraphEdgeList{
+    name:string;
+    num_vert: uint;
+    num_edge: ulong;
+    edges:[large_Edge];
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table huge_VertexLabeledGraphEdgeList{
+    name:string;
+    num_vert: ulong;
+    num_edge: ulong;
+    edges:[huge_Edge];
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+//Edge Labeled Graph
+table tiny_EdgeLabeledGraphCSRCSC{
+    name:string;
+    num_vert:ubyte;
+    num_edge:ushort;
+    srce_offsets:[ushort];
+    dest_offsets:[ushort];
+    out_indices:[ubyte];
+    in_indices:[ubyte];
+    dest_to_srce:[ushort];
+    offsets:[ushort];
+    indices:[ubyte];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table medium_EdgeLabeledGraphCSRCSC{
+    name:string;
+    num_vert:ushort;
+    num_edge:uint;
+    srce_offsets:[uint];
+    dest_offsets:[uint];
+    out_indices:[ushort];
+    in_indices:[ushort];
+    dest_to_srce:[uint];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table large_EdgeLabeledGraphCSRCSC{
+    name:string;
+    num_vert: uint;
+    num_edge: ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[uint];
+    in_indices:[uint];
+    dest_to_srce:[ulong];
+    edgedata: [ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table huge_EdgeLabeledGraphCSRCSC{
+    name:string;
+    num_vert: ulong;
+    num_edge: ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[ulong];
+    in_indices:[ulong];
+    dest_to_srce:[ulong];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table tiny_EdgeLabeledGraphEdgeList{
+    name:string;
+    num_vert: ubyte;
+    num_edge: ushort;
+    edges:[tiny_Edge];
+    edgedata: [ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table medium_EdgeLabeledGraphEdgeList{
+    name:string;
+    num_vert: ushort;
+    num_edge: uint;
+    edges:[medium_Edge];
+    edgedata: [ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table large_EdgeLabeledGraphEdgeList{
+    name:string;
+    num_vert: uint;
+    num_edge: ulong;
+    edges:[large_Edge];
+    edgedata: [ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table huge_EdgeLabeledGraphEdgeList{
+    name:string;
+    num_vert: ulong;
+    num_edge: ulong;
+    edges:[huge_Edge];
+    edgedata: [ubyte]  (nested_flatbuffer:"DataTable" );
+}
+
+//Property Graph CSR/CSC
+table tiny_PropertyGraphCSRCSC{
+    name:string;
+    num_vert:ubyte;
+    num_edge:ushort;
+    srce_offsets:[ushort];
+    dest_offsets:[ushort];
+    out_indices:[ubyte];
+    in_indices:[ubyte];
+    dest_to_srce:[ushort];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table medium_PropertyGraphCSRCSC{
+    name:string;
+    num_vert:ushort;
+    num_edge:uint;
+    srce_offsets:[uint];
+    dest_offsets:[uint];
+    out_indices:[ushort];
+    in_indices:[ushort];
+    dest_to_srce:[uint];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table large_PropertyGraphCSRCSC{
+    name:string;
+    num_vert:uint;
+    num_edge:ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[uint];
+    in_indices:[uint];
+    dest_to_srce:[ulong];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table huge_PropertyGraphCSRCSC{
+    name:string;
+    num_vert:ulong;
+    num_edge:ulong;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[ulong];
+    in_indices:[ulong];
+    dest_to_srce:[ulong];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+//Property Graph EdgeList
+table tiny_PropertyGraphEdgeList{
+    name:string;
+    num_vert:ubyte;
+    num_edge:ushort;
+    srce_offsets:[ulong];
+    dest_offsets:[ulong];
+    out_indices:[ulong];
+    in_indices:[ulong];
+    dest_to_srce:[ulong];
+    edges:[tiny_Edge];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table medium_PropertyGraphEdgeList{
+    name:string;
+    num_vert:ushort;
+    num_edge:uint;
+    edges:[medium_Edge];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table large_PropertyGraphEdgeList{
+    name:string;
+    num_vert:uint;
+    num_edge:ulong;
+    edges:[large_Edge];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+table huge_PropertyGraphEdgeList{
+    name:string;
+    num_vert:ulong;
+    num_edge:ulong;
+    edges:[huge_Edge];
+    edgedata:[ubyte]  (nested_flatbuffer:"DataTable" );
+    vertexdata:[ubyte]  (nested_flatbuffer:"DataTable" );
+}
+
+table huge_TriplesTable_RDFGraph{
+    name:string;
+    num_vert:ulong;
+    num_edge:ulong;
+    // If we ensure the dictionary ids for the graph are assigned in order then we don't need to have any additional data structure for doing reverse lookups, as we can just do a binary search over the list of dictionary values.
+    dictionary:[string];
+    S_values:[ulong];
+    P_values:[ulong];
+    O_values:[ulong];
+    S_offsets:[ulong];
+    P_offsets:[ulong];
+    O_offsets:[ulong];
+    // Note that the abscense of an S_indirection vector assumes that the values vectors are already ordered on S
+    P_indirection:[ulong];
+    O_indirection:[ulong];
+}
+
+table huge_QuadsTable_RDFGraph{
+    name:string;
+    num_vert:ulong;
+    num_edge:ulong;
+    // If we ensure the dictionary ids for the graph are assigned in order then we don't need to have any additional data structure for doing reverse lookups, as we can just do a binary search over the list of dictionary values.
+    dictionary:[string];
+    S_values:[ulong];
+    P_values:[ulong];
+    O_values:[ulong];
+    G_values:[ulong];
+    S_offsets:[ulong];
+    P_offsets:[ulong];
+    O_offsets:[ulong];
+    G_offsets:[ulong];
+    // Note that the absense of an S_indirection vector assumes that the values vectors are already ordered on S
+    P_indirection:[ulong];
+    O_indirection:[ulong];
+    G_indirection:[ulong];
+}
