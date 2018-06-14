@@ -80,8 +80,8 @@ export class Vector<T extends DataType = any> implements VectorLike, View<T>, Vi
     public toArray(): IterableArrayLike<T['TValue'] | null> {
         return this.view.toArray();
     }
-    public indexOf(value: T['TValue'] | null): number {
-        return indexOfVisitor.visit(this, -1, value);
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visit(this, fromIndex || 0, searchElement);
     }
     public [Symbol.iterator](): IterableIterator<T['TValue'] | null> {
         return this.view[Symbol.iterator]();
@@ -197,8 +197,8 @@ export class NullVector extends Vector<Null> {
     constructor(data: Data<Null>, view: View<Null> = new NullView(data)) {
         super(data, view);
     }
-    public indexOf(value: Null['TValue'] | null): number {
-        return indexOfVisitor.visitNull(this, -1, value);
+    public indexOf(searchElement: Null['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitNull(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -210,8 +210,8 @@ export class BoolVector extends Vector<Bool> {
     constructor(data: Data<Bool>, view: View<Bool> = new BoolView(data)) {
         super(data, view);
     }
-    public indexOf(value: Bool['TValue'] | null): number {
-        return indexOfVisitor.visitBool(this, -1, value);
+    public indexOf(searchElement: Bool['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitBool(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -246,8 +246,8 @@ export class IntVector<T extends Int = Int<any>> extends FlatVector<T> {
     constructor(data: Data<T>, view: View<T> = IntVector.defaultView(data)) {
         super(data, view);
     }
-    public indexOf(value: T['TValue'] | null): number {
-        return indexOfVisitor.visitInt(this, -1, value);
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitInt(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -269,8 +269,8 @@ export class FloatVector<T extends Float = Float<any>> extends FlatVector<T> {
     constructor(data: Data<T>, view: View<T> = FloatVector.defaultView(data)) {
         super(data, view);
     }
-    public indexOf(value: T['TValue'] | null): number {
-        return indexOfVisitor.visitFloat(this, -1, value);
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitFloat(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -295,8 +295,8 @@ export class DateVector extends FlatVector<Date_> {
         }
         throw new TypeError(`Unrecognized date unit "${DateUnit[this.type.unit]}"`);
     }
-    public indexOf(value: Date_['TValue'] | null): number {
-        return indexOfVisitor.visitDate(this, -1, value);
+    public indexOf(searchElement: Date_['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitDate(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -304,8 +304,8 @@ export class DecimalVector extends FlatVector<Decimal> {
     constructor(data: Data<Decimal>, view: View<Decimal> = new FixedSizeView(data, 4)) {
         super(data, view);
     }
-    public indexOf(value: Decimal['TValue'] | null): number {
-        return indexOfVisitor.visitDecimal(this, -1, value);
+    public indexOf(searchElement: Decimal['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitDecimal(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -322,8 +322,8 @@ export class TimeVector extends FlatVector<Time> {
     public highs(): IntVector<Int32> {
         return this.type.bitWidth <= 32 ? this.asInt32(0, 1) : this.asInt32(1, 2);
     }
-    public indexOf(value: Time['TValue'] | null): number {
-        return indexOfVisitor.visitTime(this, -1, value);
+    public indexOf(searchElement: Time['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitTime(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -341,8 +341,8 @@ export class TimestampVector extends FlatVector<Timestamp> {
         }
         throw new TypeError(`Unrecognized time unit "${TimeUnit[this.type.unit]}"`);
     }
-    public indexOf(value: Timestamp['TValue'] | null): number {
-        return indexOfVisitor.visitTimestamp(this, -1, value);
+    public indexOf(searchElement: Timestamp['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitTimestamp(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -359,8 +359,8 @@ export class IntervalVector extends FlatVector<Interval> {
     public highs(): IntVector<Int32> {
         return this.type.unit === IntervalUnit.YEAR_MONTH ? this.asInt32(0, 1) : this.asInt32(1, 2);
     }
-    public indexOf(value: Interval['TValue'] | null): number {
-        return indexOfVisitor.visitInterval(this, -1, value);
+    public indexOf(searchElement: Interval['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitInterval(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -371,8 +371,8 @@ export class BinaryVector extends ListVectorBase<Binary> {
     public asUtf8() {
         return new Utf8Vector((this.data as FlatListData<any>).clone(new Utf8()));
     }
-    public indexOf(value: Binary['TValue'] | null): number {
-        return indexOfVisitor.visitBinary(this, -1, value);
+    public indexOf(searchElement: Binary['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitBinary(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -380,8 +380,8 @@ export class FixedSizeBinaryVector extends FlatVector<FixedSizeBinary> {
     constructor(data: Data<FixedSizeBinary>, view: View<FixedSizeBinary> = new FixedSizeView(data, data.type.byteWidth)) {
         super(data, view);
     }
-    public indexOf(value: FixedSizeBinary['TValue'] | null): number {
-        return indexOfVisitor.visitFixedSizeBinary(this, -1, value);
+    public indexOf(searchElement: FixedSizeBinary['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitFixedSizeBinary(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -392,8 +392,8 @@ export class Utf8Vector extends ListVectorBase<Utf8> {
     public asBinary() {
         return new BinaryVector((this.data as FlatListData<any>).clone(new Binary()));
     }
-    public indexOf(value: Utf8['TValue'] | null): number {
-        return indexOfVisitor.visitUtf8(this, -1, value);
+    public indexOf(searchElement: Utf8['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitUtf8(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -401,17 +401,17 @@ export class ListVector<T extends DataType = DataType> extends ListVectorBase<Li
     constructor(data: Data<List<T>>, view: View<List<T>> = new ListView(data)) {
         super(data, view);
     }
-    public indexOf(value: List<T>['TValue'] | null): number {
-        return indexOfVisitor.visitList(this, -1, value);
+    public indexOf(searchElement: List<T>['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitList(this, fromIndex || 0, searchElement);
     }
 }
 
-export class FixedSizeListVector<T extends DataType = DataType> extends Vector<FixedSizeList> {
-    constructor(data: Data<FixedSizeList>, view: View<FixedSizeList> = new FixedSizeListView(data)) {
+export class FixedSizeListVector<T extends DataType = DataType> extends Vector<FixedSizeList<T>> {
+    constructor(data: Data<FixedSizeList<T>>, view: View<FixedSizeList<T>> = new FixedSizeListView(data)) {
         super(data, view);
     }
-    public indexOf(value: FixedSizeList<T>['TValue'] | null): number {
-        return indexOfVisitor.visitFixedSizeList(this, -1, value);
+    public indexOf(searchElement: FixedSizeList<T>['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitFixedSizeList(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -422,8 +422,8 @@ export class MapVector extends NestedVector<Map_> {
     public asStruct() {
         return new StructVector((this.data as NestedData<any>).clone(new Struct(this.type.children)));
     }
-    public indexOf(value: Map_['TValue'] | null): number {
-        return indexOfVisitor.visitMap(this, -1, value);
+    public indexOf(searchElement: Map_['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitMap(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -434,8 +434,8 @@ export class StructVector extends NestedVector<Struct> {
     public asMap(keysSorted: boolean = false) {
         return new MapVector((this.data as NestedData<any>).clone(new Map_(keysSorted, this.type.children)));
     }
-    public indexOf(value: Struct['TValue'] | null): number {
-        return indexOfVisitor.visitStruct(this, -1, value);
+    public indexOf(searchElement: Struct['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitStruct(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -443,8 +443,8 @@ export class UnionVector<T extends (SparseUnion | DenseUnion) = any> extends Nes
     constructor(data: Data<T>, view: View<T> = <any> (data.type.mode === UnionMode.Sparse ? new UnionView<SparseUnion>(data as Data<SparseUnion>) : new DenseUnionView(data as Data<DenseUnion>))) {
         super(data, view);
     }
-    public indexOf(value: T['TValue'] | null): number {
-        return indexOfVisitor.visitUnion(this, -1, value);
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitUnion(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -478,8 +478,8 @@ export class DictionaryVector<T extends DataType = DataType> extends Vector<Dict
     public getKey(index: number) { return this.indices.get(index); }
     public getValue(key: number) { return this.dictionary.get(key); }
     public reverseLookup(value: T) { return this.dictionary.indexOf(value); }
-    public indexOf(value: T['TValue'] | null): number {
-        return indexOfVisitor.visitDictionary(this, -1, value);
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitDictionary(this, fromIndex || 0, searchElement);
     }
 }
 

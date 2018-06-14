@@ -15,11 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Vector } from './vector';
-import { Type, DataType, Dictionary } from './type';
-import { Utf8, Binary, Decimal, FixedSizeBinary } from './type';
-import { List, FixedSizeList, Union, Map_, Struct } from './type';
-import { Bool, Null, Int, Float, Date_, Time, Interval, Timestamp } from './type';
+import {
+    Type, DataType, Dictionary,
+    Utf8, Binary, Decimal, FixedSizeBinary,
+    List, FixedSizeList, Union, Map_, Struct,
+    Bool, Null, Int, Float, Date_, Time, Interval, Timestamp
+} from './type';
+
+import {
+    Vector, DictionaryVector,
+    NullVector, BoolVector, IntVector, FloatVector, DecimalVector,
+    Utf8Vector, BinaryVector, FixedSizeBinaryVector,
+    DateVector, TimestampVector, TimeVector, IntervalVector,
+    ListVector, FixedSizeListVector, StructVector, UnionVector, MapVector
+} from './vector';
 
 export interface VisitorNode {
     acceptTypeVisitor(visitor: TypeVisitor): any;
@@ -136,45 +145,45 @@ export abstract class OperatorVisitor {
     visitMany<T extends DataType>(vectors: Partial<VisitorNode>[], index: number, value: T['TValue'] | null): any[] {
         return vectors.map((vector) => this.visit(vector, index, value));
     }
-    abstract visitNull           <T extends Null>           (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitBool           <T extends Bool>           (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitInt            <T extends Int>            (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitFloat          <T extends Float>          (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitUtf8           <T extends Utf8>           (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitBinary         <T extends Binary>         (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitFixedSizeBinary<T extends FixedSizeBinary>(vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitDate           <T extends Date_>          (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitTimestamp      <T extends Timestamp>      (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitTime           <T extends Time>           (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitDecimal        <T extends Decimal>        (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitList           <T extends DataType>       (vector: Vector<List<T>>,          index: number, value: T['TValue'] | null): any;
-    abstract visitStruct         <T extends Struct>         (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitUnion          <T extends Union<any>>     (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitDictionary     <T extends DataType>       (vector: Vector<Dictionary<T>>,    index: number, value: T['TValue'] | null): any;
-    abstract visitInterval       <T extends Interval>       (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
-    abstract visitFixedSizeList  <T extends DataType>       (vector: Vector<FixedSizeList<T>>, index: number, value: T['TValue'] | null): any;
-    abstract visitMap            <T extends Map_>           (vector: Vector<T>,                index: number, value: T['TValue'] | null): any;
+    abstract visitNull                               (vector: NullVector,             index: number, value: Null['TValue']             | null): any;
+    abstract visitBool                               (vector: BoolVector,             index: number, value: Bool['TValue']             | null): any;
+    abstract visitInt            <T extends Int>     (vector: IntVector<T>,           index: number, value: Int['TValue']              | null): any;
+    abstract visitFloat          <T extends Float>   (vector: FloatVector<T>,         index: number, value: Float['TValue']            | null): any;
+    abstract visitUtf8                               (vector: Utf8Vector,             index: number, value: Utf8['TValue']             | null): any;
+    abstract visitBinary                             (vector: BinaryVector,           index: number, value: Binary['TValue']           | null): any;
+    abstract visitFixedSizeBinary                    (vector: FixedSizeBinaryVector,  index: number, value: FixedSizeBinary['TValue']  | null): any;
+    abstract visitDate                               (vector: DateVector,             index: number, value: Date_['TValue']            | null): any;
+    abstract visitTimestamp                          (vector: TimestampVector,        index: number, value: Timestamp['TValue']        | null): any;
+    abstract visitTime                               (vector: TimeVector,             index: number, value: Time['TValue']             | null): any;
+    abstract visitDecimal                            (vector: DecimalVector,          index: number, value: Decimal['TValue']          | null): any;
+    abstract visitList           <T extends DataType>(vector: ListVector<T>,          index: number, value: List<T>['TValue']          | null): any;
+    abstract visitStruct                             (vector: StructVector,           index: number, value: Struct['TValue']           | null): any;
+    abstract visitUnion          <T extends Union>   (vector: UnionVector<T>,         index: number, value: T['TValue']                | null): any;
+    abstract visitDictionary     <T extends DataType>(vector: DictionaryVector<T>,    index: number, value: T['TValue']                | null): any;
+    abstract visitInterval                           (vector: IntervalVector,         index: number, value: Interval['TValue']         | null): any;
+    abstract visitFixedSizeList  <T extends DataType>(vector: FixedSizeListVector<T>, index: number, value: FixedSizeList<T>['TValue'] | null): any;
+    abstract visitMap                                (vector: MapVector,              index: number, value: Map_['TValue']             | null): any;
 
     static visitTypeInline<T extends DataType>(visitor: OperatorVisitor, type: T, vector: Vector<T>, index: number, value: T['TValue'] | null): any {
         switch (type.TType) {
-            case Type.Null:            return visitor.visitNull(vector            as any as Vector<Null>,            index, value);
-            case Type.Int:             return visitor.visitInt(vector             as any as Vector<Int>,             index, value);
-            case Type.Float:           return visitor.visitFloat(vector           as any as Vector<Float>,           index, value);
-            case Type.Binary:          return visitor.visitBinary(vector          as any as Vector<Binary>,          index, value);
-            case Type.Utf8:            return visitor.visitUtf8(vector            as any as Vector<Utf8>,            index, value);
-            case Type.Bool:            return visitor.visitBool(vector            as any as Vector<Bool>,            index, value);
-            case Type.Decimal:         return visitor.visitDecimal(vector         as any as Vector<Decimal>,         index, value);
-            case Type.Date:            return visitor.visitDate(vector            as any as Vector<Date_>,           index, value);
-            case Type.Time:            return visitor.visitTime(vector            as any as Vector<Time>,            index, value);
-            case Type.Timestamp:       return visitor.visitTimestamp(vector       as any as Vector<Timestamp>,       index, value);
-            case Type.Interval:        return visitor.visitInterval(vector        as any as Vector<Interval>,        index, value);
-            case Type.List:            return visitor.visitList(vector            as any as Vector<List<T>>,         index, value);
-            case Type.Struct:          return visitor.visitStruct(vector          as any as Vector<Struct>,          index, value);
-            case Type.Union:           return visitor.visitUnion(vector           as any as Vector<Union>,           index, value);
-            case Type.FixedSizeBinary: return visitor.visitFixedSizeBinary(vector as any as Vector<FixedSizeBinary>, index, value);
-            case Type.FixedSizeList:   return visitor.visitFixedSizeList(vector   as any as Vector<FixedSizeList>,   index, value);
-            case Type.Map:             return visitor.visitMap(vector             as any as Vector<Map_>,            index, value);
-            case Type.Dictionary:      return visitor.visitDictionary(vector      as any as Vector<Dictionary>,      index, value);
+            case Type.Null:            return visitor.visitNull(vector             as any as NullVector,             index, value);
+            case Type.Bool:            return visitor.visitBool(vector             as any as BoolVector,             index, value);
+            case Type.Int:             return visitor.visitInt(vector              as any as IntVector<T & Int>,     index, value);
+            case Type.Float:           return visitor.visitFloat(vector            as any as FloatVector<T & Float>, index, value);
+            case Type.Utf8:            return visitor.visitUtf8(vector             as any as Utf8Vector,             index, value);
+            case Type.Binary:          return visitor.visitBinary(vector           as any as BinaryVector,           index, value);
+            case Type.FixedSizeBinary: return visitor.visitFixedSizeBinary(vector  as any as FixedSizeBinaryVector,  index, value);
+            case Type.Date:            return visitor.visitDate(vector             as any as DateVector,             index, value);
+            case Type.Timestamp:       return visitor.visitTimestamp(vector        as any as TimestampVector,        index, value);
+            case Type.Time:            return visitor.visitTime(vector             as any as TimeVector,             index, value);
+            case Type.Decimal:         return visitor.visitDecimal(vector          as any as DecimalVector,          index, value);
+            case Type.List:            return visitor.visitList(vector             as any as ListVector<T>,          index, value);
+            case Type.Struct:          return visitor.visitStruct(vector           as any as StructVector,           index, value);
+            case Type.Union:           return visitor.visitUnion(vector            as any as UnionVector<T & Union>, index, value);
+            case Type.Dictionary:      return visitor.visitDictionary(vector       as any as DictionaryVector<T>,    index, value);
+            case Type.Interval:        return visitor.visitInterval(vector         as any as IntervalVector,         index, value);
+            case Type.FixedSizeList:   return visitor.visitFixedSizeList(vector    as any as FixedSizeListVector<T>, index, value);
+            case Type.Map:             return visitor.visitMap(vector              as any as MapVector,              index, value);
             default: return null;
         }
     }
