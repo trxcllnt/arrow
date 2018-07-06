@@ -15,21 +15,41 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Data } from '../../data';
 import { Vector } from '../../vector';
-import { RecordBatch } from '../../recordbatch';
 import { TypeVisitor } from '../../visitor';
-import { FlatType, NestedType, ListType } from '../../type';
+import { RecordBatch } from '../../recordbatch';
 import { Message, FieldMetadata, BufferMetadata } from '../metadata';
-import { FlatData, ListData, NestedData, SingleNestedData, DenseUnionData, SparseUnionData, BoolData, FlatListData, DictionaryData } from '../../data';
 import {
-    Schema, Field,
+    Schema, Field, DataType,
     Dictionary,
     Null, Int, Float,
     Binary, Bool, Utf8, Decimal,
     Date_, Time, Timestamp, Interval,
     List, Struct, Union, FixedSizeBinary, FixedSizeList, Map_,
-    UnionMode, SparseUnion, DenseUnion, FlatListType, DataType,
+    UnionMode,
 } from '../../type';
+
+import {
+    NullVector,
+    IntVector,
+    FloatVector,
+    BinaryVector,
+    Utf8Vector,
+    BoolVector,
+    DecimalVector,
+    DateVector,
+    TimeVector,
+    TimestampVector,
+    IntervalVector,
+    ListVector,
+    StructVector,
+    UnionVector,
+    FixedSizeBinaryVector,
+    FixedSizeListVector,
+    MapVector,
+    DictionaryVector
+} from '../../vector';
 
 export function* readRecordBatches(messages: Iterable<{ schema: Schema, message: Message, loader: TypeDataLoader }>) {
     for (const { schema, message, loader } of messages) {
@@ -74,25 +94,27 @@ export abstract class TypeDataLoader extends TypeVisitor {
 
     public visitFields(fields: Field[]) { return fields.map((field) => this.visit(field.type)); }
 
-    public visitNull           (type: Null)            { return this.visitNullType(type);   }
-    public visitInt            (type: Int)             { return this.visitFlatType(type);   }
-    public visitFloat          (type: Float)           { return this.visitFlatType(type);   }
-    public visitBinary         (type: Binary)          { return this.visitFlatList(type);   }
-    public visitUtf8           (type: Utf8)            { return this.visitFlatList(type);   }
-    public visitBool           (type: Bool)            { return this.visitBoolType(type);   }
-    public visitDecimal        (type: Decimal)         { return this.visitFlatType(type);   }
-    public visitDate           (type: Date_)           { return this.visitFlatType(type);   }
-    public visitTime           (type: Time)            { return this.visitFlatType(type);   }
-    public visitTimestamp      (type: Timestamp)       { return this.visitFlatType(type);   }
-    public visitInterval       (type: Interval)        { return this.visitFlatType(type);   }
-    public visitList           (type: List)            { return this.visitListType(type);   }
-    public visitStruct         (type: Struct)          { return this.visitNestedType(type); }
-    public visitUnion          (type: Union)           { return this.visitUnionType(type);  }
-    public visitFixedSizeBinary(type: FixedSizeBinary) { return this.visitFlatType(type);   }
-    public visitFixedSizeList  (type: FixedSizeList)   { return this.visitFixedSizeListType(type); }
-    public visitMap            (type: Map_)            { return this.visitNestedType(type); }
-    public visitDictionary     (type: Dictionary)      {
-        return new DictionaryData(type, this.dictionaries.get(type.id)!, this.visit(type.indices));
+    public visitDictionary     (type: Dictionary)                                                                      { return new DictionaryVector(this.dictionaries.get(type.id)!, this.visit(type.indices));                                                        }
+    public visitNull           (type: Null,            { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new NullVector(Data.Null(type, 0, length, nullCount, this.readNullBitmap(type, nullCount)));                                                          }
+    public visitInt            (type: Int,             { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new IntVector(Data.Int(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                                       }
+    public visitFloat          (type: Float,           { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new FloatVector(Data.Float(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                                   }
+    public visitBool           (type: Bool,            { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new BoolVector(Data.Bool(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                                     }
+    public visitDecimal        (type: Decimal,         { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new DecimalVector(Data.Decimal(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                               }
+    public visitDate           (type: Date_,           { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new DateVector(Data.Date(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                                     }
+    public visitTime           (type: Time,            { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new TimeVector(Data.Time(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                                     }
+    public visitTimestamp      (type: Timestamp,       { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new TimestampVector(Data.Timestamp(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                           }
+    public visitInterval       (type: Interval,        { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new IntervalVector(Data.Interval(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));                             }
+    public visitFixedSizeBinary(type: FixedSizeBinary, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new FixedSizeBinaryVector(Data.FixedSizeBinary(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)));               }
+    public visitBinary         (type: Binary,          { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new BinaryVector(Data.Binary(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readData(type)));         }
+    public visitUtf8           (type: Utf8,            { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new Utf8Vector(Data.Utf8(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readData(type)));             }
+    public visitList           (type: List,            { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new ListVector(Data.List(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.visitFields(type.children))); }
+    public visitFixedSizeList  (type: FixedSizeList,   { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new FixedSizeListVector(Data.FixedSizeList(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitFields(type.children)));       }
+    public visitStruct         (type: Struct,          { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new StructVector(Data.Struct(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitFields(type.children)));                     }
+    public visitMap            (type: Map_,            { length, nullCount }: FieldMetadata = this.getFieldMetadata()) { return new MapVector(Data.Map(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitFields(type.children)));                           }
+    public visitUnion          (type: Union,           { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
+        return new UnionVector(type.mode === UnionMode.Sparse ?
+            Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), null!, this.readTypeIds(type), this.visitFields(type.children)) :
+            Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readTypeIds(type), this.visitFields(type.children)));
     }
     protected getFieldMetadata() { return this.nodes.next().value; }
     protected getBufferMetadata() { return this.buffers.next().value; }
@@ -102,30 +124,4 @@ export abstract class TypeDataLoader extends TypeVisitor {
     protected abstract readData<T extends DataType>(type: T, buffer?: BufferMetadata): any;
     protected abstract readOffsets<T extends DataType>(type: T, buffer?: BufferMetadata): any;
     protected abstract readTypeIds<T extends DataType>(type: T, buffer?: BufferMetadata): any;
-    protected visitNullType(type: Null, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
-        return new FlatData<any>(type, length, this.readNullBitmap(type, nullCount), new Uint8Array(0), 0, nullCount);
-    }
-    protected visitFlatType<T extends FlatType>(type: T, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
-        return new FlatData<T>(type, length, this.readNullBitmap(type, nullCount), this.readData(type), 0, nullCount);
-    }
-    protected visitBoolType(type: Bool, { length, nullCount }: FieldMetadata = this.getFieldMetadata(), data?: Uint8Array) {
-        return new BoolData(type, length, this.readNullBitmap(type, nullCount), data || this.readData(type), 0, nullCount);
-    }
-    protected visitFlatList<T extends FlatListType>(type: T, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
-        return new FlatListData<T>(type, length, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readData(type), 0, nullCount);
-    }
-    protected visitListType<T extends ListType>(type: T, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
-        return new ListData<T>(type, length, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.visit(type.children![0].type), 0, nullCount);
-    }
-    protected visitFixedSizeListType<T extends FixedSizeList>(type: T, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
-        return new SingleNestedData<T>(type, length, this.readNullBitmap(type, nullCount), this.visit(type.children![0].type), 0, nullCount);
-    }
-    protected visitNestedType<T extends NestedType>(type: T, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
-        return new NestedData<T>(type, length, this.readNullBitmap(type, nullCount), this.visitFields(type.children), 0, nullCount);
-    }
-    protected visitUnionType(type: DenseUnion | SparseUnion, { length, nullCount }: FieldMetadata = this.getFieldMetadata()) {
-        return type.mode === UnionMode.Sparse ?
-            new SparseUnionData(type as SparseUnion, length, this.readNullBitmap(type, nullCount), this.readTypeIds(type), this.visitFields(type.children), 0, nullCount) :
-            new DenseUnionData(type as DenseUnion, length, this.readNullBitmap(type, nullCount), this.readTypeIds(type), this.readOffsets(type), this.visitFields(type.children), 0, nullCount);
-    }
 }

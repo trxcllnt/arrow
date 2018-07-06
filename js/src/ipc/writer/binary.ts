@@ -16,7 +16,6 @@
 // under the License.
 
 import { Table } from '../../table';
-import { DenseUnionData } from '../../data';
 import { RecordBatch } from '../../recordbatch';
 import { VectorVisitor, TypeVisitor } from '../../visitor';
 import { MAGIC, magicLength, magicAndPadding, PADDING } from '../magic';
@@ -200,7 +199,7 @@ export class RecordBatchSerializer extends VectorVisitor {
             return this.visitNestedVector(vector);
         } else if (type.mode === UnionMode.Dense) {
             // If this is a Dense Union, add the valueOffsets buffer and potentially slice the children
-            const valueOffsets = (data as DenseUnionData).valueOffsets;
+            const valueOffsets = data.valueOffsets;
             if (sliceOffset <= 0) {
                 // If the Vector hasn't been sliced, write the existing valueOffsets
                 this.addBuffer(valueOffsets);
