@@ -54,7 +54,7 @@ export async function* fromReadableStream(stream: NodeJS.ReadableStream) {
             messageLength = new DataView(bytes.buffer).getInt32(0, true);
         }
 
-        while (messageLength < bytes.byteLength) {
+        while (messageLength > 0 && messageLength < bytes.byteLength) {
             if (!message) {
                 (bb = new ByteBuffer(bytes)).setPosition(4);
                 if (message = _Message.getRootAsMessage(bb)) {
