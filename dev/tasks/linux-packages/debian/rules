@@ -6,10 +6,12 @@
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
 
+export DEB_BUILD_MAINT_OPTIONS=reproducible=-timeless
+
 BUILD_TYPE=release
 
 %:
-	dh $@ --with gir,autoreconf
+	dh $@ --with gir,autoreconf --no-parallel
 
 override_dh_autoreconf:
 	dh_autoreconf \
@@ -25,6 +27,8 @@ override_dh_auto_configure:
 	  -DARROW_PYTHON=ON \
 	  -DARROW_BOOST_USE_SHARED=ON \
 	  -DARROW_ORC=ON \
+	  -DPROTOBUF_HOME=/usr \
+	  -DARROW_PROTOBUF_USE_SHARED=ON \
 	  -DPythonInterp_FIND_VERSION=ON \
 	  -DPythonInterp_FIND_VERSION_MAJOR=3 \
 	  -DARROW_GPU=ON

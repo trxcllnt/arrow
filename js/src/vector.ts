@@ -442,5 +442,9 @@ export const createVector = ((VectorLoader: new <T extends DataType>(data: Data<
     visitFixedSizeBinary(_type: FixedSizeBinary) { return new FixedSizeBinaryVector(<any> this.data); }
     visitFixedSizeList  (_type: FixedSizeList)   { return new FixedSizeListVector(<any> this.data);   }
     visitMap            (_type: Map_)            { return new MapVector(<any> this.data);             }
+<<<<<<< HEAD
     // visitDictionary     (_type: Dictionary)      { return new DictionaryVector(<any> this.data);      }
+=======
+    visitDictionary     (_type: Dictionary)      { return new DictionaryVector(<any> this.data);      }
+>>>>>>> master
 });
