@@ -30,9 +30,11 @@ MANIFEST
 *.vcxproj
 *.vcxproj.*
 *.sln
+*.iml
 
 cpp/.idea/
 python/.eggs/
 .vscode
 .idea/
 .pytest_cache/
+pkgs

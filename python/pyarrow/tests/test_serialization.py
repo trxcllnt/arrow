@@ -100,8 +100,8 @@ def assert_equal(obj1, obj2):
         for i in range(len(obj1)):
             assert_equal(obj1[i], obj2[i])
     else:
-        assert obj1 == obj2, ("Objects {} and {} are different."
-                              .format(obj1, obj2))
+        assert type(obj1) == type(obj2) and obj1 == obj2, \
+                "Objects {} and {} are different.".format(obj1, obj2)
 
 
 PRIMITIVE_OBJECTS = [
@@ -315,8 +315,11 @@ def test_default_dict_serialization(large_buffer):
 
 def test_numpy_serialization(large_buffer):
     for t in ["bool", "int8", "uint8", "int16", "uint16", "int32",
-              "uint32", "float16", "float32", "float64"]:
+              "uint32", "float16", "float32", "float64", "<U1", "<U2", "<U3",
+              "<U4", "|S1", "|S2", "|S3", "|S4", "|O"]:
         obj = np.random.randint(0, 10, size=(100, 100)).astype(t)
+        serialization_roundtrip(obj, large_buffer)
+        obj = obj[1:99, 10:90]
         serialization_roundtrip(obj, large_buffer)
 
 
@@ -589,7 +592,7 @@ def test_serialize_to_components_invalid_cases():
         'data': [buf]
     }
 
-    with pytest.raises(pa.ArrowException):
+    with pytest.raises(pa.ArrowInvalid):
         pa.deserialize_components(components)
 
     components = {
@@ -598,7 +601,7 @@ def test_serialize_to_components_invalid_cases():
         'data': [buf, buf]
     }
 
-    with pytest.raises(pa.ArrowException):
+    with pytest.raises(pa.ArrowInvalid):
         pa.deserialize_components(components)
 
 
@@ -691,3 +694,33 @@ def test_path_objects(tmpdir):
     pa.serialize_to(obj, p)
     res = pa.deserialize_from(p, None)
     assert res == obj
+
+
+def test_tensor_alignment():
+    # Deserialized numpy arrays should be 64-byte aligned.
+    x = np.random.normal(size=(10, 20, 30))
+    y = pa.deserialize(pa.serialize(x).to_buffer())
+    assert y.ctypes.data % 64 == 0
+
+    xs = [np.random.normal(size=i) for i in range(100)]
+    ys = pa.deserialize(pa.serialize(xs).to_buffer())
+    for y in ys:
+        assert y.ctypes.data % 64 == 0
+
+    xs = [np.random.normal(size=i * (1,)) for i in range(20)]
+    ys = pa.deserialize(pa.serialize(xs).to_buffer())
+    for y in ys:
+        assert y.ctypes.data % 64 == 0
+
+    xs = [np.random.normal(size=i * (5,)) for i in range(1, 8)]
+    xs = [xs[i][(i + 1) * (slice(1, 3),)] for i in range(len(xs))]
+    ys = pa.deserialize(pa.serialize(xs).to_buffer())
+    for y in ys:
+        assert y.ctypes.data % 64 == 0
+
+
+def test_serialization_determinism():
+    for obj in COMPLEX_OBJECTS:
+        buf1 = pa.serialize(obj).to_buffer()
+        buf2 = pa.serialize(obj).to_buffer()
+        assert buf1.to_pybytes() == buf2.to_pybytes()

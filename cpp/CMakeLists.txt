@@ -16,13 +16,40 @@
 # under the License.
 
 cmake_minimum_required(VERSION 3.2)
-project(arrow)
 
+# Extract Arrow version number
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../java/pom.xml" POM_XML)
 string(REGEX MATCHALL
   "\n  <version>[^<]+</version>" ARROW_VERSION_TAG "${POM_XML}")
 string(REGEX REPLACE
   "(\n  <version>|</version>)" "" ARROW_VERSION "${ARROW_VERSION_TAG}")
+string(REGEX MATCH
+  "^[0-9]+\\.[0-9]+\\.[0-9]+" ARROW_BASE_VERSION "${ARROW_VERSION}")
+
+project(arrow VERSION "${ARROW_BASE_VERSION}")
+
+set(ARROW_VERSION_MAJOR "${arrow_VERSION_MAJOR}")
+set(ARROW_VERSION_MINOR "${arrow_VERSION_MINOR}")
+set(ARROW_VERSION_PATCH "${arrow_VERSION_PATCH}")
+if (ARROW_VERSION_MAJOR STREQUAL "" OR
+    ARROW_VERSION_MINOR STREQUAL "" OR
+    ARROW_VERSION_PATCH STREQUAL "")
+  MESSAGE(FATAL_ERROR "Failed to determine Arrow version from '${ARROW_VERSION}'")
+endif()
+
+# The SO version is also the ABI version
+if(arrow_VERSION_MAJOR STREQUAL "0")
+  # Arrow 0.x.y => SO version is "x", full SO version is "x.y.0"
+  set(ARROW_SO_VERSION "${ARROW_VERSION_MINOR}")
+  set(ARROW_FULL_SO_VERSION "${ARROW_SO_VERSION}.${ARROW_VERSION_PATCH}.0")
+else()
+  message(FATAL_ERROR "Need to implement SO version generation for Arrow 1.0+")
+endif()
+
+message(STATUS "Arrow version: "
+  "${ARROW_VERSION_MAJOR}.${ARROW_VERSION_MINOR}.${ARROW_VERSION_PATCH} "
+  "(full: '${ARROW_VERSION}')")
+
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
@@ -43,12 +70,9 @@ if(POLICY CMP0054)
   cmake_policy(SET CMP0054 NEW)
 endif()
 
-set(ARROW_SO_VERSION "0")
-set(ARROW_ABI_VERSION "${ARROW_SO_VERSION}.0.0")
-
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
 
-set(CLANG_FORMAT_VERSION "5.0")
+set(CLANG_FORMAT_VERSION "6.0")
 find_package(ClangTools)
 if ("$ENV{CMAKE_EXPORT_COMPILE_COMMANDS}" STREQUAL "1" OR CLANG_TIDY_FOUND)
   # Generate a Clang compile_commands.json "compilation database" file for use
@@ -139,6 +163,10 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "Use vendored Boost instead of existing Boost"
     OFF)
 
+  option(ARROW_PROTOBUF_USE_SHARED
+    "Rely on Protocol Buffers shared libraries where relevant"
+    OFF)
+
   option(ARROW_PYTHON
     "Build the Arrow CPython extensions"
     OFF)
@@ -171,6 +199,10 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "Build the plasma object store along with Arrow"
     OFF)
 
+  option(ARROW_PLASMA_JAVA_CLIENT
+    "Build the plasma object store java client"
+    OFF)
+
   option(ARROW_USE_SSE
     "Build with SSE4 optimizations"
     OFF)
@@ -199,8 +231,16 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "Build with GRPC"
     OFF)
 
+  option(ARROW_GENERATE_COVERAGE
+    "Build with C++ code coverage enabled"
+    OFF)
+
   option(ARROW_VERBOSE_THIRDPARTY_BUILD
     "If off, output from ExternalProjects will be logged to files rather than shown"
+    OFF)
+
+  option(ARROW_VERBOSE_LINT
+    "If off, 'quiet' flags will be passed to linting tools"
     OFF)
 
   if (MSVC)
@@ -304,27 +344,20 @@ include(ThirdpartyToolchain)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARROW_CXXFLAGS}")
 
-if ("${COMPILER_FAMILY}" STREQUAL "clang")
-  # Using Clang with ccache causes a bunch of spurious warnings that are
-  # purportedly fixed in the next version of ccache. See the following for details:
-  #
-  #   http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html
-  #   http://petereisentraut.blogspot.com/2011/09/ccache-and-clang-part-2.html
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Qunused-arguments")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CLANG_OPTIONS}")
-endif()
+# For any C code, use the same flags.
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS}")
+
+# Remove --std=c++11 to avoid errors from C compilers
+string(REPLACE "-std=c++11" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+
+# Add C++-only flags, like -std=c++11
+set(CMAKE_CXX_FLAGS "${CXX_ONLY_FLAGS} ${CMAKE_CXX_FLAGS}")
 
 # ASAN / TSAN / UBSAN
 if(ARROW_FUZZING)
   set(ARROW_USE_COVERAGE ON)
 endif()
 include(san-config)
-
-# For any C code, use the same flags.
-set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS}")
-
-# Remove --std=c++11 to avoid errors from C compilers
-string(REPLACE "-std=c++11" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 
 # Code coverage
 if ("${ARROW_GENERATE_COVERAGE}")
@@ -441,6 +474,10 @@ endif (UNIX)
 ############################################################
 # "make lint" target
 ############################################################
+if (NOT ARROW_VERBOSE_LINT)
+  set(ARROW_LINT_QUIET "--quiet")
+endif()
+
 if (UNIX)
 
   file(GLOB_RECURSE LINT_FILES
@@ -469,7 +506,7 @@ if (UNIX)
   # so process 12 files per invocation, while still ensuring parallelism
   add_custom_target(lint echo ${FILTERED_LINT_FILES} | xargs -n12 -P8
   ${CPPLINT_BIN}
-  --verbose=2
+  --verbose=2 ${ARROW_LINT_QUIET}
   --linelength=90
   --filter=-whitespace/comments,-readability/todo,-build/header_guard,-build/c++11,-runtime/references,-build/include_order
   )
@@ -484,15 +521,13 @@ endif (UNIX)
 add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
   ${CLANG_FORMAT_BIN}
   ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-  ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src --fix ${ARROW_LINT_QUIET})
 
 # runs clang format and exits with a non-zero exit code if any files need to be reformatted
-
-# TODO(wesm): Make this work in run_clang_format.py
 add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
    ${CLANG_FORMAT_BIN}
    ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-   ${CMAKE_CURRENT_SOURCE_DIR}/src 1)
+   ${CMAKE_CURRENT_SOURCE_DIR}/src ${ARROW_LINT_QUIET})
 
 ############################################################
 # "make clang-tidy" and "make check-clang-tidy" targets
@@ -531,6 +566,7 @@ endif(UNIX)
 # Linker and Dependencies
 ############################################################
 
+set(ARROW_LINK_LIBS)
 set(ARROW_STATIC_LINK_LIBS)
 
 if (ARROW_WITH_BROTLI)
@@ -566,9 +602,17 @@ if (ARROW_WITH_GRPC)
 endif()
 
 if (ARROW_ORC)
+  if (ARROW_PROTOBUF_USE_SHARED)
+    SET(ARROW_LINK_LIBS
+      protobuf
+      ${ARROW_LINK_LIBS})
+  else()
+    SET(ARROW_STATIC_LINK_LIBS
+      protobuf
+      ${ARROW_STATIC_LINK_LIBS})
+  endif()
   SET(ARROW_STATIC_LINK_LIBS
     orc
-    protobuf
     ${ARROW_STATIC_LINK_LIBS})
 endif()
 
@@ -583,7 +627,8 @@ set(ARROW_BENCHMARK_LINK_LIBS
   ${ARROW_STATIC_LINK_LIBS})
 
 set(ARROW_LINK_LIBS
-  ${ARROW_STATIC_LINK_LIBS})
+  ${ARROW_STATIC_LINK_LIBS}
+  ${ARROW_LINK_LIBS})
 
 set(ARROW_SHARED_PRIVATE_LINK_LIBS
   ${BOOST_SYSTEM_LIBRARY}

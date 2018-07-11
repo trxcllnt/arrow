@@ -32,6 +32,7 @@
 namespace arrow {
 
 class Array;
+class ChunkedArray;
 class Column;
 class DataType;
 class MemoryPool;
@@ -45,16 +46,23 @@ struct PandasOptions {
   bool strings_to_categorical;
   bool zero_copy_only;
   bool integer_object_nulls;
+  bool use_threads;
 
   PandasOptions()
       : strings_to_categorical(false),
         zero_copy_only(false),
-        integer_object_nulls(false) {}
+        integer_object_nulls(false),
+        use_threads(false) {}
 };
 
 ARROW_EXPORT
 Status ConvertArrayToPandas(PandasOptions options, const std::shared_ptr<Array>& arr,
                             PyObject* py_ref, PyObject** out);
+
+ARROW_EXPORT
+Status ConvertChunkedArrayToPandas(PandasOptions options,
+                                   const std::shared_ptr<ChunkedArray>& col,
+                                   PyObject* py_ref, PyObject** out);
 
 ARROW_EXPORT
 Status ConvertColumnToPandas(PandasOptions options, const std::shared_ptr<Column>& col,
@@ -68,7 +76,7 @@ Status ConvertColumnToPandas(PandasOptions options, const std::shared_ptr<Column
 // tuple item: (indices: ndarray[int32], block: ndarray[TYPE, ndim=2])
 ARROW_EXPORT
 Status ConvertTableToPandas(PandasOptions options, const std::shared_ptr<Table>& table,
-                            int nthreads, MemoryPool* pool, PyObject** out);
+                            MemoryPool* pool, PyObject** out);
 
 /// Convert a whole table as efficiently as possible to a pandas.DataFrame.
 ///
@@ -77,8 +85,8 @@ Status ConvertTableToPandas(PandasOptions options, const std::shared_ptr<Table>&
 ARROW_EXPORT
 Status ConvertTableToPandas(PandasOptions options,
                             const std::unordered_set<std::string>& categorical_columns,
-                            const std::shared_ptr<Table>& table, int nthreads,
-                            MemoryPool* pool, PyObject** out);
+                            const std::shared_ptr<Table>& table, MemoryPool* pool,
+                            PyObject** out);
 
 }  // namespace py
 }  // namespace arrow

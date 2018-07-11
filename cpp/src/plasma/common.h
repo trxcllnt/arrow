@@ -31,6 +31,10 @@
 #include "arrow/status.h"
 #include "arrow/util/logging.h"
 
+// Forward declaration outside the namespace, which is defined in plasma_generated.h.
+enum class PlasmaError : int32_t;
+enum class ObjectStatus : int32_t;
+
 namespace plasma {
 
 constexpr int64_t kUniqueIDSize = 20;
@@ -44,6 +48,7 @@ class ARROW_EXPORT UniqueID {
   uint8_t* mutable_data();
   std::string binary() const;
   std::string hex() const;
+  size_t hash() const;
 
  private:
   uint8_t id_[kUniqueIDSize];
@@ -51,21 +56,19 @@ class ARROW_EXPORT UniqueID {
 
 static_assert(std::is_pod<UniqueID>::value, "UniqueID must be plain old data");
 
-struct UniqueIDHasher {
-  // ObjectID hashing function.
-  size_t operator()(const UniqueID& id) const {
-    size_t result;
-    std::memcpy(&result, id.data(), sizeof(size_t));
-    return result;
-  }
-};
-
 typedef UniqueID ObjectID;
 
-arrow::Status plasma_error_status(int plasma_error);
+arrow::Status plasma_error_status(PlasmaError plasma_error);
 
 /// Size of object hash digests.
 constexpr int64_t kDigestSize = sizeof(uint64_t);
+
+enum class ObjectRequestType : int {
+  /// Query for object in the local plasma store.
+  PLASMA_QUERY_LOCAL = 1,
+  /// Query for object in the local plasma store or in a remote plasma store.
+  PLASMA_QUERY_ANYWHERE
+};
 
 /// Object request data structure. Used for Wait.
 struct ObjectRequest {
@@ -76,26 +79,19 @@ struct ObjectRequest {
   ///    local Plasma Store.
   ///  - PLASMA_QUERY_ANYWHERE: return if or when the object is available in
   ///    the system (i.e., either in the local or a remote Plasma Store).
-  int type;
+  ObjectRequestType type;
   /// Object status. Same as the status returned by plasma_status() function
   /// call. This is filled in by plasma_wait_for_objects1():
-  ///  - ObjectStatus_Local: object is ready at the local Plasma Store.
-  ///  - ObjectStatus_Remote: object is ready at a remote Plasma Store.
-  ///  - ObjectStatus_Nonexistent: object does not exist in the system.
+  ///  - ObjectStatus::Local: object is ready at the local Plasma Store.
+  ///  - ObjectStatus::Remote: object is ready at a remote Plasma Store.
+  ///  - ObjectStatus::Nonexistent: object does not exist in the system.
   ///  - PLASMA_CLIENT_IN_TRANSFER, if the object is currently being scheduled
   ///    for being transferred or it is transferring.
-  int status;
+  ObjectStatus status;
 };
 
-enum ObjectRequestType {
-  /// Query for object in the local plasma store.
-  PLASMA_QUERY_LOCAL = 1,
-  /// Query for object in the local plasma store or in a remote plasma store.
-  PLASMA_QUERY_ANYWHERE
-};
-
-extern int ObjectStatusLocal;
-extern int ObjectStatusRemote;
+extern ObjectStatus ObjectStatusLocal;
+extern ObjectStatus ObjectStatusRemote;
 
 /// Globally accessible reference to plasma store configuration.
 /// TODO(pcm): This can be avoided with some refactoring of existing code
@@ -103,5 +99,12 @@ extern int ObjectStatusRemote;
 struct PlasmaStoreInfo;
 extern const PlasmaStoreInfo* plasma_config;
 }  // namespace plasma
+
+namespace std {
+template <>
+struct hash<::plasma::UniqueID> {
+  size_t operator()(const ::plasma::UniqueID& id) const { return id.hash(); }
+};
+}  // namespace std
 
 #endif  // PLASMA_COMMON_H

@@ -118,7 +118,6 @@
             <exclude>**/*.proto</exclude>
             <exclude>**/*.fmpp</exclude>
             <exclude>**/target/**</exclude>
-            <exclude>**/*.iml</exclude>
             <exclude>**/*.tdd</exclude>
             <exclude>**/*.project</exclude>
             <exclude>**/TAGS</exclude>
@@ -132,6 +131,7 @@
             <exclude>**/*.linux</exclude>
             <exclude>**/client/build/**</exclude>
             <exclude>**/*.tbl</exclude>
+            <exclude>**/*.iml</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -183,8 +183,8 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
+          <source>1.8</source>
+          <target>1.8</target>
           <maxmem>2048m</maxmem>
           <useIncrementalCompilation>false</useIncrementalCompilation>
           <fork>true</fork>
@@ -623,6 +623,8 @@
     <module>memory</module>
     <module>vector</module>
     <module>tools</module>
+    <module>adapter/jdbc</module>
+    <module>plasma</module>
   </modules>
 
   <profiles>

@@ -42,6 +42,11 @@ NA = NAType()
 
 cdef class ArrayValue(Scalar):
 
+    def __init__(self):
+        raise TypeError("Do not call {}'s constructor directly, use array "
+                        "subscription instead."
+                        .format(self.__class__.__name__))
+
     cdef void init(self, DataType type, const shared_ptr[CArray]& sp_array,
                    int64_t index):
         self.type = type
@@ -51,18 +56,17 @@ cdef class ArrayValue(Scalar):
     cdef void _set_array(self, const shared_ptr[CArray]& sp_array):
         self.sp_array = sp_array
 
-    def _check_null(self):
-        if self.sp_array.get() == NULL:
-            raise ReferenceError(
-                'ArrayValue instance not propertly initialized '
-                '(references NULL pointer)')
-
     def __repr__(self):
-        self._check_null()
         if hasattr(self, 'as_py'):
             return repr(self.as_py())
         else:
             return super(Scalar, self).__repr__()
+
+    def __str__(self):
+        if hasattr(self, 'as_py'):
+            return str(self.as_py())
+        else:
+            return super(Scalar, self).__str__()
 
     def __eq__(self, other):
         if hasattr(self, 'as_py'):
@@ -74,7 +78,8 @@ cdef class ArrayValue(Scalar):
                 "Cannot compare Arrow values that don't support as_py()")
 
     def __hash__(self):
-            return hash(self.as_py())
+        return hash(self.as_py())
+
 
 cdef class BooleanValue(ArrayValue):
 
@@ -237,8 +242,7 @@ cdef class TimestampValue(ArrayValue):
         value = self.value
 
         if not dtype.timezone().empty():
-            import pytz
-            tzinfo = pytz.timezone(frombytes(dtype.timezone()))
+            tzinfo = string_to_tzinfo(frombytes(dtype.timezone()))
         else:
             tzinfo = None
 
@@ -249,6 +253,13 @@ cdef class TimestampValue(ArrayValue):
                 'Cannot convert nanosecond timestamps without pandas'
             )
         return converter(value, tzinfo=tzinfo)
+
+
+cdef class HalfFloatValue(ArrayValue):
+
+    def as_py(self):
+        cdef CHalfFloatArray* ap = <CHalfFloatArray*> self.sp_array.get()
+        return PyHalf_FromHalf(ap.Value(self.index))
 
 
 cdef class FloatValue(ArrayValue):
@@ -365,14 +376,29 @@ cdef class FixedSizeBinaryValue(ArrayValue):
 
 cdef class StructValue(ArrayValue):
 
+    cdef void _set_array(self, const shared_ptr[CArray]& sp_array):
+        self.sp_array = sp_array
+        self.ap = <CStructArray*> sp_array.get()
+
+    def __getitem__(self, key):
+        cdef:
+            CStructType* type
+            int index
+
+        type = <CStructType*> self.type.type
+        index = type.GetChildIndex(tobytes(key))
+
+        if index < 0:
+            raise KeyError(key)
+
+        return pyarrow_wrap_array(self.ap.field(index))[self.index]
+
     def as_py(self):
         cdef:
-            CStructArray* ap
             vector[shared_ptr[CField]] child_fields = self.type.type.children()
 
-        ap = <CStructArray*> self.sp_array.get()
-        wrapped_arrays = [pyarrow_wrap_array(ap.field(i))
-                          for i in range(ap.num_fields())]
+        wrapped_arrays = [pyarrow_wrap_array(self.ap.field(i))
+                          for i in range(self.ap.num_fields())]
         child_names = [child.get().name() for child in child_fields]
         # Return the struct as a dict
         return {
@@ -380,6 +406,30 @@ cdef class StructValue(ArrayValue):
             for name, child_array in
             zip(child_names, wrapped_arrays)
         }
+
+
+cdef class DictionaryValue(ArrayValue):
+
+    def as_py(self):
+        return self.dictionary_value.as_py()
+
+    property index_value:
+
+        def __get__(self):
+            cdef CDictionaryArray* darr
+
+            darr = <CDictionaryArray*>(self.sp_array.get())
+            indices = pyarrow_wrap_array(darr.indices())
+            return indices[self.index]
+
+    property dictionary_value:
+
+        def __get__(self):
+            cdef CDictionaryArray* darr
+
+            darr = <CDictionaryArray*>(self.sp_array.get())
+            dictionary = pyarrow_wrap_array(darr.dictionary())
+            return dictionary[self.index_value.as_py()]
 
 
 cdef dict _scalar_classes = {
@@ -397,6 +447,7 @@ cdef dict _scalar_classes = {
     _Type_TIME32: Time32Value,
     _Type_TIME64: Time64Value,
     _Type_TIMESTAMP: TimestampValue,
+    _Type_HALF_FLOAT: HalfFloatValue,
     _Type_FLOAT: FloatValue,
     _Type_DOUBLE: DoubleValue,
     _Type_LIST: ListValue,
@@ -406,16 +457,20 @@ cdef dict _scalar_classes = {
     _Type_FIXED_SIZE_BINARY: FixedSizeBinaryValue,
     _Type_DECIMAL: DecimalValue,
     _Type_STRUCT: StructValue,
+    _Type_DICTIONARY: DictionaryValue,
 }
+
 
 cdef object box_scalar(DataType type, const shared_ptr[CArray]& sp_array,
                        int64_t index):
-    cdef ArrayValue val
+    cdef ArrayValue value
+
     if type.type.id() == _Type_NA:
         return NA
     elif sp_array.get().IsNull(index):
         return NA
     else:
-        val = _scalar_classes[type.type.id()]()
-        val.init(type, sp_array, index)
-        return val
+        klass = _scalar_classes[type.type.id()]
+        value = klass.__new__(klass)
+        value.init(type, sp_array, index)
+        return value

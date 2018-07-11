@@ -43,7 +43,9 @@ class TestChunkedArray : public TestBase {
  protected:
   virtual void Construct() {
     one_ = std::make_shared<ChunkedArray>(arrays_one_);
-    another_ = std::make_shared<ChunkedArray>(arrays_another_);
+    if (!arrays_another_.empty()) {
+      another_ = std::make_shared<ChunkedArray>(arrays_another_);
+    }
   }
 
   ArrayVector arrays_one_;
@@ -121,6 +123,23 @@ TEST_F(TestChunkedArray, SliceEquals) {
   std::shared_ptr<ChunkedArray> slice2 = one_->Slice(75)->Slice(25)->Slice(25, 50);
   ASSERT_EQ(slice2->length(), 50);
   test::AssertChunkedEqual(*slice, *slice2);
+
+  // Making empty slices of a ChunkedArray
+  std::shared_ptr<ChunkedArray> slice3 = one_->Slice(one_->length(), 99);
+  ASSERT_EQ(slice3->length(), 0);
+  ASSERT_EQ(slice3->num_chunks(), 0);
+  ASSERT_TRUE(slice3->type()->Equals(one_->type()));
+
+  std::shared_ptr<ChunkedArray> slice4 = one_->Slice(10, 0);
+  ASSERT_EQ(slice4->length(), 0);
+  ASSERT_EQ(slice4->num_chunks(), 0);
+  ASSERT_TRUE(slice4->type()->Equals(one_->type()));
+
+  // Slicing an empty ChunkedArray
+  std::shared_ptr<ChunkedArray> slice5 = slice4->Slice(0, 10);
+  ASSERT_EQ(slice5->length(), 0);
+  ASSERT_EQ(slice5->num_chunks(), 0);
+  ASSERT_TRUE(slice5->type()->Equals(one_->type()));
 }
 
 class TestColumn : public TestChunkedArray {
@@ -443,6 +462,25 @@ TEST_F(TestTable, RemoveColumn) {
   ex_schema = ::arrow::schema({schema_->field(0), schema_->field(1)});
   ex_columns = {table.column(0), table.column(1)};
   expected = Table::Make(ex_schema, ex_columns);
+  ASSERT_TRUE(result->Equals(*expected));
+}
+
+TEST_F(TestTable, SetColumn) {
+  const int64_t length = 10;
+  MakeExample1(length);
+
+  auto table_sp = Table::Make(schema_, columns_);
+  const Table& table = *table_sp;
+
+  std::shared_ptr<Table> result;
+  ASSERT_OK(table.SetColumn(0, table.column(1), &result));
+
+  auto ex_schema =
+      ::arrow::schema({schema_->field(1), schema_->field(1), schema_->field(2)});
+  std::vector<std::shared_ptr<Column>> ex_columns = {table.column(1), table.column(1),
+                                                     table.column(2)};
+
+  auto expected = Table::Make(ex_schema, ex_columns);
   ASSERT_TRUE(result->Equals(*expected));
 }
 

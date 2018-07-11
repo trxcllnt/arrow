@@ -17,7 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if [ "$ARROW_CI_C_GLIB_AFFECTED" = "1" ]; then
+if [ "$ARROW_CI_RUBY_AFFECTED" = "1" ]; then
     brew update
+    brew upgrade python
+    brew upgrade hg
     brew bundle --file=$TRAVIS_BUILD_DIR/c_glib/Brewfile
 fi

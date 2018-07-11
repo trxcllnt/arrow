@@ -39,22 +39,9 @@
 #include <functional>
 #include <limits>
 
+#include <arrow/util/macros.h>
 #include <arrow/util/variant/recursive_wrapper.h>
 #include <arrow/util/variant/variant_visitor.h>
-
-// clang-format off
-// [[deprecated]] is only available in C++14, use this for the time being
-#if __cplusplus <= 201103L
-# ifdef __GNUC__
-#  define ARROW_VARIANT_DEPRECATED __attribute__((deprecated))
-# elif defined(_MSC_VER)
-#  define ARROW_VARIANT_DEPRECATED __declspec(deprecated)
-# else
-#  define ARROW_VARIANT_DEPRECATED
-# endif
-#else
-#  define ARROW_VARIANT_DEPRECATED [[deprecated]]
-#endif
 
 
 #ifdef _MSC_VER
@@ -102,7 +89,7 @@ public:
 }; // class bad_variant_access
 
 #if !defined(ARROW_VARIANT_MINIMIZE_SIZE)
-using type_index_t = unsigned int;
+using type_index_t = std::size_t;
 #else
 #if defined(ARROW_VARIANT_OPTIMIZE_FOR_SPEED)
 using type_index_t = std::uint_fast8_t;
@@ -694,14 +681,14 @@ public:
     }
 
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE bool is() const
     {
         return type_index == detail::direct_type<T, Types...>::index;
     }
 
     template <typename T,typename std::enable_if<
-                         (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                         (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE bool is() const
     {
         return type_index == detail::direct_type<recursive_wrapper<T>, Types...>::index;
@@ -723,7 +710,7 @@ public:
 
     // get_unchecked<T>()
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T& get_unchecked()
     {
         return *reinterpret_cast<T*>(&data);
@@ -732,7 +719,7 @@ public:
 #ifdef HAS_EXCEPTIONS
     // get<T>()
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T& get()
     {
         if (type_index == detail::direct_type<T, Types...>::index)
@@ -747,7 +734,7 @@ public:
 #endif
 
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T const& get_unchecked() const
     {
         return *reinterpret_cast<T const*>(&data);
@@ -755,7 +742,7 @@ public:
 
 #ifdef HAS_EXCEPTIONS
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T const& get() const
     {
         if (type_index == detail::direct_type<T, Types...>::index)
@@ -771,7 +758,7 @@ public:
 
     // get_unchecked<T>() - T stored as recursive_wrapper<T>
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T& get_unchecked()
     {
         return (*reinterpret_cast<recursive_wrapper<T>*>(&data)).get();
@@ -780,7 +767,7 @@ public:
 #ifdef HAS_EXCEPTIONS
     // get<T>() - T stored as recursive_wrapper<T>
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T& get()
     {
         if (type_index == detail::direct_type<recursive_wrapper<T>, Types...>::index)
@@ -795,7 +782,7 @@ public:
 #endif
 
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T const& get_unchecked() const
     {
         return (*reinterpret_cast<recursive_wrapper<T> const*>(&data)).get();
@@ -803,7 +790,7 @@ public:
 
 #ifdef HAS_EXCEPTIONS
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<recursive_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T const& get() const
     {
         if (type_index == detail::direct_type<recursive_wrapper<T>, Types...>::index)
@@ -819,7 +806,7 @@ public:
 
     // get_unchecked<T>() - T stored as std::reference_wrapper<T>
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<std::reference_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<std::reference_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T& get_unchecked()
     {
         return (*reinterpret_cast<std::reference_wrapper<T>*>(&data)).get();
@@ -828,7 +815,7 @@ public:
 #ifdef HAS_EXCEPTIONS
     // get<T>() - T stored as std::reference_wrapper<T>
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<std::reference_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<std::reference_wrapper<T>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T& get()
     {
         if (type_index == detail::direct_type<std::reference_wrapper<T>, Types...>::index)
@@ -843,7 +830,7 @@ public:
 #endif
 
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<std::reference_wrapper<T const>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<std::reference_wrapper<T const>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T const& get_unchecked() const
     {
         return (*reinterpret_cast<std::reference_wrapper<T const> const*>(&data)).get();
@@ -851,7 +838,7 @@ public:
 
 #ifdef HAS_EXCEPTIONS
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<std::reference_wrapper<T const>, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<std::reference_wrapper<T const>, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE T const& get() const
     {
         if (type_index == detail::direct_type<std::reference_wrapper<T const>, Types...>::index)
@@ -867,7 +854,8 @@ public:
 
     // This function is deprecated because it returns an internal index field.
     // Use which() instead.
-    ARROW_VARIANT_DEPRECATED VARIANT_INLINE type_index_t get_type_index() const
+    ARROW_DEPRECATED("Use which() instead")
+    VARIANT_INLINE type_index_t get_type_index() const
     {
         return type_index;
     }
@@ -878,7 +866,7 @@ public:
     }
 
     template <typename T, typename std::enable_if<
-                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = nullptr>
+                          (detail::direct_type<T, Types...>::index != detail::invalid_value)>::type* = NULLPTR>
     VARIANT_INLINE static constexpr int which() noexcept
     {
         return static_cast<int>(sizeof...(Types)-detail::direct_type<T, Types...>::index - 1);

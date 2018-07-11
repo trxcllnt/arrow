@@ -21,6 +21,7 @@
 
 #include <arrow-glib/array.h>
 #include <arrow-glib/gobject-type.h>
+#include <arrow-glib/decimal.h>
 
 G_BEGIN_DECLS
 
@@ -893,6 +894,12 @@ GArrowStringArrayBuilder *garrow_string_array_builder_new(void);
 gboolean garrow_string_array_builder_append(GArrowStringArrayBuilder *builder,
                                             const gchar *value,
                                             GError **error);
+gboolean garrow_string_array_builder_append_values(GArrowStringArrayBuilder *builder,
+                                                   const gchar **values,
+                                                   gint64 values_length,
+                                                   const gboolean *is_valids,
+                                                   gint64 is_valids_length,
+                                                   GError **error);
 
 
 #define GARROW_TYPE_DATE32_ARRAY_BUILDER        \
@@ -1302,5 +1309,23 @@ gboolean garrow_struct_array_builder_append_null(GArrowStructArrayBuilder *build
 GArrowArrayBuilder *garrow_struct_array_builder_get_field_builder(GArrowStructArrayBuilder *builder,
                                                                   gint i);
 GList *garrow_struct_array_builder_get_field_builders(GArrowStructArrayBuilder *builder);
+
+
+#define GARROW_TYPE_DECIMAL128_ARRAY_BUILDER (garrow_decimal128_array_builder_get_type())
+G_DECLARE_DERIVABLE_TYPE(GArrowDecimal128ArrayBuilder,
+                         garrow_decimal128_array_builder,
+                         GARROW,
+                         DECIMAL128_ARRAY_BUILDER,
+                         GArrowArrayBuilder)
+struct _GArrowDecimal128ArrayBuilderClass
+{
+  GArrowArrayBuilderClass parent_class;
+};
+
+GArrowDecimal128ArrayBuilder *garrow_decimal128_array_builder_new(GArrowDecimalDataType *data_type);
+
+gboolean garrow_decimal128_array_builder_append(GArrowDecimal128ArrayBuilder *builder,
+                                                GArrowDecimal128 *value,
+                                                GError **error);
 
 G_END_DECLS

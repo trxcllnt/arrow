@@ -18,6 +18,7 @@
 
 import pytest
 
+import numpy as np
 import pandas as pd
 
 from pyarrow.compat import unittest, u, unicode_type
@@ -27,19 +28,8 @@ import pyarrow as pa
 class TestScalars(unittest.TestCase):
 
     def test_null_singleton(self):
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             pa.NAType()
-
-    def test_ctor_null_check(self):
-        # ARROW-1155
-        with pytest.raises(ReferenceError):
-            repr(pa.Int16Value())
-
-        with pytest.raises(ReferenceError):
-            str(pa.Int16Value())
-
-        with pytest.raises(ReferenceError):
-            repr(pa.StringValue())
 
     def test_bool(self):
         arr = pa.array([True, None, False, None])
@@ -47,6 +37,7 @@ class TestScalars(unittest.TestCase):
         v = arr[0]
         assert isinstance(v, pa.BooleanValue)
         assert repr(v) == "True"
+        assert str(v) == "True"
         assert v.as_py() is True
 
         assert arr[1] is pa.NA
@@ -57,6 +48,7 @@ class TestScalars(unittest.TestCase):
         v = arr[0]
         assert isinstance(v, pa.Int64Value)
         assert repr(v) == "1"
+        assert str(v) == "1"
         assert v.as_py() == 1
         assert v == 1
 
@@ -68,6 +60,7 @@ class TestScalars(unittest.TestCase):
         v = arr[0]
         assert isinstance(v, pa.DoubleValue)
         assert repr(v) == "1.5"
+        assert str(v) == "1.5"
         assert v.as_py() == 1.5
         assert v == 1.5
 
@@ -76,13 +69,26 @@ class TestScalars(unittest.TestCase):
         v = arr[2]
         assert v.as_py() == 3.0
 
+    def test_half_float(self):
+        arr = pa.array([np.float16(1.5), None], type=pa.float16())
+        v = arr[0]
+        assert isinstance(v, pa.HalfFloatValue)
+        assert repr(v) == "1.5"
+        assert str(v) == "1.5"
+        assert v.as_py() == 1.5
+        assert v == 1.5
+
+        assert arr[1] is pa.NA
+
     def test_string_unicode(self):
         arr = pa.array([u'foo', None, u'mañana'])
 
         v = arr[0]
         assert isinstance(v, pa.StringValue)
-        assert v.as_py() == 'foo'
-        assert v == 'foo'
+        assert v.as_py() == u'foo'
+        assert repr(v) == repr(u"foo")
+        assert str(v) == str(u"foo")
+        assert v == u'foo'
         # Assert that newly created values are equal to the previously created
         # one.
         assert v == arr[0]
@@ -99,6 +105,8 @@ class TestScalars(unittest.TestCase):
         v = arr[0]
         assert isinstance(v, pa.BinaryValue)
         assert v.as_py() == b'foo'
+        assert str(v) == str(b"foo")
+        assert repr(v) == repr(b"foo")
         assert v == b'foo'
 
         assert arr[1] is pa.NA
@@ -169,6 +177,7 @@ class TestScalars(unittest.TestCase):
 
     def test_dictionary(self):
         colors = ['red', 'green', 'blue']
+        colors_dict = {'red': 0, 'green': 1, 'blue': 2}
         values = pd.Series(colors * 4)
 
         categorical = pd.Categorical(values, categories=colors)
@@ -177,6 +186,8 @@ class TestScalars(unittest.TestCase):
                                            categorical.categories)
         for i, c in enumerate(values):
             assert v[i].as_py() == c
+            assert v[i].dictionary_value == c
+            assert v[i].index_value == colors_dict[c]
 
     def test_int_hash(self):
         # ARROW-640
@@ -204,3 +215,21 @@ class TestScalars(unittest.TestCase):
         set_from_array = set(arr)
         assert isinstance(set_from_array, set)
         assert set_from_array == {1, 2}
+
+    def test_struct_value_subscripting(self):
+        ty = pa.struct([pa.field('x', pa.int16()),
+                        pa.field('y', pa.float32())])
+        arr = pa.array([(1, 2.5), (3, 4.5), (5, 6.5)], type=ty)
+
+        assert arr[0]['x'] == 1
+        assert arr[0]['y'] == 2.5
+        assert arr[1]['x'] == 3
+        assert arr[1]['y'] == 4.5
+        assert arr[2]['x'] == 5
+        assert arr[2]['y'] == 6.5
+
+        with pytest.raises(IndexError):
+            arr[4]['non-existent']
+
+        with pytest.raises(KeyError):
+            arr[0]['non-existent']

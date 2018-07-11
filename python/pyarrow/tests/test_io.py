@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from functools import partial
 from io import BytesIO, TextIOWrapper
 import gc
 import os
+import pickle
 import pytest
 import sys
+import tempfile
 import weakref
 
 import numpy as np
@@ -29,6 +30,25 @@ import pandas as pd
 
 from pyarrow.compat import u, guid
 import pyarrow as pa
+
+
+def check_large_seeks(file_factory):
+    if sys.platform in ('win32', 'darwin'):
+        pytest.skip("need sparse file support")
+    try:
+        filename = tempfile.mktemp(prefix='test_io')
+        with open(filename, 'wb') as f:
+            f.truncate(2 ** 32 + 10)
+            f.seek(2 ** 32 + 5)
+            f.write(b'mark\n')
+        with file_factory(filename) as f:
+            assert f.seek(2 ** 32 + 5) == 2 ** 32 + 5
+            assert f.tell() == 2 ** 32 + 5
+            assert f.read(5) == b'mark\n'
+            assert f.tell() == 2 ** 32 + 10
+    finally:
+        os.unlink(filename)
+
 
 # ----------------------------------------------------------------------
 # Python file-like objects
@@ -80,7 +100,16 @@ def test_python_file_read():
     assert v == b'sample data'
     assert len(v) == 11
 
+    assert f.size() == len(data)
+
     f.close()
+
+
+def test_python_file_large_seeks():
+    def factory(filename):
+        return pa.PythonFile(open(filename, 'rb'))
+
+    check_large_seeks(factory)
 
 
 def test_bytes_reader():
@@ -164,6 +193,18 @@ def test_python_file_closing():
 
 
 # ----------------------------------------------------------------------
+# MemoryPool
+
+
+def test_memory_pool_cannot_use_ctor():
+    with pytest.raises(TypeError):
+        pa.MemoryPool()
+
+    with pytest.raises(TypeError):
+        pa.ProxyMemoryPool()
+
+
+# ----------------------------------------------------------------------
 # Buffers
 
 
@@ -176,6 +217,11 @@ def test_buffer_bytes():
 
     result = buf.to_pybytes()
 
+    assert result == val
+
+    # Check that buffers survive a pickle roundtrip
+    result_buf = pickle.loads(pickle.dumps(buf))
+    result = result_buf.to_pybytes()
     assert result == val
 
 
@@ -234,6 +280,26 @@ def test_buffer_from_numpy():
         buf = pa.py_buffer(arr.T[::2])
 
 
+def test_buffer_address():
+    b1 = b'some data!'
+    b2 = bytearray(b1)
+    b3 = bytearray(b1)
+
+    buf1 = pa.py_buffer(b1)
+    buf2 = pa.py_buffer(b1)
+    buf3 = pa.py_buffer(b2)
+    buf4 = pa.py_buffer(b3)
+
+    assert buf1.address > 0
+    assert buf1.address == buf2.address
+    assert buf3.address != buf2.address
+    assert buf4.address != buf3.address
+
+    arr = np.arange(5)
+    buf = pa.py_buffer(arr)
+    assert buf.address == arr.ctypes.data
+
+
 def test_buffer_equals():
     # Buffer.equals() returns true iff the buffers have the same contents
     def eq(a, b):
@@ -261,6 +327,57 @@ def test_buffer_equals():
     ne(buf2, buf4)
     # Data type is indifferent
     eq(buf2, buf5)
+
+
+def test_buffer_getitem():
+    data = bytearray(b'some data!')
+    buf = pa.py_buffer(data)
+
+    n = len(data)
+    for ix in range(-n, n - 1):
+        assert buf[ix] == data[ix]
+
+    with pytest.raises(IndexError):
+        buf[n]
+
+    with pytest.raises(IndexError):
+        buf[-n - 1]
+
+
+def test_buffer_slicing():
+    data = b'some data!'
+    buf = pa.py_buffer(data)
+
+    sliced = buf.slice(2)
+    expected = pa.py_buffer(b'me data!')
+    assert sliced.equals(expected)
+
+    sliced2 = buf.slice(2, 4)
+    expected2 = pa.py_buffer(b'me d')
+    assert sliced2.equals(expected2)
+
+    # 0 offset
+    assert buf.slice(0).equals(buf)
+
+    # Slice past end of buffer
+    assert len(buf.slice(len(buf))) == 0
+
+    with pytest.raises(IndexError):
+        buf.slice(-1)
+
+    # Test slice notation
+    assert buf[2:].equals(buf.slice(2))
+    assert buf[2:5].equals(buf.slice(2, 3))
+    assert buf[-5:].equals(buf.slice(len(buf) - 5))
+    with pytest.raises(IndexError):
+        buf[::-1]
+    with pytest.raises(IndexError):
+        buf[::2]
+
+    n = len(buf)
+    for start in range(-n * 2, n * 2):
+        for stop in range(-n * 2, n * 2):
+            assert buf[start:stop].to_pybytes() == buf.to_pybytes()[start:stop]
 
 
 def test_buffer_hashing():
@@ -352,25 +469,9 @@ def test_buffer_memoryview_is_immutable():
 
 def test_uninitialized_buffer():
     # ARROW-2039: calling Buffer() directly creates an uninitialized object
-    check_uninitialized = partial(pytest.raises,
-                                  ReferenceError, match="uninitialized")
-    buf = pa.Buffer()
-    with check_uninitialized():
-        buf.size
-    with check_uninitialized():
-        len(buf)
-    with check_uninitialized():
-        buf.is_mutable
-    with check_uninitialized():
-        buf.parent
-    with check_uninitialized():
-        buf.to_pybytes()
-    with check_uninitialized():
-        memoryview(buf)
-    with check_uninitialized():
-        buf.equals(pa.py_buffer(b''))
-    with check_uninitialized():
-        pa.py_buffer(b'').equals(buf)
+    # ARROW-2638: prevent calling extension class constructors directly
+    with pytest.raises(TypeError):
+        pa.Buffer()
 
 
 def test_memory_output_stream():
@@ -544,6 +645,10 @@ def test_os_file_reader(sample_disk_data):
     _check_native_file_reader(pa.OSFile, sample_disk_data)
 
 
+def test_os_file_large_seeks():
+    check_large_seeks(pa.OSFile)
+
+
 def _try_delete(path):
     try:
         os.remove(path)
@@ -598,6 +703,10 @@ def test_memory_zero_length(tmpdir):
     f.close()
     with pa.memory_map(path, mode='r+b') as memory_map:
         assert memory_map.size() == 0
+
+
+def test_memory_map_large_seeks():
+    check_large_seeks(pa.memory_map)
 
 
 def test_os_file_writer(tmpdir):

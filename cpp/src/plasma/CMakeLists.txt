@@ -15,17 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.2)
 
-project(plasma)
+# For the moment, Plasma is versioned like Arrow
+project(plasma VERSION "${ARROW_BASE_VERSION}")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/../python/cmake_modules")
 
 find_package(PythonLibsNew REQUIRED)
 find_package(Threads)
 
-set(PLASMA_SO_VERSION "0")
-set(PLASMA_ABI_VERSION "${PLASMA_SO_VERSION}.0.0")
+# The SO version is also the ABI version
+set(PLASMA_SO_VERSION "${ARROW_SO_VERSION}")
+set(PLASMA_FULL_SO_VERSION "${ARROW_FULL_SO_VERSION}")
 
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
 include_directories("${FLATBUFFERS_INCLUDE_DIR}" "${CMAKE_CURRENT_LIST_DIR}/" "${CMAKE_CURRENT_LIST_DIR}/thirdparty/" "${CMAKE_CURRENT_LIST_DIR}/../")
@@ -37,7 +39,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-conversion")
 # Compile flatbuffers
 
 set(PLASMA_FBS_SRC "${CMAKE_CURRENT_LIST_DIR}/format/plasma.fbs" "${CMAKE_CURRENT_LIST_DIR}/format/common.fbs")
-set(OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR}/)
+set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/src/plasma)
 
 set(PLASMA_FBS_OUTPUT_FILES
   "${OUTPUT_DIR}/common_generated.h"
@@ -55,7 +57,7 @@ add_custom_command(
   # flatbuffers message Message, which can be used to store deserialized
   # messages in data structures. This is currently used for ObjectInfo for
   # example.
-  COMMAND ${FLATBUFFERS_COMPILER} -c -o ${OUTPUT_DIR} ${PLASMA_FBS_SRC} --gen-object-api
+  COMMAND ${FLATBUFFERS_COMPILER} -c -o ${OUTPUT_DIR} ${PLASMA_FBS_SRC} --gen-object-api --scoped-enums
   DEPENDS ${PLASMA_FBS_SRC}
   COMMENT "Running flatc compiler on ${PLASMA_FBS_SRC}"
   VERBATIM)
@@ -104,6 +106,7 @@ if ("${COMPILER_FAMILY}" STREQUAL "clang")
     APPEND_STRING
     PROPERTY COMPILE_FLAGS
     " -Wno-parentheses-equality \
+-Wno-null-pointer-arithmetic \
 -Wno-shorten-64-to-32 \
 -Wno-unused-macros")
 
@@ -137,16 +140,17 @@ endif()
 # Headers: top level
 install(FILES
   common.h
-  common_generated.h
+  "${OUTPUT_DIR}/common_generated.h"
   compat.h
   client.h
   events.h
   plasma.h
-  plasma_generated.h
+  "${OUTPUT_DIR}/plasma_generated.h"
   protocol.h
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/plasma")
 
 # Plasma store
+set_target_properties(plasma_store PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 install(TARGETS plasma_store DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # pkg-config support
@@ -157,6 +161,41 @@ install(
   FILES "${CMAKE_CURRENT_BINARY_DIR}/plasma.pc"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig/")
 
+if(ARROW_PLASMA_JAVA_CLIENT)
+  # Plasma java client support
+  find_package(JNI REQUIRED)
+  # add jni support
+  include_directories(${JAVA_INCLUDE_PATH})
+  include_directories(${JAVA_INCLUDE_PATH2})
+  if (JNI_FOUND)
+    message (STATUS "JNI_INCLUDE_DIRS = ${JNI_INCLUDE_DIRS}")
+    message (STATUS "JNI_LIBRARIES = ${JNI_LIBRARIES}")
+  else()
+    message (WARNING "Could not find JNI")
+  endif()
+
+  add_compile_options("-I$ENV{JAVA_HOME}/include/")
+  if(WIN32)
+    add_compile_options("-I$ENV{JAVA_HOME}/include/win32")
+  elseif(APPLE)
+    add_compile_options("-I$ENV{JAVA_HOME}/include/darwin")
+  else() # linux
+    add_compile_options("-I$ENV{JAVA_HOME}/include/linux")
+  endif()
+
+  include_directories("${CMAKE_CURRENT_LIST_DIR}/lib/java")
+
+  file(GLOB PLASMA_LIBRARY_EXT_java_SRC
+    lib/java/*.cc lib/*.cc)
+  add_library(plasma_java SHARED
+    ${PLASMA_LIBRARY_EXT_java_SRC})
+
+  if(APPLE)
+    target_link_libraries(plasma_java plasma_static ${PLASMA_LINK_LIBS} "-undefined dynamic_lookup" -Wl,-force_load,${FLATBUFFERS_STATIC_LIB} ${FLATBUFFERS_STATIC_LIB} ${PTHREAD_LIBRARY})
+  else(APPLE)
+    target_link_libraries(plasma_java plasma_static ${PLASMA_LINK_LIBS} -Wl,--whole-archive ${FLATBUFFERS_STATIC_LIB} -Wl,--no-whole-archive ${FLATBUFFERS_STATIC_LIB} ${PTHREAD_LIBRARY})
+  endif(APPLE)
+endif()
 #######################################
 # Unit tests
 #######################################

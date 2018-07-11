@@ -35,6 +35,9 @@ cdef extern from "<Python.h>":
     void Py_XDECREF(PyObject* o)
     Py_ssize_t Py_REFCNT(PyObject* o)
 
+cdef extern from "numpy/halffloat.h":
+    ctypedef uint16_t npy_half
+
 cdef extern from "arrow/api.h" namespace "arrow" nogil:
     # We can later add more of the common status factory methods as needed
     cdef CStatus CStatus_OK "Status::OK"()
@@ -53,6 +56,7 @@ cdef extern from "arrow/api.h" namespace "arrow" nogil:
         c_bool IsKeyError()
         c_bool IsNotImplemented()
         c_bool IsTypeError()
+        c_bool IsCapacityError()
         c_bool IsSerializationError()
         c_bool IsPythonError()
         c_bool IsPlasmaObjectExists()

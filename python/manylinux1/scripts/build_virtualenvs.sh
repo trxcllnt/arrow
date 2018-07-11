@@ -34,7 +34,7 @@ for PYTHON_TUPLE in ${PYTHON_VERSIONS}; do
 
     echo "=== (${PYTHON}, ${U_WIDTH}) Installing build dependencies ==="
     $PIP install "numpy==1.10.4"
-    $PIP install "cython==0.27.3"
+    $PIP install "cython==0.28.1"
     $PIP install "pandas==0.20.3"
     $PIP install "virtualenv==15.1.0"
 
@@ -49,8 +49,8 @@ done
 find /venv-test-*/lib/*/site-packages/pandas -name '*.so' -exec strip '{}' ';'
 find /venv-test-*/lib/*/site-packages/numpy -name '*.so' -exec strip '{}' ';'
 find /opt/_internal/cpython-*/lib/*/site-packages/pandas -name '*.so' -exec strip '{}' ';'
-# Only Python 3.6 packages are stripable as they are built inside of the image 
-find /opt/_internal/cpython-3.6.4/lib/python3.6/site-packages/numpy -name '*.so' -exec strip '{}' ';'
+# Only Python 3.6 packages are stripable as they are built inside of the image
+find /opt/_internal/cpython-3.6.*/lib/python3.6/site-packages/numpy -name '*.so' -exec strip '{}' ';'
 find /opt/_internal/*/lib/*/site-packages/Cython -name '*.so' -exec strip '{}' ';'
 
 # Remove pip cache again. It's useful during the virtualenv creation but we

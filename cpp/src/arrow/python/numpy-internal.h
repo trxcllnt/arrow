@@ -36,7 +36,7 @@ class Ndarray1DIndexer {
  public:
   typedef int64_t size_type;
 
-  Ndarray1DIndexer() : arr_(nullptr), data_(nullptr) {}
+  Ndarray1DIndexer() : arr_(NULLPTR), data_(NULLPTR) {}
 
   explicit Ndarray1DIndexer(PyArrayObject* arr) : Ndarray1DIndexer() { Init(arr); }
 
@@ -57,7 +57,7 @@ class Ndarray1DIndexer {
   T* begin() const { return data(); }
   T* end() const { return begin() + size() * stride_; }
 
-  bool is_strided() const { return stride_ == 1; }
+  bool is_strided() const { return stride_ != 1; }
 
   T& operator[](size_type index) { return data_[index * stride_]; }
   T& operator[](size_type index) const { return data_[index * stride_]; }

@@ -18,6 +18,7 @@
 import { Data } from '../data';
 import { View, Vector } from '../vector';
 import { IterableArrayLike } from '../type';
+import { valueToString } from '../util/pretty';
 import { DataType, NestedType, DenseUnion, SparseUnion, Struct, Map_ } from '../type';
 
 export abstract class NestedView<T extends NestedType> implements View<T> {
@@ -42,7 +43,7 @@ export abstract class NestedView<T extends NestedType> implements View<T> {
     }
     public toJSON(): any { return this.toArray(); }
     public toString() {
-        return [...this].map((x) => stringify(x)).join(', ');
+        return [...this].map((x) => valueToString(x)).join(', ');
     }
     public get(index: number): T['TValue'] {
         return this.getNested(this, index);
@@ -72,31 +73,35 @@ export class UnionView<T extends (DenseUnion | SparseUnion) = SparseUnion> exten
     public typeIds: Int8Array;
     // @ts-ignore
     public valueOffsets?: Int32Array;
+    // @ts-ignore
+    protected typeIdToChildIndex: { [key: number]: number };
     constructor(data: Data<T>, children?: Vector<any>[]) {
         super(data, children);
         this.length = data.length;
         this.typeIds = data.typeIds;
+        this.typeIdToChildIndex = data.typeIdToChildIndex;
     }
     protected getNested(self: UnionView<T>, index: number): T['TValue'] {
-        return self.getChildValue(self, index, self.typeIds, self.valueOffsets);
+        return self.getChildValue(self, index, self.typeIds, self.valueOffsets, self.typeIdToChildIndex);
     }
     protected setNested(self: UnionView<T>, index: number, value: T['TValue']): void {
-        return self.setChildValue(self, index, value, self.typeIds, self.valueOffsets);
+        return self.setChildValue(self, index, value, self.typeIds, self.valueOffsets, self.typeIdToChildIndex);
     }
-    protected getChildValue(self: NestedView<T>, index: number, typeIds: Int8Array, _valueOffsets?: any): any | null {
-        const child = self.getChildAt(typeIds[index]);
+    protected getChildValue(self: NestedView<T>, index: number, typeIds: Int8Array, _valueOffsets: any, typeIdToChildIndex: { [key: number]: number }): any | null {
+        const child = self.getChildAt(typeIdToChildIndex[typeIds[index]]);
         return child ? child.get(index) : null;
     }
-    protected setChildValue(self: NestedView<T>, index: number, value: T['TValue'], typeIds: Int8Array, _valueOffsets?: any): any | null {
-        const child = self.getChildAt(typeIds[index]);
+    protected setChildValue(self: NestedView<T>, index: number, value: T['TValue'], typeIds: Int8Array, _valueOffsets: any, typeIdToChildIndex: { [key: number]: number }): any | null {
+        const child = self.getChildAt(typeIdToChildIndex[typeIds[index]]);
         return child ? child.set(index, value) : null;
     }
     public *[Symbol.iterator](): IterableIterator<T['TValue']> {
         const length = this.length;
         const get = this.getChildValue;
+        const { typeIdToChildIndex } = this;
         const { typeIds, valueOffsets } = this;
         for (let index = -1; ++index < length;) {
-            yield get(this, index, typeIds, valueOffsets);
+            yield get(this, index, typeIds, valueOffsets, typeIdToChildIndex);
         }
     }
 }
@@ -108,14 +113,14 @@ export class DenseUnionView extends UnionView<DenseUnion> {
         this.valueOffsets = data.valueOffsets;
     }
     protected getNested(self: DenseUnionView, index: number): any | null {
-        return self.getChildValue(self, index, self.typeIds, self.valueOffsets);
+        return self.getChildValue(self, index, self.typeIds, self.valueOffsets, self.typeIdToChildIndex);
     }
-    protected getChildValue(self: NestedView<DenseUnion>, index: number, typeIds: Int8Array, valueOffsets: any): any | null {
-        const child = self.getChildAt(typeIds[index]);
+    protected getChildValue(self: NestedView<DenseUnion>, index: number, typeIds: Int8Array, valueOffsets: any, typeIdToChildIndex: { [key: number]: number }): any | null {
+        const child = self.getChildAt(typeIdToChildIndex[typeIds[index]]);
         return child ? child.get(valueOffsets[index]) : null;
     }
-    protected setChildValue(self: NestedView<DenseUnion>, index: number, value: any, typeIds: Int8Array, valueOffsets?: any): any | null {
-        const child = self.getChildAt(typeIds[index]);
+    protected setChildValue(self: NestedView<DenseUnion>, index: number, value: any, typeIds: Int8Array, valueOffsets: any, typeIdToChildIndex: { [key: number]: number }): any | null {
+        const child = self.getChildAt(typeIdToChildIndex[typeIds[index]]);
         return child ? child.set(valueOffsets[index], value) : null;
     }
 }
@@ -210,8 +215,4 @@ export class MapRowView extends RowView {
         const child = self.getChildAt(typeIds[key]);
         return child ? child.set(self.rowIndex, value) : null;
     }
-}
-
-function stringify(x: any) {
-    return typeof x === 'string' ? `"${x}"` : Array.isArray(x) ? JSON.stringify(x) : ArrayBuffer.isView(x) ? `[${x}]` : `${x}`;
 }

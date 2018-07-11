@@ -18,6 +18,17 @@
 /* tslint:disable */
 // Dynamically load an Arrow target build based on command line arguments
 
+(<any> global).window = (<any> global).window || global;
+
+// Fix for Jest in node v10.x
+Object.defineProperty(ArrayBuffer, Symbol.hasInstance, {
+    writable: true,
+    configurable: true,
+    value(inst: any) {
+        return inst && inst.constructor && inst.constructor.name === 'ArrayBuffer';
+    }
+});
+
 const path = require('path');
 const target = process.env.TEST_TARGET!;
 const format = process.env.TEST_MODULE!;
@@ -43,8 +54,8 @@ import { read, readAsync } from '../src/Arrow';
 export { read, readAsync };
 import { View,  VectorLike } from '../src/Arrow';
 export { View,  VectorLike };
-import { Table, Field, Schema, RecordBatch, Type } from '../src/Arrow';
-export { Table, Field, Schema, RecordBatch, Type };
+import { Table, Field, Schema, RecordBatch, Type, vector } from '../src/Arrow';
+export { Table, Field, Schema, RecordBatch, Type, vector };
 
 import { TypedArray, TypedArrayConstructor, IntBitWidth, TimeBitWidth } from '../src/Arrow';
 export { TypedArray, TypedArrayConstructor, IntBitWidth, TimeBitWidth };

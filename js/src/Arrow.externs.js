@@ -34,6 +34,8 @@ Table.from = function() {};
 /** @type {?} */
 Table.fromAsync = function() {};
 /** @type {?} */
+Table.fromStruct = function() {};
+/** @type {?} */
 Table.empty = function() {};
 /** @type {?} */
 Table.prototype.schema;
@@ -63,6 +65,8 @@ Table.prototype.batches;
 Table.prototype.countBy;
 /** @type {?} */
 Table.prototype.scan;
+/** @type {?} */
+Table.prototype.serialize;
 
 var CountByResult = function() {};
 /** @type {?} */
@@ -120,9 +124,13 @@ Predicate.prototype.not;
 Predicate.prototype.ands;
 var Literal = function() {};
 
-var TableToStringIterator = function() {};
+var PipeIterator = function() {};
 /** @type {?} */
-TableToStringIterator.prototype.pipe;
+PipeIterator.prototype.pipe;
+
+var AsyncPipeIterator = function() {};
+/** @type {?} */
+AsyncPipeIterator.prototype.pipe;
 
 var RecordBatch = function() {};
 /** @type {?} */
@@ -230,6 +238,8 @@ Type.Int = function() {};
 /** @type {?} */
 Type.Float = function() {};
 /** @type {?} */
+Type.FloatingPoint = function() {};
+/** @type {?} */
 Type.Binary = function() {};
 /** @type {?} */
 Type.Utf8 = function() {};
@@ -249,6 +259,8 @@ Type.Interval = function() {};
 Type.List = function() {};
 /** @type {?} */
 Type.Struct = function() {};
+/** @type {?} */
+Type.Struct_ = function() {};
 /** @type {?} */
 Type.Union = function() {};
 /** @type {?} */
@@ -537,7 +549,11 @@ var Utf8Vector = function() {};
 /** @type {?} */
 Utf8Vector.prototype.asBinary;
 var ListVector = function() {};
+/** @type {?} */
+ListVector.prototype.getChildAt;
 var FixedSizeListVector = function() {};
+/** @type {?} */
+FixedSizeListVector.prototype.getChildAt;
 var MapVector = function() {};
 /** @type {?} */
 MapVector.prototype.asStruct;
@@ -611,6 +627,10 @@ ValidityView.prototype.isValid;
 ValidityView.prototype.toArray;
 /** @type {?} */
 ValidityView.prototype.set;
+/** @type {?} */
+ValidityView.prototype.size;
+/** @type {?} */
+ValidityView.prototype.getChildAt;
 
 var DictionaryView = function() {};
 /** @type {?} */

@@ -20,6 +20,8 @@ from pyarrow.includes.libarrow cimport *
 from pyarrow.includes.libarrow cimport CStatus
 from cpython cimport PyObject
 from libcpp cimport nullptr
+from libcpp.cast cimport dynamic_cast
+
 
 cdef extern from "Python.h":
     int PySlice_Check(object)
@@ -42,6 +44,7 @@ cdef class DataType:
     cdef:
         shared_ptr[CDataType] sp_type
         CDataType* type
+        bytes pep3118_format
 
     cdef void init(self, const shared_ptr[CDataType]& type)
 
@@ -140,12 +143,18 @@ cdef class ListValue(ArrayValue):
     cdef int64_t length(self)
 
 
+cdef class StructValue(ArrayValue):
+    cdef:
+        CStructArray* ap
+
+
 cdef class UnionValue(ArrayValue):
     cdef:
         CUnionArray* ap
         list value_types
 
     cdef getitem(self, int64_t i)
+
 
 cdef class StringValue(ArrayValue):
     pass
@@ -231,6 +240,10 @@ cdef class UInt64Array(IntegerArray):
     pass
 
 
+cdef class HalfFloatArray(FloatingPointArray):
+    pass
+
+
 cdef class FloatArray(FloatingPointArray):
     pass
 
@@ -244,6 +257,10 @@ cdef class FixedSizeBinaryArray(Array):
 
 
 cdef class Decimal128Array(FixedSizeBinaryArray):
+    pass
+
+
+cdef class StructArray(Array):
     pass
 
 
@@ -280,7 +297,7 @@ cdef class ChunkedArray:
         CChunkedArray* chunked_array
 
     cdef void init(self, const shared_ptr[CChunkedArray]& chunked_array)
-    cdef int _check_nullptr(self) except -1
+    cdef getitem(self, int64_t i)
 
 
 cdef class Column:
@@ -289,7 +306,6 @@ cdef class Column:
         CColumn* column
 
     cdef void init(self, const shared_ptr[CColumn]& column)
-    cdef int _check_nullptr(self) except -1
 
 
 cdef class Table:
@@ -298,7 +314,6 @@ cdef class Table:
         CTable* table
 
     cdef void init(self, const shared_ptr[CTable]& table)
-    cdef int _check_nullptr(self) except -1
 
 
 cdef class RecordBatch:
@@ -308,7 +323,6 @@ cdef class RecordBatch:
         Schema _schema
 
     cdef void init(self, const shared_ptr[CRecordBatch]& table)
-    cdef int _check_nullptr(self) except -1
 
 
 cdef class Buffer:
@@ -318,7 +332,7 @@ cdef class Buffer:
         Py_ssize_t strides[1]
 
     cdef void init(self, const shared_ptr[CBuffer]& buffer)
-    cdef int _check_nullptr(self) except -1
+    cdef getitem(self, int64_t i)
 
 
 cdef class ResizableBuffer(Buffer):

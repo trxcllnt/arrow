@@ -20,6 +20,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <random>
@@ -70,7 +72,8 @@
   do {                                   \
     ::arrow::Status _s = (s);            \
     if (ARROW_PREDICT_FALSE(!_s.ok())) { \
-      exit(EXIT_FAILURE);                \
+      std::cerr << s.ToString() << "\n"; \
+      std::abort();                      \
     }                                    \
   } while (false);
 
@@ -125,6 +128,8 @@ inline Status CopyBufferFromVector(const std::vector<T>& values, MemoryPool* poo
   RETURN_NOT_OK(buffer->Resize(nbytes));
   auto immutable_data = reinterpret_cast<const uint8_t*>(values.data());
   std::copy(immutable_data, immutable_data + nbytes, buffer->mutable_data());
+  memset(buffer->mutable_data() + nbytes, 0,
+         static_cast<size_t>(buffer->capacity() - nbytes));
 
   *result = buffer;
   return Status::OK();
@@ -321,6 +326,14 @@ void AssertChunkedEqual(const ChunkedArray& expected, const ChunkedArray& actual
                << "\nExpected: " << pp_expected.str();
       }
     }
+  }
+}
+
+void AssertBufferEqual(const Buffer& buffer, const std::vector<uint8_t>& expected) {
+  ASSERT_EQ(buffer.size(), expected.size());
+  const uint8_t* buffer_data = buffer.data();
+  for (size_t i = 0; i < expected.size(); ++i) {
+    ASSERT_EQ(buffer_data[i], expected[i]);
   }
 }
 

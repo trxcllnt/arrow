@@ -103,11 +103,12 @@ Status MakeRandomInt32Array(int64_t length, bool include_nulls, MemoryPool* pool
   if (include_nulls) {
     std::shared_ptr<PoolBuffer> valid_bytes;
     RETURN_NOT_OK(test::MakeRandomBytePoolBuffer(length, pool, &valid_bytes));
-    RETURN_NOT_OK(builder.Append(reinterpret_cast<const int32_t*>(data->data()), length,
-                                 valid_bytes->data()));
+    RETURN_NOT_OK(builder.AppendValues(reinterpret_cast<const int32_t*>(data->data()),
+                                       length, valid_bytes->data()));
     return builder.Finish(out);
   }
-  RETURN_NOT_OK(builder.Append(reinterpret_cast<const int32_t*>(data->data()), length));
+  RETURN_NOT_OK(
+      builder.AppendValues(reinterpret_cast<const int32_t*>(data->data()), length));
   return builder.Finish(out);
 }
 
@@ -170,7 +171,7 @@ Status MakeRandomBooleanArray(const int length, bool include_nulls,
     test::random_null_bytes(length, 0.1, valid_bytes.data());
     *out = std::make_shared<BooleanArray>(length, data, null_bitmap, -1);
   } else {
-    *out = std::make_shared<BooleanArray>(length, data, nullptr, 0);
+    *out = std::make_shared<BooleanArray>(length, data, NULLPTR, 0);
   }
   return Status::OK();
 }
@@ -231,7 +232,24 @@ Status MakeRandomBinaryArray(int64_t length, bool include_nulls, MemoryPool* poo
   return builder.Finish(out);
 }
 
-Status MakeStringTypesRecordBatch(std::shared_ptr<RecordBatch>* out) {
+template <class Builder, class RawType>
+Status MakeBinaryArrayWithUniqueValues(int64_t length, bool include_nulls,
+                                       MemoryPool* pool, std::shared_ptr<Array>* out) {
+  Builder builder(pool);
+  for (int64_t i = 0; i < length; ++i) {
+    if (include_nulls && (i % 7 == 0)) {
+      RETURN_NOT_OK(builder.AppendNull());
+    } else {
+      const std::string value = std::to_string(i);
+      RETURN_NOT_OK(builder.Append(reinterpret_cast<const RawType*>(value.data()),
+                                   static_cast<int32_t>(value.size())));
+    }
+  }
+  return builder.Finish(out);
+}
+
+Status MakeStringTypesRecordBatch(std::shared_ptr<RecordBatch>* out,
+                                  bool with_nulls = true) {
   const int64_t length = 500;
   auto string_type = utf8();
   auto binary_type = binary();
@@ -244,16 +262,22 @@ Status MakeStringTypesRecordBatch(std::shared_ptr<RecordBatch>* out) {
 
   // Quirk with RETURN_NOT_OK macro and templated functions
   {
-    auto s = MakeRandomBinaryArray<StringBuilder, char>(length, true, pool, &a0);
+    auto s = MakeBinaryArrayWithUniqueValues<StringBuilder, char>(length, with_nulls,
+                                                                  pool, &a0);
     RETURN_NOT_OK(s);
   }
 
   {
-    auto s = MakeRandomBinaryArray<BinaryBuilder, uint8_t>(length, true, pool, &a1);
+    auto s = MakeBinaryArrayWithUniqueValues<BinaryBuilder, uint8_t>(length, with_nulls,
+                                                                     pool, &a1);
     RETURN_NOT_OK(s);
   }
   *out = RecordBatch::Make(schema, length, {a0, a1});
   return Status::OK();
+}
+
+Status MakeStringTypesRecordBatchWithNulls(std::shared_ptr<RecordBatch>* out) {
+  return MakeStringTypesRecordBatch(out, true);
 }
 
 Status MakeNullRecordBatch(std::shared_ptr<RecordBatch>* out) {
@@ -437,7 +461,7 @@ Status MakeUnion(std::shared_ptr<RecordBatch>* out) {
   auto sparse_no_nulls =
       std::make_shared<UnionArray>(sparse_type, length, sparse_children, type_ids_buffer);
   auto sparse = std::make_shared<UnionArray>(sparse_type, length, sparse_children,
-                                             type_ids_buffer, nullptr, null_bitmask, 1);
+                                             type_ids_buffer, NULLPTR, null_bitmask, 1);
 
   auto dense =
       std::make_shared<UnionArray>(dense_type, length, dense_children, type_ids_buffer,

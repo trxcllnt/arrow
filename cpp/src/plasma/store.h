@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "plasma/common.h"
@@ -37,7 +38,7 @@ struct GetRequest;
 struct NotificationQueue {
   /// The object notifications for clients. We notify the client about the
   /// objects in the order that the objects were sealed or deleted.
-  std::deque<uint8_t*> object_notifications;
+  std::deque<std::unique_ptr<uint8_t[]>> object_notifications;
 };
 
 /// Contains all information that is associated with a Plasma store client.
@@ -46,10 +47,19 @@ struct Client {
 
   /// The file descriptor used to communicate with the client.
   int fd;
+
+  /// Object ids that are used by this client.
+  std::unordered_set<ObjectID> object_ids;
+
+  /// The file descriptor used to push notifications to client. This is only valid
+  /// if client subscribes to plasma store. -1 indicates invalid.
+  int notification_fd;
 };
 
 class PlasmaStore {
  public:
+  using NotificationMap = std::unordered_map<int, NotificationQueue>;
+
   // TODO: PascalCase PlasmaStore methods.
   PlasmaStore(EventLoop* loop, int64_t system_memory, std::string directory,
               bool hugetlbfs_enabled);
@@ -73,15 +83,16 @@ class PlasmaStore {
   /// @param client The client that created the object.
   /// @param result The object that has been created.
   /// @return One of the following error codes:
-  ///  - PlasmaError_OK, if the object was created successfully.
-  ///  - PlasmaError_ObjectExists, if an object with this ID is already
+  ///  - PlasmaError::OK, if the object was created successfully.
+  ///  - PlasmaError::ObjectExists, if an object with this ID is already
   ///    present in the store. In this case, the client should not call
   ///    plasma_release.
-  ///  - PlasmaError_OutOfMemory, if the store is out of memory and
+  ///  - PlasmaError::OutOfMemory, if the store is out of memory and
   ///    cannot create the object. In this case, the client should not call
   ///    plasma_release.
-  int create_object(const ObjectID& object_id, int64_t data_size, int64_t metadata_size,
-                    int device_num, Client* client, PlasmaObject* result);
+  PlasmaError create_object(const ObjectID& object_id, int64_t data_size,
+                            int64_t metadata_size, int device_num, Client* client,
+                            PlasmaObject* result);
 
   /// Abort a created but unsealed object. If the client is not the
   /// creator, then the abort will fail.
@@ -96,10 +107,10 @@ class PlasmaStore {
   ///
   /// @param object_id Object ID of the object to be deleted.
   /// @return One of the following error codes:
-  ///  - PlasmaError_OK, if the object was delete successfully.
-  ///  - PlasmaError_ObjectNonexistent, if ths object isn't existed.
-  ///  - PlasmaError_ObjectInUse, if the object is in use.
-  int delete_object(ObjectID& object_id);
+  ///  - PlasmaError::OK, if the object was delete successfully.
+  ///  - PlasmaError::ObjectNonexistent, if ths object isn't existed.
+  ///  - PlasmaError::ObjectInUse, if the object is in use.
+  PlasmaError delete_object(ObjectID& object_id);
 
   /// Delete objects that have been created in the hash table. This should only
   /// be called on objects that are returned by the eviction policy to evict.
@@ -134,7 +145,7 @@ class PlasmaStore {
   /// @param object_id Object ID that will be checked.
   /// @return OBJECT_FOUND if the object is in the store, OBJECT_NOT_FOUND if
   /// not
-  int contains_object(const ObjectID& object_id);
+  object_status contains_object(const ObjectID& object_id);
 
   /// Record the fact that a particular client is no longer using an object.
   ///
@@ -157,20 +168,22 @@ class PlasmaStore {
   /// @param client_fd The client file descriptor that is disconnected.
   void disconnect_client(int client_fd);
 
-  void send_notifications(int client_fd);
+  NotificationMap::iterator send_notifications(NotificationMap::iterator it);
 
   Status process_message(Client* client);
 
  private:
   void push_notification(ObjectInfoT* object_notification);
 
-  void add_client_to_object_clients(ObjectTableEntry* entry, Client* client);
+  void push_notification(ObjectInfoT* object_notification, int client_fd);
+
+  void add_to_client_object_ids(ObjectTableEntry* entry, Client* client);
 
   void return_from_get(GetRequest* get_req);
 
   void update_object_get_requests(const ObjectID& object_id);
 
-  int remove_client_from_object_clients(ObjectTableEntry* entry, Client* client);
+  int remove_from_client_object_ids(ObjectTableEntry* entry, Client* client);
 
   /// Event loop of the plasma store.
   EventLoop* loop_;
@@ -184,14 +197,13 @@ class PlasmaStore {
   std::vector<uint8_t> input_buffer_;
   /// A hash table mapping object IDs to a vector of the get requests that are
   /// waiting for the object to arrive.
-  std::unordered_map<ObjectID, std::vector<GetRequest*>, UniqueIDHasher>
-      object_get_requests_;
+  std::unordered_map<ObjectID, std::vector<GetRequest*>> object_get_requests_;
   /// The pending notifications that have not been sent to subscribers because
   /// the socket send buffers were full. This is a hash table from client file
   /// descriptor to an array of object_ids to send to that client.
   /// TODO(pcm): Consider putting this into the Client data structure and
   /// reorganize the code slightly.
-  std::unordered_map<int, NotificationQueue> pending_notifications_;
+  NotificationMap pending_notifications_;
 
   std::unordered_map<int, std::unique_ptr<Client>> connected_clients_;
 #ifdef PLASMA_GPU

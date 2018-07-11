@@ -153,6 +153,12 @@ static inline std::shared_ptr<Buffer> SliceBuffer(const std::shared_ptr<Buffer>&
   return std::make_shared<Buffer>(buffer, offset, length);
 }
 
+static inline std::shared_ptr<Buffer> SliceBuffer(const std::shared_ptr<Buffer>& buffer,
+                                                  const int64_t offset) {
+  int64_t length = buffer->size() - offset;
+  return SliceBuffer(buffer, offset, length);
+}
+
 /// Construct a mutable buffer slice. If the parent buffer is not mutable, this
 /// will abort in debug builds
 ARROW_EXPORT
@@ -298,11 +304,8 @@ class ARROW_EXPORT BufferBuilder {
     size_ += length;
   }
 
-  Status Finish(std::shared_ptr<Buffer>* out) {
-    // Do not shrink to fit to avoid unneeded realloc
-    if (size_ > 0) {
-      RETURN_NOT_OK(buffer_->Resize(size_, false));
-    }
+  Status Finish(std::shared_ptr<Buffer>* out, bool shrink_to_fit = true) {
+    RETURN_NOT_OK(Resize(size_, shrink_to_fit));
     *out = buffer_;
     Reset();
     return Status::OK();

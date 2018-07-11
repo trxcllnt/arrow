@@ -19,40 +19,14 @@
 # arrow_python
 #######################################
 
-if (ARROW_BUILD_TESTS)
-  add_library(arrow_python_test_main STATIC
-	util/test_main.cc)
-
-  target_link_libraries(arrow_python_test_main
-    gtest)
-
-  if (APPLE)
-	target_link_libraries(arrow_python_test_main
-      ${CMAKE_DL_LIBS})
-	set_target_properties(arrow_python_test_main
-      PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-  elseif(NOT MSVC)
-	target_link_libraries(arrow_python_test_main
-      pthread
-      ${CMAKE_DL_LIBS})
-  endif()
-endif()
-
-set(ARROW_PYTHON_MIN_TEST_LIBS
-  arrow_python_test_main
-  arrow_python_static
-  arrow_shared)
-
-set(ARROW_PYTHON_TEST_LINK_LIBS ${ARROW_PYTHON_MIN_TEST_LIBS})
-
-# ----------------------------------------------------------------------
-
 set(ARROW_PYTHON_SRCS
   arrow_to_pandas.cc
   arrow_to_python.cc
+  benchmark.cc
   builtin_convert.cc
   common.cc
   config.cc
+  decimal.cc
   helpers.cc
   init.cc
   io.cc
@@ -71,6 +45,7 @@ endif()
 
 set(ARROW_PYTHON_SHARED_LINK_LIBS
   arrow_shared
+  ${PYTHON_OTHER_LIBS}
 )
 
 if (MSVC)
@@ -84,7 +59,7 @@ ADD_ARROW_LIB(arrow_python
   SOURCES ${ARROW_PYTHON_SRCS}
   SHARED_LINK_FLAGS ""
   SHARED_LINK_LIBS ${ARROW_PYTHON_SHARED_LINK_LIBS}
-  STATIC_LINK_LIBS ""
+  STATIC_LINK_LIBS "${PYTHON_OTHER_LIBS}"
 )
 
 if ("${COMPILER_FAMILY}" STREQUAL "clang")
@@ -99,12 +74,15 @@ install(FILES
   api.h
   arrow_to_pandas.h
   arrow_to_python.h
+  benchmark.h
   builtin_convert.h
   common.h
   config.h
+  decimal.h
   helpers.h
   init.h
   io.h
+  iterators.h
   numpy_convert.h
   numpy_interop.h
   numpy_to_arrow.h
@@ -122,7 +100,33 @@ install(
   FILES "${CMAKE_CURRENT_BINARY_DIR}/arrow-python.pc"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig/")
 
+# ----------------------------------------------------------------------
+
 if (ARROW_BUILD_TESTS)
+  add_library(arrow_python_test_main STATIC
+	util/test_main.cc)
+
+  target_link_libraries(arrow_python_test_main
+    gtest)
+
+  if (APPLE)
+	target_link_libraries(arrow_python_test_main
+      ${CMAKE_DL_LIBS})
+	set_target_properties(arrow_python_test_main
+      PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+  elseif(NOT MSVC)
+	target_link_libraries(arrow_python_test_main
+      pthread
+      ${CMAKE_DL_LIBS})
+  endif()
+
+  set(ARROW_PYTHON_MIN_TEST_LIBS
+    arrow_python_test_main
+    arrow_python_static
+    arrow_shared)
+
+  set(ARROW_PYTHON_TEST_LINK_LIBS ${ARROW_PYTHON_MIN_TEST_LIBS})
+
   ADD_ARROW_TEST(python-test
     STATIC_LINK_LIBS "${ARROW_PYTHON_TEST_LINK_LIBS}"
     NO_VALGRIND)
