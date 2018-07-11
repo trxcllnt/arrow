@@ -59,15 +59,6 @@ export abstract class ListViewBase<T extends (FlatListType | SingleNestedType)> 
             yield get(values, index, valueOffsets);
         }
     }
-    public indexOf(search: T['TValue']) {
-        let index = 0;
-        for (let value of this) {
-            if (value === search) { return index; }
-            ++index;
-        }
-
-        return -1;
-    }
     protected abstract getList(values: T['TArray'], index: number, valueOffsets?: Int32Array): T['TValue'];
     protected abstract setList(values: T['TArray'], index: number, value: T['TValue'], valueOffsets?: Int32Array): void;
 }

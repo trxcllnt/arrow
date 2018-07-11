@@ -19,6 +19,7 @@ import * as Schema_ from './fb/Schema';
 import * as Message_ from './fb/Message';
 import { Vector, View } from './vector';
 import { flatbuffers } from 'flatbuffers';
+import { RowView } from './vector/nested';
 import { DictionaryBatch } from './ipc/metadata';
 import { TypeVisitor, VisitorNode } from './visitor';
 
@@ -356,7 +357,7 @@ export class List<T extends DataType = any> extends DataType<Type.List> {
     })(List.prototype);
 }
 
-export interface Struct extends DataType<Type.Struct> { TArray: any; TValue: View<any>; }
+export interface Struct extends DataType<Type.Struct> { TArray: any; TValue: RowView; }
 export class Struct extends DataType<Type.Struct> {
     constructor(public children: Field[]) {
         super(Type.Struct, children);

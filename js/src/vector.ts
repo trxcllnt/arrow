@@ -16,9 +16,12 @@
 // under the License.
 
 import { Data } from './data';
-import { VisitorNode, TypeVisitor, VectorVisitor } from './visitor';
+import { IndexOfVisitor } from './vector/indexof';
+import { VisitorNode, TypeVisitor, VectorVisitor, OperatorVisitor } from './visitor';
 import { DataType, ListType, FlatType, NestedType, FlatListType, TimeUnit } from './type';
 import { IterableArrayLike, Precision, DateUnit, IntervalUnit, UnionMode } from './type';
+
+const indexOfVisitor = new IndexOfVisitor();
 
 export interface VectorLike { length: number; nullCount: number; }
 
@@ -28,7 +31,6 @@ export interface View<T extends DataType> {
     get(index: number): T['TValue'] | null;
     set(index: number, value: T['TValue']): void;
     toArray(): IterableArrayLike<T['TValue'] | null>;
-    indexOf(search: T['TValue']): number;
     [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
 }
 
@@ -78,8 +80,8 @@ export class Vector<T extends DataType = any> implements VectorLike, View<T>, Vi
     public toArray(): IterableArrayLike<T['TValue'] | null> {
         return this.view.toArray();
     }
-    public indexOf(value: T['TValue']) {
-        return this.view.indexOf(value);
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visit(this, fromIndex || 0, searchElement);
     }
     public [Symbol.iterator](): IterableIterator<T['TValue'] | null> {
         return this.view[Symbol.iterator]();
@@ -115,6 +117,9 @@ export class Vector<T extends DataType = any> implements VectorLike, View<T>, Vi
     }
     public acceptVectorVisitor(visitor: VectorVisitor): any {
         return VectorVisitor.visitTypeInline(visitor, this.type, this);
+    }
+    public acceptOperatorVisitor<R extends T>(visitor: OperatorVisitor, index: number, value: R['TValue'] | null): any {
+        return OperatorVisitor.visitTypeInline(visitor, this.type, this, index, value);
     }
 }
 
@@ -193,6 +198,9 @@ export class NullVector extends Vector<Null> {
     constructor(data: Data<Null>, view: View<Null> = new NullView(data)) {
         super(data, view);
     }
+    public indexOf(searchElement: Null['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitNull(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class BoolVector extends Vector<Bool> {
@@ -202,6 +210,9 @@ export class BoolVector extends Vector<Bool> {
     public get values() { return this.data.values; }
     constructor(data: Data<Bool>, view: View<Bool> = new BoolView(data)) {
         super(data, view);
+    }
+    public indexOf(searchElement: Bool['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitBool(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -236,6 +247,9 @@ export class IntVector<T extends Int = Int<any>> extends FlatVector<T> {
     constructor(data: Data<T>, view: View<T> = IntVector.defaultView(data)) {
         super(data, view);
     }
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitInt(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class FloatVector<T extends Float = Float<any>> extends FlatVector<T> {
@@ -255,6 +269,9 @@ export class FloatVector<T extends Float = Float<any>> extends FlatVector<T> {
     }
     constructor(data: Data<T>, view: View<T> = FloatVector.defaultView(data)) {
         super(data, view);
+    }
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitFloat(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -279,11 +296,17 @@ export class DateVector extends FlatVector<Date_> {
         }
         throw new TypeError(`Unrecognized date unit "${DateUnit[this.type.unit]}"`);
     }
+    public indexOf(searchElement: Date_['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitDate(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class DecimalVector extends FlatVector<Decimal> {
     constructor(data: Data<Decimal>, view: View<Decimal> = new FixedSizeView(data, 4)) {
         super(data, view);
+    }
+    public indexOf(searchElement: Decimal['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitDecimal(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -299,6 +322,9 @@ export class TimeVector extends FlatVector<Time> {
     }
     public highs(): IntVector<Int32> {
         return this.type.bitWidth <= 32 ? this.asInt32(0, 1) : this.asInt32(1, 2);
+    }
+    public indexOf(searchElement: Time['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitTime(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -316,6 +342,9 @@ export class TimestampVector extends FlatVector<Timestamp> {
         }
         throw new TypeError(`Unrecognized time unit "${TimeUnit[this.type.unit]}"`);
     }
+    public indexOf(searchElement: Timestamp['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitTimestamp(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class IntervalVector extends FlatVector<Interval> {
@@ -331,6 +360,9 @@ export class IntervalVector extends FlatVector<Interval> {
     public highs(): IntVector<Int32> {
         return this.type.unit === IntervalUnit.YEAR_MONTH ? this.asInt32(0, 1) : this.asInt32(1, 2);
     }
+    public indexOf(searchElement: Interval['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitInterval(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class BinaryVector extends ListVectorBase<Binary> {
@@ -340,11 +372,17 @@ export class BinaryVector extends ListVectorBase<Binary> {
     public asUtf8() {
         return new Utf8Vector(this.data.clone(new Utf8()));
     }
+    public indexOf(searchElement: Binary['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitBinary(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class FixedSizeBinaryVector extends FlatVector<FixedSizeBinary> {
     constructor(data: Data<FixedSizeBinary>, view: View<FixedSizeBinary> = new FixedSizeView(data, data.type.byteWidth)) {
         super(data, view);
+    }
+    public indexOf(searchElement: FixedSizeBinary['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitFixedSizeBinary(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -355,6 +393,9 @@ export class Utf8Vector extends ListVectorBase<Utf8> {
     public asBinary() {
         return new BinaryVector(this.data.clone(new Binary()));
     }
+    public indexOf(searchElement: Utf8['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitUtf8(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class ListVector<T extends DataType = DataType> extends ListVectorBase<List<T>> {
@@ -362,6 +403,9 @@ export class ListVector<T extends DataType = DataType> extends ListVectorBase<Li
     public readonly view: ListView<T>;
     constructor(data: Data<List<T>>, view: ListView<T> = new ListView<T>(data as any)) {
         super(data, view);
+    }
+    public indexOf(searchElement: List<T>['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitList(this, fromIndex || 0, searchElement);
     }
     public getChildAt(index: number): Vector<T> | null {
         return this.view.getChildAt<T>(index);
@@ -373,6 +417,9 @@ export class FixedSizeListVector<T extends DataType = DataType> extends Vector<F
     public readonly view: FixedSizeListView<T>;
     constructor(data: Data<FixedSizeList<T>>, view: View<FixedSizeList<T>> = new FixedSizeListView(data)) {
         super(data, view);
+    }
+    public indexOf(searchElement: FixedSizeList<T>['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitFixedSizeList(this, fromIndex || 0, searchElement);
     }
     public getChildAt(index: number): Vector<T> | null {
         return this.view.getChildAt<T>(index);
@@ -386,6 +433,9 @@ export class MapVector extends NestedVector<Map_> {
     public asStruct() {
         return new StructVector(this.data.clone(new Struct(this.type.children)));
     }
+    public indexOf(searchElement: Map_['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitMap(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class StructVector extends NestedVector<Struct> {
@@ -395,11 +445,17 @@ export class StructVector extends NestedVector<Struct> {
     public asMap(keysSorted: boolean = false) {
         return new MapVector(this.data.clone(new Map_(keysSorted, this.type.children)));
     }
+    public indexOf(searchElement: Struct['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitStruct(this, fromIndex || 0, searchElement);
+    }
 }
 
 export class UnionVector<T extends (SparseUnion | DenseUnion) = any> extends NestedVector<T> {
     constructor(data: Data<T>, view: View<T> = <any> (data.type.mode === UnionMode.Sparse ? new UnionView<SparseUnion>(data as Data<SparseUnion>) : new DenseUnionView(data as Data<DenseUnion>))) {
         super(data, view);
+    }
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitUnion(this, fromIndex || 0, searchElement);
     }
 }
 
@@ -419,6 +475,9 @@ export class DictionaryVector<T extends DataType = DataType> extends Vector<Dict
     public getKey(index: number) { return this.indices.get(index); }
     public getValue(key: number) { return this.dictionary.get(key); }
     public reverseLookup(value: T) { return this.dictionary.indexOf(value); }
+    public indexOf(searchElement: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visitDictionary(this, fromIndex || 0, searchElement);
+    }
 }
 
 export const createVector = ((VectorLoader: new <T extends DataType>(data: Data<T>) => TypeVisitor) => (
@@ -442,9 +501,5 @@ export const createVector = ((VectorLoader: new <T extends DataType>(data: Data<
     visitFixedSizeBinary(_type: FixedSizeBinary) { return new FixedSizeBinaryVector(<any> this.data); }
     visitFixedSizeList  (_type: FixedSizeList)   { return new FixedSizeListVector(<any> this.data);   }
     visitMap            (_type: Map_)            { return new MapVector(<any> this.data);             }
-<<<<<<< HEAD
     // visitDictionary     (_type: Dictionary)      { return new DictionaryVector(<any> this.data);      }
-=======
-    visitDictionary     (_type: Dictionary)      { return new DictionaryVector(<any> this.data);      }
->>>>>>> master
 });
