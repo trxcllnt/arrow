@@ -45,19 +45,21 @@ export interface Buffers<T extends DataType> {
 export class Data<T extends DataType = DataType> {
 
     public type: T;
-    public length: number;
-    public offset: number;
-    public stride: number;
-
+    public readonly offset: number;
+    public readonly stride: number;
+    
     // @ts-ignore
     public childData: Data[];
+    protected _length: number;
     protected _buffers = [] as Buffers<T>;
     protected _nullCount: number | kUnknownNullCount;
 
+    public get TType() { return this.type.TType; }
     public get values() { return this._buffers[BufferType.DATA]!; }
     public get typeIds() { return this._buffers[BufferType.TYPE]!; }
     public get nullBitmap() { return this._buffers[BufferType.VALIDITY]!; }
     public get valueOffsets() { return this._buffers[BufferType.OFFSET]!; }
+    public get length() { return this._length / this.stride | 0; }
     public get nullCount() {
         let nullCount = this._nullCount;
         let nullBitmap: Uint8Array | undefined;
@@ -70,14 +72,14 @@ export class Data<T extends DataType = DataType> {
     constructor(type: T, offset: number, length: number, nullCount?: number, stride?: number, buffers?: Buffers<T>, childData?: Data[]) {
         this.type = type;
         this.childData = childData!;
-        this.length = Math.floor(Math.max(length || 0, 0));
         this.offset = Math.floor(Math.max(offset || 0, 0));
         this.stride = Math.floor(Math.max(stride || 1, 1));
+        this._length = Math.floor(Math.max(length || 0, 0));
         this._buffers = Object.assign({}, buffers) as Buffers<T>;
         this._nullCount = Math.floor(Math.max(nullCount || 0, -1));
     }
 
-    public clone<R extends DataType>(type: R, offset = this.offset, length = this.length, nullCount = this._nullCount, stride = this.stride, buffers: Buffers<R> = <any> this._buffers, childData: Data[] = this.childData) {
+    public clone<R extends DataType>(type: R, offset = this.offset, length = this._length, nullCount = this._nullCount, stride = this.stride, buffers: Buffers<R> = <any> this._buffers, childData: Data[] = this.childData) {
         return new Data(type, offset, length, nullCount, stride, buffers, childData);
     }
 
