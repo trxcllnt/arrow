@@ -17,11 +17,11 @@
 
 import * as Schema_ from './fb/Schema';
 import * as Message_ from './fb/Message';
-import { Vector, View } from './vector';
+import { Vector } from './vector';
 import { flatbuffers } from 'flatbuffers';
 import { RowView } from './vector/nested';
 import { DictionaryBatch } from './ipc/metadata';
-import { TypeVisitor, VisitorNode } from './visitor';
+import { TypeVisitor, TypeNode } from './visitor';
 
 export import Long = flatbuffers.Long;
 export import ArrowType = Schema_.org.apache.arrow.flatbuf.Type;
@@ -44,7 +44,7 @@ export class Schema {
     protected _headerType: MessageHeader;
     public readonly fields: Field[];
     public readonly version: MetadataVersion;
-    public readonly metadata?: Map<string, string>;
+    public readonly metadata: Map<string, string>;
     public readonly dictionaries: Map<number, Field<Dictionary>>;
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
@@ -52,20 +52,22 @@ export class Schema {
                 dictionaries: Map<number, Field<Dictionary>> = new Map()) {
         this.fields = fields;
         this.version = version;
-        this.metadata = metadata;
         this.dictionaries = dictionaries;
+        this.metadata = metadata || Schema.prototype.metadata;
     }
     public get bodyLength() { return this._bodyLength; }
     public get headerType() { return this._headerType; }
-    public select(...fieldNames: string[]): Schema {
-        const namesToKeep = fieldNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
-        const newDictFields = new Map(), newFields = this.fields.filter((f) => namesToKeep[f.name]);
-        this.dictionaries.forEach((f, dictId) => (namesToKeep[f.name]) && newDictFields.set(dictId, f));
-        return new Schema(newFields, this.metadata, this.version, newDictFields);
+    public select(...columnNames: string[]): Schema {
+        const names = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
+        const fields = this.fields.filter((f) => names[f.name]);
+        const dictionaries = (fields.filter((f) => DataType.isDictionary(f.type)) as Field<Dictionary<any>>[])
+            .reduce((d, f) =>  d.set(f.type.id, this.dictionaries.get(f.type.id)!), new Map<number, Field<Dictionary>>());
+        return new Schema(fields, this.metadata, this.version, dictionaries);
     }
     public static [Symbol.toStringTag] = ((prototype: Schema) => {
         prototype._bodyLength = 0;
         prototype._headerType = MessageHeader.Schema;
+        (prototype as any).metadata = Object.freeze(new Map());
         return 'Schema';
     })(Schema.prototype);
 }
@@ -91,16 +93,6 @@ export class Field<T extends DataType = DataType> {
 
 export type TimeBitWidth = 32 | 64;
 export type IntBitWidth = 8 | 16 | 32 | 64;
-
-export type NumericType = Int | Float | Date_ | Time | Interval | Timestamp;
-export type FixedSizeType = Int64 |  Uint64 | Decimal | FixedSizeBinary;
-export type PrimitiveType = NumericType | FixedSizeType;
-
-export type FlatListType = Utf8 | Binary; // <-- these types have `offset`, `data`, and `validity` buffers
-export type FlatType = Bool | PrimitiveType | FlatListType; // <-- these types have `data` and `validity` buffers
-export type ListType = List<any>; // <-- these types have `offset` and `validity` buffers
-export type NestedType = Map_ | Struct | List<any> | FixedSizeList<any> | Union<any>; // <-- these types have `validity` buffer and nested childData
-export type SingleNestedType = List<any> | FixedSizeList<any>; // <-- these are nested types that can only have a single child
 
 /**
  * *
@@ -131,18 +123,16 @@ export type SingleNestedType = List<any> | FixedSizeList<any>; // <-- these are 
     FixedSizeList   = 16,  // Fixed-size list. Each value occupies the same number of bytes
     Map             = 17,  // Map of named logical types
     Dictionary      = 'Dictionary',  // Dictionary aka Category type
-    DenseUnion      = 'DenseUnion',  // Dense Union of logical types
-    SparseUnion     = 'SparseUnion',  // Sparse Union of logical types
 }
 
-export interface DataType<TType extends Type = any> {
+export interface DataType<TType extends Type = Type> {
     readonly TType: TType;
     readonly TArray: any;
     readonly TValue: any;
     readonly ArrayType: any;
 }
 
-export abstract class DataType<TType extends Type = any> implements Partial<VisitorNode> {
+export abstract class DataType<TType extends Type = Type> implements Partial<TypeNode> {
 
     // @ts-ignore
     public [Symbol.toStringTag]: string;
@@ -161,8 +151,6 @@ export abstract class DataType<TType extends Type = any> implements Partial<Visi
     static            isList (x: any): x is List            { return x && x.TType === Type.List;            }
     static          isStruct (x: any): x is Struct          { return x && x.TType === Type.Struct;          }
     static           isUnion (x: any): x is Union           { return x && x.TType === Type.Union;           }
-    static      isDenseUnion (x: any): x is DenseUnion      { return x && x.TType === Type.DenseUnion;      }
-    static     isSparseUnion (x: any): x is SparseUnion     { return x && x.TType === Type.SparseUnion;     }
     static isFixedSizeBinary (x: any): x is FixedSizeBinary { return x && x.TType === Type.FixedSizeBinary; }
     static   isFixedSizeList (x: any): x is FixedSizeList   { return x && x.TType === Type.FixedSizeList;   }
     static             isMap (x: any): x is Map_            { return x && x.TType === Type.Map;             }
@@ -190,8 +178,8 @@ export class Null extends DataType<Type.Null> {
     })(Null.prototype);
 }
 
-export interface Int<TValueType = any, TArrayType extends IntArray = IntArray> extends DataType<Type.Int> { TArray: TArrayType; TValue: TValueType; }
-export class Int<TValueType = any, TArrayType extends IntArray = IntArray> extends DataType<Type.Int> {
+export interface Int<TArrayType extends IntArray = IntArray, TValueType extends (number | TArrayType) = number | TArrayType> extends DataType<Type.Int> { TArray: TArrayType; TValue: TValueType; }
+export class Int<TArrayType extends IntArray = IntArray, TValueType extends (number | TArrayType) = number | TArrayType> extends DataType<Type.Int> {
     constructor(public readonly isSigned: boolean,
                 public readonly bitWidth: IntBitWidth) {
         super(Type.Int);
@@ -211,13 +199,13 @@ export class Int<TValueType = any, TArrayType extends IntArray = IntArray> exten
     })(Int.prototype);
 }
 
-export class Int8 extends Int<number, Int8Array> { constructor() { super(true, 8); } }
-export class Int16 extends Int<number, Int16Array> { constructor() { super(true, 16); } }
-export class Int32 extends Int<number, Int32Array> { constructor() { super(true, 32); } }
+export class Int8 extends Int<Int8Array, number> { constructor() { super(true, 8); } }
+export class Int16 extends Int<Int16Array, number> { constructor() { super(true, 16); } }
+export class Int32 extends Int<Int32Array, number> { constructor() { super(true, 32); } }
 export class Int64 extends Int<Int32Array, Int32Array> { constructor() { super(true, 64); } }
-export class Uint8 extends Int<number, Uint8Array> { constructor() { super(false, 8); } }
-export class Uint16 extends Int<number, Uint16Array> { constructor() { super(false, 16); } }
-export class Uint32 extends Int<number, Uint32Array> { constructor() { super(false, 32); } }
+export class Uint8 extends Int<Uint8Array, number> { constructor() { super(false, 8); } }
+export class Uint16 extends Int<Uint16Array, number> { constructor() { super(false, 16); } }
+export class Uint32 extends Int<Uint32Array, number> { constructor() { super(false, 32); } }
 export class Uint64 extends Int<Uint32Array, Uint32Array> { constructor() { super(false, 64); } }
 
 export interface Float<TArrayType extends FloatArray = FloatArray> extends DataType<Type.Float> { TArray: TArrayType; TValue: number; }
@@ -368,12 +356,12 @@ export class Struct extends DataType<Type.Struct> {
     })(Struct.prototype);
 }
 
-export interface Union<TType extends Type = any> extends DataType<TType> { TArray: Int8Array; TValue: any; }
-export class Union<TType extends Type = any> extends DataType<TType> {
+export interface Union extends DataType<Type.Union> { TArray: Int8Array; TValue: any; }
+export class Union extends DataType<Type.Union> {
     constructor(public readonly mode: UnionMode,
                 public readonly typeIds: ArrowType[],
                 public readonly children: Field[]) {
-        super(<TType> Type.Union, children);
+        super(Type.Union, children);
     }
     public toString() { return `${this[Symbol.toStringTag]}<${
         this.children.map((x) => `${x.type}`).join(` | `)
@@ -382,24 +370,6 @@ export class Union<TType extends Type = any> extends DataType<TType> {
         (<any> proto).ArrayType = Int8Array;
         return proto[Symbol.toStringTag] = 'Union';
     })(Union.prototype);
-}
-
-export class DenseUnion extends Union<Type.DenseUnion> {
-    constructor(typeIds: ArrowType[], children: Field[]) {
-        super(UnionMode.Dense, typeIds, children);
-    }
-    protected static [Symbol.toStringTag] = ((proto: DenseUnion) => {
-        return proto[Symbol.toStringTag] = 'DenseUnion';
-    })(DenseUnion.prototype);
-}
-
-export class SparseUnion extends Union<Type.SparseUnion> {
-    constructor(typeIds: ArrowType[], children: Field[]) {
-        super(UnionMode.Sparse, typeIds, children);
-    }
-    protected static [Symbol.toStringTag] = ((proto: SparseUnion) => {
-        return proto[Symbol.toStringTag] = 'SparseUnion';
-    })(SparseUnion.prototype);
 }
 
 export interface FixedSizeBinary extends DataType<Type.FixedSizeBinary> { TArray: Uint8Array; TValue: Uint8Array; }
@@ -430,7 +400,7 @@ export class FixedSizeList<T extends DataType = any> extends DataType<Type.Fixed
 }
 
 /* tslint:disable:class-name */
-export interface Map_ extends DataType<Type.Map> { TArray: Uint8Array; TValue: View<any>; }
+export interface Map_ extends DataType<Type.Map> { TArray: Uint8Array; TValue: any; }
 export class Map_ extends DataType<Type.Map> {
     constructor(public readonly keysSorted: boolean,
                 public readonly children: Field[]) {
@@ -445,17 +415,17 @@ export class Map_ extends DataType<Type.Map> {
 export interface Dictionary<T extends DataType = any> extends DataType<Type.Dictionary> { TArray: T['TArray']; TValue: T['TValue']; }
 export class Dictionary<T extends DataType> extends DataType<Type.Dictionary> {
     public readonly id: number;
-    public readonly dictionary: T;
+    public readonly dictionary: Vector<T>;
     public readonly indices: Int<any>;
     public readonly isOrdered: boolean;
-    constructor(dictionary: T, indices: Int<any>, id?: Long | number | null, isOrdered?: boolean | null) {
+    constructor(dictionary: Vector<T>, indices: Int<any>, id?: Long | number | null, isOrdered?: boolean | null) {
         super(Type.Dictionary);
         this.indices = indices;
         this.dictionary = dictionary;
         this.isOrdered = isOrdered || false;
         this.id = id == null ? DictionaryBatch.getId() : typeof id === 'number' ? id : id.low;
     }
-    public get ArrayType() { return this.dictionary.ArrayType; }
+    public get ArrayType() { return this.dictionary.type.ArrayType; }
     public toString() { return `Dictionary<${this.indices}, ${this.dictionary}>`; }
     protected static [Symbol.toStringTag] = ((proto: Dictionary) => {
         return proto[Symbol.toStringTag] = 'Dictionary';
