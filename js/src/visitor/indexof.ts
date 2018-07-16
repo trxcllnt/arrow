@@ -1,34 +1,34 @@
-import { OperatorVisitor } from '../visitor';
+import { VectorVisitor } from '../visitor';
 import { RowView, MapRowView } from '../vector/nested';
 import { getBool, iterateBits } from '../util/bit';
 import {
+    Type, DType,
     DataType, Dictionary,
-    Utf8, Binary, Decimal, FixedSizeBinary,
-    List, FixedSizeList, Union, Map_, Struct,
-    Bool, Null, Int, Float, Date_, Time, Interval, Timestamp
+    List, FixedSizeList, Map_, Struct,
+    Null, Date_
 } from '../type';
 
-import { Vector, DictionaryVector, DateVector } from '../vector';
+import { VType, Vector, DictionaryVector, DateVector } from '../vector';
 
-export class IndexOfVisitor extends OperatorVisitor {
-    public visitNull            <T extends Null>            (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return       nullIndexOf(vector, clamp(vector, index), value); }
-    public visitBool            <T extends Bool>            (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitInt             <T extends Int>             (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitFloat           <T extends Float>           (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitUtf8            <T extends Utf8>            (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitBinary          <T extends Binary>          (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      arrayIndexOf(vector, clamp(vector, index), value); }
-    public visitFixedSizeBinary <T extends FixedSizeBinary> (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitDate            <T extends Date_>           (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return       dateIndexOf(vector, clamp(vector, index), value); }
-    public visitTimestamp       <T extends Timestamp>       (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitTime            <T extends Time>            (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitDecimal         <T extends Decimal>         (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      arrayIndexOf(vector, clamp(vector, index), value); }
-    public visitList            <T extends List>            (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return       listIndexOf(vector, clamp(vector, index), value); }
-    public visitStruct          <T extends Struct>          (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return indexOfVectorLike(vector, clamp(vector, index), value); }
-    public visitUnion           <T extends Union>           (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitDictionary      <T extends Dictionary>      (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return dictionaryIndexOf(vector, clamp(vector, index), value); }
-    public visitInterval        <T extends Interval>        (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
-    public visitFixedSizeList   <T extends FixedSizeList>   (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return       listIndexOf(vector, clamp(vector, index), value); }
-    public visitMap             <T extends Map_>            (vector: Vector<T>,                value: T['TValue'] | null, index: number): number { return        mapIndexOf(vector, clamp(vector, index), value); }
+export class IndexOfVisitor extends VectorVisitor<Record<Type, number>> {
+    public visitNull            <T extends Type.Null>            (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return       nullIndexOf(vector, clamp(vector, index), value); }
+    public visitBool            <T extends Type.Bool>            (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitInt             <T extends Type.Int>             (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitFloat           <T extends Type.Float>           (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitUtf8            <T extends Type.Utf8>            (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitBinary          <T extends Type.Binary>          (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      arrayIndexOf(vector, clamp(vector, index), value); }
+    public visitFixedSizeBinary <T extends Type.FixedSizeBinary> (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitDate            <T extends Type.Date>            (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return       dateIndexOf(vector, clamp(vector, index), value); }
+    public visitTimestamp       <T extends Type.Timestamp>       (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitTime            <T extends Type.Time>            (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitDecimal         <T extends Type.Decimal>         (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      arrayIndexOf(vector, clamp(vector, index), value); }
+    public visitList            <T extends Type.List>            (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return       listIndexOf(vector, clamp(vector, index), value); }
+    public visitStruct          <T extends Type.Struct>          (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return indexOfVectorLike(vector, clamp(vector, index), value); }
+    public visitUnion           <T extends Type.Union>           (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitDictionary      <T extends Type.Dictionary>      (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return dictionaryIndexOf(vector, clamp(vector, index), value); }
+    public visitInterval        <T extends Type.Interval>        (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return      valueIndexOf(vector, clamp(vector, index), value); }
+    public visitFixedSizeList   <T extends Type.FixedSizeList>   (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return       listIndexOf(vector, clamp(vector, index), value); }
+    public visitMap             <T extends Type.Map>             (vector: VType[T], value: DType[T]['TValue'] | null, index: number): number { return        mapIndexOf(vector, clamp(vector, index), value); }
 }
 
 function clamp<T extends DataType>(vector: Vector<T>, fromIndex: number) {
@@ -36,7 +36,7 @@ function clamp<T extends DataType>(vector: Vector<T>, fromIndex: number) {
 }
 
 function nullIndexOf(vector: Vector<Null>, fromIndex: number, searchElement: null) {
-     // if you're looking for nulls and the view isn't empty, we've got 'em!
+     // if you're looking for nulls and the vector isn't empty, we've got 'em!
     return searchElement === null && vector.length > 0 ? fromIndex : -1;
 }
 
@@ -62,7 +62,7 @@ function dateIndexOf(vector: Vector<Date_>, fromIndex: number, searchElement: Da
 function dictionaryIndexOf<T extends DataType>(vector: Vector<Dictionary<T>>, fromIndex: number, searchElement: T['TValue']): number {
     const { dictionary, indices } = (vector as DictionaryVector<T>);
     // First find the dictionary key for the desired value...
-    const key = dictionary.indexOf(searchElement, fromIndex);
+    const key = dictionary.indexOf(searchElement);
     // ... then find the first occurence of that key in indices
     return key === -1 ? -1 : indices.indexOf(key, fromIndex);
 }
