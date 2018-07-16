@@ -21,7 +21,6 @@ import { Vector } from './vector';
 import { flatbuffers } from 'flatbuffers';
 import { RowView } from './vector/nested';
 import { DictionaryBatch } from './ipc/metadata';
-import { TypeVisitor, TypeNode } from './visitor';
 
 export import Long = flatbuffers.Long;
 export import ArrowType = Schema_.org.apache.arrow.flatbuf.Type;
@@ -93,6 +92,7 @@ export class Field<T extends DataType = DataType> {
 
 export type TimeBitWidth = 32 | 64;
 export type IntBitWidth = 8 | 16 | 32 | 64;
+export type IsSigned = { 'true': true; 'false': false };
 
 /**
  * *
@@ -122,7 +122,33 @@ export type IntBitWidth = 8 | 16 | 32 | 64;
     FixedSizeBinary = 15,  // Fixed-size binary. Each value occupies the same number of bytes
     FixedSizeList   = 16,  // Fixed-size list. Each value occupies the same number of bytes
     Map             = 17,  // Map of named logical types
-    Dictionary      = 'Dictionary',  // Dictionary aka Category type
+
+    Dictionary            = -1, // Dictionary aka Category type
+    Int8                  = -2,
+    Int16                 = -3,
+    Int32                 = -4,
+    Int64                 = -5,
+    Uint8                 = -6,
+    Uint16                = -7,
+    Uint32                = -8,
+    Uint64                = -9,
+    Float16               = -10,
+    Float32               = -11,
+    Float64               = -12,
+    DateDay               = -13,
+    DateMillisecond       = -14,
+    TimestampSecond       = -15,
+    TimestampMillisecond  = -16,
+    TimestampMicrosecond  = -17,
+    TimestampNanosecond   = -18,
+    TimeSecond            = -19,
+    TimeMillisecond       = -20,
+    TimeMicrosecond       = -21,
+    TimeNanosecond        = -22,
+    DenseUnion            = -23,
+    SparseUnion           = -24,
+    IntervalDayTime       = -25,
+    IntervalYearMonth     = -26,
 }
 
 export interface DataType<TType extends Type = Type> {
@@ -132,7 +158,7 @@ export interface DataType<TType extends Type = Type> {
     readonly ArrayType: any;
 }
 
-export abstract class DataType<TType extends Type = Type> implements Partial<TypeNode> {
+export abstract class DataType<TType extends Type = Type> {
 
     // @ts-ignore
     public [Symbol.toStringTag]: string;
@@ -158,9 +184,7 @@ export abstract class DataType<TType extends Type = Type> implements Partial<Typ
 
     constructor(public readonly TType: TType,
                 public readonly children?: Field[]) {}
-    public acceptTypeVisitor(visitor: TypeVisitor): any {
-        return TypeVisitor.visitTypeInline(visitor, this);
-    }
+
     protected static [Symbol.toStringTag] = ((proto: DataType) => {
         (<any> proto).ArrayType = Array;
         return proto[Symbol.toStringTag] = 'DataType';
@@ -178,13 +202,26 @@ export class Null extends DataType<Type.Null> {
     })(Null.prototype);
 }
 
-export interface Int<TArrayType extends IntArray = IntArray, TValueType extends (number | TArrayType) = number | TArrayType> extends DataType<Type.Int> { TArray: TArrayType; TValue: TValueType; }
-export class Int<TArrayType extends IntArray = IntArray, TValueType extends (number | TArrayType) = number | TArrayType> extends DataType<Type.Int> {
-    constructor(public readonly isSigned: boolean,
-                public readonly bitWidth: IntBitWidth) {
-        super(Type.Int);
+type Ints = Type.Int | Type.Int8 | Type.Int16 | Type.Int32 | Type.Int64 | Type.Uint8 | Type.Uint16 | Type.Uint32 | Type.Uint64;
+type IType = {
+    [Type.Int   ]: { bitWidth: any; isSigned: any;   TArray: IntArray;    TValue: number | IntArray; };
+    [Type.Int8  ]: { bitWidth:   8; isSigned: true;  TArray: Int8Array;   TValue: number;            };
+    [Type.Int16 ]: { bitWidth:  16; isSigned: true;  TArray: Int16Array;  TValue: number;            };
+    [Type.Int32 ]: { bitWidth:  32; isSigned: true;  TArray: Int32Array;  TValue: number;            };
+    [Type.Int64 ]: { bitWidth:  64; isSigned: true;  TArray: Int32Array;  TValue: Int32Array;        };
+    [Type.Uint8 ]: { bitWidth:   8; isSigned: false; TArray: Uint8Array;  TValue: number;            };
+    [Type.Uint16]: { bitWidth:  16; isSigned: false; TArray: Uint16Array; TValue: number;            };
+    [Type.Uint32]: { bitWidth:  32; isSigned: false; TArray: Uint32Array; TValue: number;            };
+    [Type.Uint64]: { bitWidth:  64; isSigned: false; TArray: Uint32Array; TValue: Uint32Array;       };
+};
+
+export interface Int<T extends Ints = Ints> extends DataType<T> { TArray: IType[T]['TArray']; TValue: IType[T]['TValue']; }
+export class Int<T extends Ints = Ints> extends DataType<T> {
+    constructor(public readonly isSigned: IType[T]['isSigned'],
+                public readonly bitWidth: IType[T]['bitWidth']) {
+        super(Type.Int as T);
     }
-    public get ArrayType(): TypedArrayConstructor<TArrayType> {
+    public get ArrayType(): TypedArrayConstructor<IType[T]['TArray']> {
         switch (this.bitWidth) {
             case  8: return (this.isSigned ?  Int8Array :  Uint8Array) as any;
             case 16: return (this.isSigned ? Int16Array : Uint16Array) as any;
@@ -199,22 +236,30 @@ export class Int<TArrayType extends IntArray = IntArray, TValueType extends (num
     })(Int.prototype);
 }
 
-export class Int8 extends Int<Int8Array, number> { constructor() { super(true, 8); } }
-export class Int16 extends Int<Int16Array, number> { constructor() { super(true, 16); } }
-export class Int32 extends Int<Int32Array, number> { constructor() { super(true, 32); } }
-export class Int64 extends Int<Int32Array, Int32Array> { constructor() { super(true, 64); } }
-export class Uint8 extends Int<Uint8Array, number> { constructor() { super(false, 8); } }
-export class Uint16 extends Int<Uint16Array, number> { constructor() { super(false, 16); } }
-export class Uint32 extends Int<Uint32Array, number> { constructor() { super(false, 32); } }
-export class Uint64 extends Int<Uint32Array, Uint32Array> { constructor() { super(false, 64); } }
+export class Int8 extends Int<Type.Int8> { constructor() { super(true, 8); } }
+export class Int16 extends Int<Type.Int16> { constructor() { super(true, 16); } }
+export class Int32 extends Int<Type.Int32> { constructor() { super(true, 32); } }
+export class Int64 extends Int<Type.Int64> { constructor() { super(true, 64); } }
+export class Uint8 extends Int<Type.Uint8> { constructor() { super(false, 8); } }
+export class Uint16 extends Int<Type.Uint16> { constructor() { super(false, 16); } }
+export class Uint32 extends Int<Type.Uint32> { constructor() { super(false, 32); } }
+export class Uint64 extends Int<Type.Uint64> { constructor() { super(false, 64); } }
 
-export interface Float<TArrayType extends FloatArray = FloatArray> extends DataType<Type.Float> { TArray: TArrayType; TValue: number; }
-export class Float<TArrayType extends FloatArray = FloatArray> extends DataType<Type.Float> {
+type Floats = Type.Float | Type.Float16 | Type.Float32 | Type.Float64;
+type FType = {
+    [Type.Float   ]: { precision: Precision;        TArray: FloatArray;    TValue: number; };
+    [Type.Float16 ]: { precision: Precision.HALF;   TArray: Uint16Array;   TValue: number; };
+    [Type.Float32 ]: { precision: Precision.SINGLE; TArray: Float32Array;  TValue: number; };
+    [Type.Float64 ]: { precision: Precision.DOUBLE; TArray: Float32Array;  TValue: number; };
+};
+
+export interface Float<T extends Floats = Floats> extends DataType<T> { TArray: FType[T]['TArray']; TValue: number; }
+export class Float<T extends Floats = Floats> extends DataType<T> {
     constructor(public readonly precision: Precision) {
-        super(Type.Float);
+        super(Type.Float as T);
     }
     // @ts-ignore
-    public get ArrayType(): TypedArrayConstructor<TArrayType> {
+    public get ArrayType(): TypedArrayConstructor<FType[T]['TArray']> {
         switch (this.precision) {
             case Precision.HALF: return Uint16Array as any;
             case Precision.SINGLE: return Float32Array as any;
@@ -228,9 +273,9 @@ export class Float<TArrayType extends FloatArray = FloatArray> extends DataType<
     })(Float.prototype);
 }
 
-export class Float16 extends Float<Uint16Array> { constructor() { super(Precision.HALF); } }
-export class Float32 extends Float<Float32Array> { constructor() { super(Precision.SINGLE); } }
-export class Float64 extends Float<Float64Array> { constructor() { super(Precision.DOUBLE); } }
+export class Float16 extends Float<Type.Float16> { constructor() { super(Precision.HALF); } }
+export class Float32 extends Float<Type.Float32> { constructor() { super(Precision.SINGLE); } }
+export class Float64 extends Float<Type.Float64> { constructor() { super(Precision.DOUBLE); } }
 
 export interface Binary extends DataType<Type.Binary> { TArray: Uint8Array; TValue: Uint8Array; }
 export class Binary extends DataType<Type.Binary> {
@@ -281,11 +326,12 @@ export class Decimal extends DataType<Type.Decimal> {
     })(Decimal.prototype);
 }
 
+export type Dates = Type.Date | Type.DateDay | Type.DateMillisecond;
 /* tslint:disable:class-name */
-export interface Date_ extends DataType<Type.Date> { TArray: Int32Array; TValue: Date; }
-export class Date_ extends DataType<Type.Date> {
+export interface Date_<T extends Dates = Dates> extends DataType<T> { TArray: Int32Array; TValue: Date; }
+export class Date_<T extends Dates = Dates> extends DataType<T> {
     constructor(public readonly unit: DateUnit) {
-        super(Type.Date);
+        super(Type.Date as T);
     }
     public toString() { return `Date${(this.unit + 1) * 32}<${DateUnit[this.unit]}>`; }
     protected static [Symbol.toStringTag] = ((proto: Date_) => {
@@ -294,11 +340,23 @@ export class Date_ extends DataType<Type.Date> {
     })(Date_.prototype);
 }
 
-export interface Time extends DataType<Type.Time> { TArray: Uint32Array; TValue: number; }
-export class Time extends DataType<Type.Time> {
-    constructor(public readonly unit: TimeUnit,
+export class DateDay extends Date_<Type.DateDay> { constructor() { super(DateUnit.DAY); } }
+export class DateMillisecond extends Date_<Type.DateMillisecond> { constructor() { super(DateUnit.MILLISECOND); } }
+
+type Times = Type.Time | Type.TimeSecond | Type.TimeMillisecond | Type.TimeMicrosecond | Type.TimeNanosecond;
+type TimesType = {
+    [Type.Time           ]: { unit: TimeUnit;             TValue: number | Uint32Array };
+    [Type.TimeSecond     ]: { unit: TimeUnit.SECOND;      TValue: number;              };
+    [Type.TimeMillisecond]: { unit: TimeUnit.MILLISECOND; TValue: number;              };
+    [Type.TimeMicrosecond]: { unit: TimeUnit.MICROSECOND; TValue: Uint32Array;         };
+    [Type.TimeNanosecond ]: { unit: TimeUnit.NANOSECOND;  TValue: Uint32Array;         };
+};
+
+export interface Time<T extends Times = Times> extends DataType<T> { TArray: Uint32Array; TValue: TimesType[T]['TValue']; }
+export class Time<T extends Times = Times> extends DataType<T> {
+    constructor(public readonly unit: TimesType[T]['unit'],
                 public readonly bitWidth: TimeBitWidth) {
-        super(Type.Time);
+        super(Type.Time as T);
     }
     public toString() { return `Time${this.bitWidth}<${TimeUnit[this.unit]}>`; }
     protected static [Symbol.toStringTag] = ((proto: Time) => {
@@ -307,10 +365,16 @@ export class Time extends DataType<Type.Time> {
     })(Time.prototype);
 }
 
-export interface Timestamp extends DataType<Type.Timestamp> { TArray: Int32Array; TValue: number; }
-export class Timestamp extends DataType<Type.Timestamp> {
+export class TimeSecond extends Time<Type.TimeSecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.SECOND, bitWidth); } }
+export class TimeMillisecond extends Time<Type.TimeMillisecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.MILLISECOND, bitWidth); } }
+export class TimeMicrosecond extends Time<Type.TimeMicrosecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.MICROSECOND, bitWidth); } }
+export class TimeNanosecond extends Time<Type.TimeNanosecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.NANOSECOND, bitWidth); } }
+
+type Timestamps = Type.Timestamp | Type.TimestampSecond | Type.TimestampMillisecond | Type.TimestampMicrosecond | Type.TimestampNanosecond;
+export interface Timestamp<T extends Timestamps = Timestamps> extends DataType<T> { TArray: Int32Array; TValue: number; }
+export class Timestamp<T extends Timestamps = Timestamps> extends DataType<T> {
     constructor(public unit: TimeUnit, public timezone?: string | null) {
-        super(Type.Timestamp);
+        super(Type.Timestamp as T);
     }
     public toString() { return `Timestamp<${TimeUnit[this.unit]}${this.timezone ? `, ${this.timezone}` : ``}>`; }
     protected static [Symbol.toStringTag] = ((proto: Timestamp) => {
@@ -319,10 +383,16 @@ export class Timestamp extends DataType<Type.Timestamp> {
     })(Timestamp.prototype);
 }
 
-export interface Interval extends DataType<Type.Interval> { TArray: Int32Array; TValue: Int32Array; }
-export class Interval extends DataType<Type.Interval> {
+export class TimestampSecond extends Timestamp<Type.TimestampSecond> { constructor(timezone?: string | null) { super(TimeUnit.SECOND, timezone); } }
+export class TimestampMillisecond extends Timestamp<Type.TimestampMillisecond> { constructor(timezone?: string | null) { super(TimeUnit.MILLISECOND, timezone); } }
+export class TimestampMicrosecond extends Timestamp<Type.TimestampMicrosecond> { constructor(timezone?: string | null) { super(TimeUnit.MICROSECOND, timezone); } }
+export class TimestampNanosecond extends Timestamp<Type.TimestampNanosecond> { constructor(timezone?: string | null) { super(TimeUnit.NANOSECOND, timezone); } }
+
+type Intervals = Type.Interval | Type.IntervalDayTime | Type.IntervalYearMonth;
+export interface Interval<T extends Intervals = Intervals> extends DataType<T> { TArray: Int32Array; TValue: Int32Array; }
+export class Interval<T extends Intervals = Intervals> extends DataType<T> {
     constructor(public unit: IntervalUnit) {
-        super(Type.Interval);
+        super(Type.Interval as T);
     }
     public toString() { return `Interval<${IntervalUnit[this.unit]}>`; }
     protected static [Symbol.toStringTag] = ((proto: Interval) => {
@@ -330,6 +400,9 @@ export class Interval extends DataType<Type.Interval> {
         return proto[Symbol.toStringTag] = 'Interval';
     })(Interval.prototype);
 }
+
+export class IntervalDayTime extends Interval<Type.IntervalDayTime> { constructor() { super(IntervalUnit.DAY_TIME); } }
+export class IntervalYearMonth extends Interval<Type.IntervalYearMonth> { constructor() { super(IntervalUnit.YEAR_MONTH); } }
 
 export interface List<T extends DataType = any> extends DataType<Type.List>  { TArray: any; TValue: Vector<T>; }
 export class List<T extends DataType = any> extends DataType<Type.List> {
@@ -356,12 +429,17 @@ export class Struct extends DataType<Type.Struct> {
     })(Struct.prototype);
 }
 
-export interface Union extends DataType<Type.Union> { TArray: Int8Array; TValue: any; }
-export class Union extends DataType<Type.Union> {
+type Unions = Type.Union | Type.DenseUnion | Type.SparseUnion;
+export interface Union<T extends Unions = Unions> extends DataType<T> { TArray: Int8Array; TValue: any; }
+export class Union<T extends Unions = Unions> extends DataType<T> {
+    public readonly typeIdToChildIndex: Record<Type, number>;
     constructor(public readonly mode: UnionMode,
                 public readonly typeIds: ArrowType[],
                 public readonly children: Field[]) {
-        super(Type.Union, children);
+        super(Type.Union as T, children);
+        this.typeIdToChildIndex = (typeIds || []).reduce((typeIdToChildIndex, typeId, idx) => {
+            return (typeIdToChildIndex[typeId] = idx) && typeIdToChildIndex || typeIdToChildIndex;
+        }, Object.create(null) as Record<Type, number>);
     }
     public toString() { return `${this[Symbol.toStringTag]}<${
         this.children.map((x) => `${x.type}`).join(` | `)
@@ -371,6 +449,9 @@ export class Union extends DataType<Type.Union> {
         return proto[Symbol.toStringTag] = 'Union';
     })(Union.prototype);
 }
+
+export class DenseUnion extends Union<Type.DenseUnion> { constructor(typeIds: ArrowType[], children: Field[]) { super(UnionMode.Dense, typeIds, children); } }
+export class SparseUnion extends Union<Type.SparseUnion> { constructor(typeIds: ArrowType[], children: Field[]) { super(UnionMode.Sparse, typeIds, children); } }
 
 export interface FixedSizeBinary extends DataType<Type.FixedSizeBinary> { TArray: Uint8Array; TValue: Uint8Array; }
 export class FixedSizeBinary extends DataType<Type.FixedSizeBinary> {
@@ -486,3 +567,97 @@ export interface TypedArray extends Iterable<number> {
     toLocaleString(): string;
     toString(): string;
 }
+
+export type DType = {
+    [Type.NONE]: any;
+    [Type.Null]: Null;
+    [Type.Bool]: Bool;
+    [Type.Int]: Int;
+    [Type.Int8]: Int8;
+    [Type.Int16]: Int16;
+    [Type.Int32]: Int32;
+    [Type.Int64]: Int64;
+    [Type.Uint8]: Uint8;
+    [Type.Uint16]: Uint16;
+    [Type.Uint32]: Uint32;
+    [Type.Uint64]: Uint64;
+    [Type.Float]: Float;
+    [Type.Float16]: Float16;
+    [Type.Float32]: Float32;
+    [Type.Float64]: Float64;
+    [Type.Utf8]: Utf8;
+    [Type.Binary]: Binary;
+    [Type.FixedSizeBinary]: FixedSizeBinary;
+    [Type.Date]: Date_;
+    [Type.DateDay]: DateDay;
+    [Type.DateMillisecond]: DateMillisecond;
+    [Type.Timestamp]: Timestamp;
+    [Type.TimestampSecond]: TimestampSecond;
+    [Type.TimestampMillisecond]: TimestampMillisecond;
+    [Type.TimestampMicrosecond]: TimestampMicrosecond;
+    [Type.TimestampNanosecond]: TimestampNanosecond;
+    [Type.Time]: Time;
+    [Type.TimeSecond]: TimeSecond;
+    [Type.TimeMillisecond]: TimeMillisecond;
+    [Type.TimeMicrosecond]: TimeMicrosecond;
+    [Type.TimeNanosecond]: TimeNanosecond;
+    [Type.Decimal]: Decimal;
+    [Type.List]: List;
+    [Type.Struct]: Struct;
+    [Type.Union]: Union;
+    [Type.DenseUnion]: DenseUnion;
+    [Type.SparseUnion]: SparseUnion;
+    [Type.Dictionary]: Dictionary;
+    [Type.Interval]: Interval;
+    [Type.IntervalDayTime]: IntervalDayTime;
+    [Type.IntervalYearMonth]: IntervalYearMonth;
+    [Type.FixedSizeList]: FixedSizeList;
+    [Type.Map]: Map_;
+}
+
+export type DCtor = {
+    [Type.NONE]                 : (new                           (...args: any[]) => any);
+    [Type.Null]                 : (new                           (...args: any[]) => Null);
+    [Type.Bool]                 : (new                           (...args: any[]) => Bool);
+    [Type.Int]                  : (new                           (...args: any[]) => Int);
+    [Type.Int8]                 : (new                           (...args: any[]) => Int8);
+    [Type.Int16]                : (new                           (...args: any[]) => Int16);
+    [Type.Int32]                : (new                           (...args: any[]) => Int32);
+    [Type.Int64]                : (new                           (...args: any[]) => Int64);
+    [Type.Uint8]                : (new                           (...args: any[]) => Uint8);
+    [Type.Uint16]               : (new                           (...args: any[]) => Uint16);
+    [Type.Uint32]               : (new                           (...args: any[]) => Uint32);
+    [Type.Uint64]               : (new                           (...args: any[]) => Uint64);
+    [Type.Float]                : (new                           (...args: any[]) => Float);
+    [Type.Float16]              : (new                           (...args: any[]) => Float16);
+    [Type.Float32]              : (new                           (...args: any[]) => Float32);
+    [Type.Float64]              : (new                           (...args: any[]) => Float64);
+    [Type.Utf8]                 : (new                           (...args: any[]) => Utf8);
+    [Type.Binary]               : (new                           (...args: any[]) => Binary);
+    [Type.FixedSizeBinary]      : (new                           (...args: any[]) => FixedSizeBinary);
+    [Type.Date]                 : (new                           (...args: any[]) => Date_);
+    [Type.DateDay]              : (new                           (...args: any[]) => DateDay);
+    [Type.DateMillisecond]      : (new                           (...args: any[]) => DateMillisecond);
+    [Type.Timestamp]            : (new                           (...args: any[]) => Timestamp);
+    [Type.TimestampSecond]      : (new                           (...args: any[]) => TimestampSecond);
+    [Type.TimestampMillisecond] : (new                           (...args: any[]) => TimestampMillisecond);
+    [Type.TimestampMicrosecond] : (new                           (...args: any[]) => TimestampMicrosecond);
+    [Type.TimestampNanosecond]  : (new                           (...args: any[]) => TimestampNanosecond);
+    [Type.Time]                 : (new                           (...args: any[]) => Time);
+    [Type.TimeSecond]           : (new                           (...args: any[]) => TimeSecond);
+    [Type.TimeMillisecond]      : (new                           (...args: any[]) => TimeMillisecond);
+    [Type.TimeMicrosecond]      : (new                           (...args: any[]) => TimeMicrosecond);
+    [Type.TimeNanosecond]       : (new                           (...args: any[]) => TimeNanosecond);
+    [Type.Decimal]              : (new                           (...args: any[]) => Decimal);
+    [Type.List]                 : (new <T extends DataType = any>(...args: any[]) => List<T>);
+    [Type.Struct]               : (new                           (...args: any[]) => Struct);
+    [Type.Union]                : (new                           (...args: any[]) => Union);
+    [Type.DenseUnion]           : (new                           (...args: any[]) => DenseUnion);
+    [Type.SparseUnion]          : (new                           (...args: any[]) => SparseUnion);
+    [Type.Dictionary]           : (new <T extends DataType = any>(...args: any[]) => Dictionary<T>);
+    [Type.Interval]             : (new                           (...args: any[]) => Interval);
+    [Type.IntervalDayTime]      : (new                           (...args: any[]) => IntervalDayTime);
+    [Type.IntervalYearMonth]    : (new                           (...args: any[]) => IntervalYearMonth);
+    [Type.FixedSizeList]        : (new <T extends DataType = any>(...args: any[]) => FixedSizeList<T>);
+    [Type.Map]                  : (new                           (...args: any[]) => Map_);
+};
