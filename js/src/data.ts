@@ -45,12 +45,11 @@ export interface Buffers<T extends DataType> {
 export class Data<T extends DataType = DataType> {
 
     public type: T;
+    public readonly length: number;
     public readonly offset: number;
-    public readonly stride: number;
     
     // @ts-ignore
     public childData: Data[];
-    protected _length: number;
     protected _buffers = [] as Buffers<T>;
     protected _nullCount: number | kUnknownNullCount;
 
@@ -59,7 +58,6 @@ export class Data<T extends DataType = DataType> {
     public get typeIds() { return this._buffers[BufferType.TYPE]!; }
     public get nullBitmap() { return this._buffers[BufferType.VALIDITY]!; }
     public get valueOffsets() { return this._buffers[BufferType.OFFSET]!; }
-    public get length() { return this._length / this.stride | 0; }
     public get nullCount() {
         let nullCount = this._nullCount;
         let nullBitmap: Uint8Array | undefined;
@@ -69,24 +67,23 @@ export class Data<T extends DataType = DataType> {
         return nullCount;
     }
 
-    constructor(type: T, offset: number, length: number, nullCount?: number, stride?: number, buffers?: Buffers<T>, childData?: Data[]) {
+    constructor(type: T, offset: number, length: number, nullCount?: number, buffers?: Buffers<T>, childData?: Data[]) {
         this.type = type;
         this.childData = childData!;
         this.offset = Math.floor(Math.max(offset || 0, 0));
-        this.stride = Math.floor(Math.max(stride || 1, 1));
-        this._length = Math.floor(Math.max(length || 0, 0));
+        this.length = Math.floor(Math.max(length || 0, 0));
         this._buffers = Object.assign({}, buffers) as Buffers<T>;
         this._nullCount = Math.floor(Math.max(nullCount || 0, -1));
     }
 
-    public clone<R extends DataType>(type: R, offset = this.offset, length = this._length, nullCount = this._nullCount, stride = this.stride, buffers: Buffers<R> = <any> this._buffers, childData: Data[] = this.childData) {
-        return new Data(type, offset, length, nullCount, stride, buffers, childData);
+    public clone<R extends DataType>(type: R, offset = this.offset, length = this.length, nullCount = this._nullCount, buffers: Buffers<R> = <any> this._buffers, childData: Data[] = this.childData) {
+        return new Data(type, offset, length, nullCount, buffers, childData);
     }
 
     public slice(offset: number, length: number): Data<T> {
         const buffers = this.sliceBuffers(offset, length);
         const childData = this.sliceChildren(offset, length);
-        return this.clone<T>(this.type, this.offset + offset, length, +(this._nullCount === 0) - 1, this.stride, buffers, childData);
+        return this.clone<T>(this.type, this.offset + offset, length, +(this._nullCount === 0) - 1, buffers, childData);
     }
 
     protected sliceBuffers(offset: number, length: number): Buffers<T> {
@@ -114,28 +111,28 @@ export class Data<T extends DataType = DataType> {
     }
 
     // Convenience methods for creating Data instances for each of the Arrow Vector types
-    public static Null           <T extends Null           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }); }
-    public static Int            <T extends Int            >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Float          <T extends Float          >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Bool           <T extends Bool           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Decimal        <T extends Decimal        >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Date           <T extends Date_          >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Time           <T extends Time           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Timestamp      <T extends Timestamp      >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Interval       <T extends Interval       >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static FixedSizeBinary<T extends FixedSizeBinary>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
-    public static Binary         <T extends Binary         >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: Uint8Array, valueOffsets: TypedArray) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.OFFSET]: toTypedArray(Int32Array, valueOffsets), [BufferType.DATA]: toTypedArray(Uint8Array, data) }); }
-    public static Utf8           <T extends Utf8           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: Uint8Array, valueOffsets: TypedArray) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.OFFSET]: toTypedArray(Int32Array, valueOffsets), [BufferType.DATA]: toTypedArray(Uint8Array, data) }); }
-    public static List           <T extends List           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, valueOffsets: TypedArray, childData: Data[]) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.OFFSET]: toTypedArray(Int32Array, valueOffsets) }, childData); }
-    public static FixedSizeList  <T extends FixedSizeList  >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: Data[]) { return new Data(type, offset, length, nullCount, type.listSize, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }, childData); }
-    public static Struct         <T extends Struct         >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: Data[]) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }, childData); }
-    public static Map            <T extends Map_           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: Data[]) { return new Data(type, offset, length, nullCount, 1, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }, childData); }
+    public static Null           <T extends Null           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }); }
+    public static Int            <T extends Int            >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Float          <T extends Float          >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Bool           <T extends Bool           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Decimal        <T extends Decimal        >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Date           <T extends Date_          >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Time           <T extends Time           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Timestamp      <T extends Timestamp      >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Interval       <T extends Interval       >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static FixedSizeBinary<T extends FixedSizeBinary>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.DATA]: toTypedArray(type.ArrayType, data) }); }
+    public static Binary         <T extends Binary         >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: Uint8Array, valueOffsets: TypedArray) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.OFFSET]: toTypedArray(Int32Array, valueOffsets), [BufferType.DATA]: toTypedArray(Uint8Array, data) }); }
+    public static Utf8           <T extends Utf8           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: Uint8Array, valueOffsets: TypedArray) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.OFFSET]: toTypedArray(Int32Array, valueOffsets), [BufferType.DATA]: toTypedArray(Uint8Array, data) }); }
+    public static List           <T extends List           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, valueOffsets: TypedArray, childData: Data[]) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.OFFSET]: toTypedArray(Int32Array, valueOffsets) }, childData); }
+    public static FixedSizeList  <T extends FixedSizeList  >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: Data[]) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }, childData); }
+    public static Struct         <T extends Struct         >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: Data[]) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }, childData); }
+    public static Map            <T extends Map_           >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: Data[]) { return new Data(type, offset, length, nullCount, { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap) }, childData); }
     public static Union          <T extends Union          >(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, valueOffsets: TypedArray, typeIds: Uint8Array, childData: Data[]) {
         const buffers = { [BufferType.VALIDITY]: toTypedArray(Uint8Array, nullBitmap), [BufferType.TYPE]: toTypedArray(type.ArrayType, typeIds) } as any;
         if (type.mode === UnionMode.Dense) {
             buffers[BufferType.OFFSET] = toTypedArray(Int32Array, valueOffsets);
         }
-        return new Data(type, offset, length, nullCount, 1, buffers, childData);
+        return new Data(type, offset, length, nullCount, buffers, childData);
     }
 }
 
