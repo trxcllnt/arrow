@@ -1,3 +1,23 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+import { Readable } from 'stream';
+import { ReadableStream } from 'whatwg-streams';
+
 export interface Subscription {
     unsubscribe: () => void;
 }
@@ -13,37 +33,15 @@ export interface Observable<T> {
     subscribe: (observer: Observer<T>) => Subscription;
 }
 
-/**
- * @ignore
- */
-export function isPromise(x: any): x is PromiseLike<any> {
-    return x != null && Object(x) === x && typeof x['then'] === 'function';
-}
+const isObject = (x: any) => x != null && Object(x) === x;
+const hasFuncs = (x: any, ...fn: PropertyKey[]) => hasProps(x, ...fn.map((f) => [f, 'function'] as [PropertyKey, string]));
+const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.every(([k, t]) => t ? (typeof x[k] === t) : (k in x));
 
-/**
- * @ignore
- */
-export function isObservable(x: any): x is Observable<any> {
-    return x != null && Object(x) === x && typeof x['subscribe'] === 'function';
-}
-
-/**
- * @ignore
- */
-export function isArrayLike(x: any): x is ArrayLike<any> {
-    return x != null && Object(x) === x && typeof x['length'] === 'number';
-}
-
-/**
- * @ignore
- */
-export function isIterable(x: any): x is Iterable<any> {
-    return x != null && Object(x) === x && typeof x[Symbol.iterator] !== 'undefined';
-}
-
-/**
- * @ignore
- */
-export function isAsyncIterable(x: any): x is AsyncIterable<any> {
-    return x != null && Object(x) === x && typeof x[Symbol.asyncIterator] !== 'undefined';
-}
+/** @ignore */ export const isPromise            = <T = any>(x: any): x is PromiseLike<T>    => hasFuncs(x, 'then');
+/** @ignore */ export const isObservable         = <T = any>(x: any): x is Observable<T>     => hasFuncs(x, 'subscribe');
+/** @ignore */ export const isIterable           = <T = any>(x: any): x is Iterable<T>       => hasFuncs(x, Symbol.iterator);
+/** @ignore */ export const isAsyncIterable      = <T = any>(x: any): x is AsyncIterable<T>  => hasFuncs(x, Symbol.asyncIterator);
+/** @ignore */ export const isArrayLike          = <T = any>(x: any): x is ArrayLike<T>      => hasProps(x, ['length', 'number']);
+/** @ignore */ export const isIteratorResult     = <T = any>(x: any): x is IteratorResult<T> => hasProps(x, ['done'], ['value']);
+/** @ignore */ export const isReadableDOMStream  = <T = any>(x: any): x is ReadableStream<T> => hasFuncs(x, 'getReader', 'pipeTo', 'cancel', 'tee');
+/** @ignore */ export const isReadableNodeStream =          (x: any): x is Readable          => hasFuncs(x, 'read', 'pipe', 'unpipe', 'pause', 'resume', 'wrap');

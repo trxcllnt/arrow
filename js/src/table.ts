@@ -15,9 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Struct } from './type';
+import { Schema, Field } from './schema';
 import { RecordBatch } from './recordbatch';
 import { Col, Predicate } from './predicate';
-import { Schema, Field, Struct } from './type';
 import { read, readAsync } from './ipc/reader/arrow';
 import { writeTableBinary } from './ipc/writer/arrow';
 import { PipeIterator } from './util/node';

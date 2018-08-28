@@ -15,8 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { TypedArray } from '../type';
-
 export function align(value: number, alignment: number) {
     return value + padding(value, alignment);
 }
@@ -100,7 +98,7 @@ export function popcnt_bit_range(data: Uint8Array, lhs: number, rhs: number): nu
     );
 }
 
-export function popcnt_array(arr: TypedArray, byteOffset?: number, byteLength?: number) {
+export function popcnt_array(arr: ArrayBufferView, byteOffset?: number, byteLength?: number) {
     let cnt = 0, pos = byteOffset! | 0;
     const view = new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
     const len =  byteLength === void 0 ? arr.byteLength : pos + byteLength;

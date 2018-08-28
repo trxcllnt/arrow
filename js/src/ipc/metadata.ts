@@ -15,10 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-/* tslint:disable:class-name */
-
 import { align } from '../util/bit';
-import { Schema, Long, MessageHeader, MetadataVersion } from '../type';
+import { Schema, Long } from '../schema';
+import { MessageHeader, MetadataVersion } from '../enum';
 
 export class Footer {
     constructor(public dictionaryBatches: FileBlock[], public recordBatches: FileBlock[], public schema: Schema) {}
