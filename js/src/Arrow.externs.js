@@ -488,10 +488,6 @@ var DenseUnionData = function() {};
 /** @type {?} */
 DenseUnionData.prototype.valueOffsets;
 
-var ChunkedData = function() {};
-/** @type {?} */
-ChunkedData.computeOffsets = function() {};
-
 var FlatVector = function() {};
 /** @type {?} */
 FlatVector.prototype.values;

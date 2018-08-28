@@ -15,51 +15,27 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Schema, Struct, DataType } from './type';
-import { flatbuffers } from 'flatbuffers';
-import { View, Vector, StructVector } from './vector';
-import { Data, NestedData } from './data';
+import { Data } from './data';
+import { Schema } from './schema';
+import { DataType, Struct } from './type';
 import { PipeIterator } from './util/node';
+import { Vector, StructVector } from './vector';
 import { valueToString, leftPad } from './util/pretty';
 
-import Long = flatbuffers.Long;
-
-export class RecordBatch extends StructVector {
-    public static from(vectors: Vector[]) {
-        return new RecordBatch(Schema.from(vectors),
-            Math.max(...vectors.map((v) => v.length)),
-            vectors
-        );
+export class RecordBatch<T extends { [key: string]: DataType } = any> extends StructVector<T> {
+    public static from<T extends { [key: string]: DataType } = any>(vectors: Vector[]) {
+        const numRows = Math.max(...vectors.map((v) => v.length));
+        return new RecordBatch<T>(Schema.from(vectors), numRows, vectors);
     }
     public readonly schema: Schema;
-    public readonly length: number;
     public readonly numCols: number;
-    constructor(schema: Schema, data: Data<Struct>, view: View<Struct>);
-    constructor(schema: Schema, numRows: Long | number, cols: Data<any> | Vector[]);
-    constructor(...args: any[]) {
-        if (typeof args[1] !== 'number') {
-            const data = args[1] as Data<Struct>;
-            super(data, args[2]);
-            this.schema = args[0];
-            this.length = data.length;
-        } else {
-            const [schema, numRows, cols] = args;
-            const childData: Data<any>[] = new Array(cols.length);
-            for (let index = -1, length = cols.length; ++index < length;) {
-                const col: Data<any> | Vector = cols[index];
-                childData[index] = col instanceof Vector ? col.data : col;
-            }
-            super(new NestedData(new Struct(schema.fields), numRows, null, childData));
-            this.schema = schema;
-            this.length = numRows;
-        }
-        this.numCols = this.schema.fields.length;
+    constructor(schema: Schema, data: Data<Struct<T>>, cols?: Vector[]) {
+        super(data, cols);
+        this.schema = schema;
+        this.numCols = schema.fields.length;
     }
     public clone<R extends Struct>(data: Data<R>, view: View<R> = this.view.clone(data)): this {
         return new RecordBatch(this.schema, data as any, view) as any;
-    }
-    public getChildAt<R extends DataType = DataType>(index: number): Vector<R> | null {
-        return index < 0 || index >= this.numCols ? null : super.getChildAt<R>(index);
     }
     public select(...columnNames: string[]) {
         const fields = this.schema.fields;
