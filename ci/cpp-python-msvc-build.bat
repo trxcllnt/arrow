@@ -18,18 +18,24 @@
 @echo on
 
 if "%JOB%" == "Static_Crt_Build" (
+  @rem Since we link the CRT statically, we should also disable building
+  @rem the Arrow shared library to link the tests statically, otherwise
+  @rem the Arrow DLL and the tests end up using a different instance of
+  @rem the CRT, which wreaks havoc.
+
   mkdir cpp\build-debug
   pushd cpp\build-debug
 
   cmake -G "%GENERATOR%" ^
         -DARROW_USE_STATIC_CRT=ON ^
         -DARROW_BOOST_USE_SHARED=OFF ^
+        -DARROW_BUILD_SHARED=OFF ^
         -DCMAKE_BUILD_TYPE=Debug ^
         -DARROW_CXXFLAGS="/MP" ^
         ..  || exit /B
 
   cmake --build . --config Debug || exit /B
-  ctest -VV  || exit /B
+  ctest --output-on-failure -j2 || exit /B
   popd
 
   mkdir cpp\build-release
@@ -38,17 +44,22 @@ if "%JOB%" == "Static_Crt_Build" (
   cmake -G "%GENERATOR%" ^
         -DARROW_USE_STATIC_CRT=ON ^
         -DARROW_BOOST_USE_SHARED=OFF ^
+        -DARROW_BUILD_SHARED=OFF ^
         -DCMAKE_BUILD_TYPE=Release ^
         -DARROW_CXXFLAGS="/WX /MP" ^
         ..  || exit /B
 
   cmake --build . --config Release || exit /B
-  ctest -VV  || exit /B
+  ctest --output-on-failure -j2 || exit /B
   popd
 
   @rem Finish Static_Crt_Build build successfully
   exit /B 0
 )
+
+@rem In the configurations below we disable building the Arrow static library
+@rem to save some time.  Unfortunately this will still build the Parquet static
+@rem library because of PARQUET-1420 (Thrift-generated symbols not exported in DLL).
 
 if "%JOB%" == "Build_Debug" (
   mkdir cpp\build-debug
@@ -57,31 +68,32 @@ if "%JOB%" == "Build_Debug" (
   cmake -G "%GENERATOR%" ^
         -DARROW_BOOST_USE_SHARED=OFF ^
         -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
+        -DARROW_BUILD_STATIC=OFF ^
         -DARROW_CXXFLAGS="/MP" ^
         ..  || exit /B
 
   cmake --build . --config Debug || exit /B
-  ctest -VV  || exit /B
+  ctest --output-on-failure -j2 || exit /B
   popd
 
   @rem Finish Debug build successfully
   exit /B 0
 )
 
-conda create -n arrow -q -y -c conda-forge ^
+conda create -n arrow -q -y ^
       python=%PYTHON% ^
       six pytest setuptools numpy pandas cython ^
       thrift-cpp=0.11.0 boost-cpp
 
 call activate arrow
 
-@rem Use Boost from conda-forge
+@rem Use Boost from Anaconda
 set BOOST_ROOT=%CONDA_PREFIX%\Library
 set BOOST_LIBRARYDIR=%CONDA_PREFIX%\Library\lib
 
 if "%JOB%" == "Toolchain" (
   @rem Install pre-built "toolchain" packages for faster builds
-  conda install -q -y -c conda-forge ^
+  conda install -q -y ^
       brotli ^
       cmake ^
       flatbuffers ^
@@ -111,6 +123,7 @@ cmake -G "%GENERATOR%" ^
       -DCMAKE_INSTALL_PREFIX=%CONDA_PREFIX%\Library ^
       -DARROW_BOOST_USE_SHARED=OFF ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
+      -DARROW_BUILD_STATIC=OFF ^
       -DARROW_CXXFLAGS="/WX /MP" ^
       -DARROW_PARQUET=ON ^
       -DARROW_PYTHON=ON ^
@@ -121,7 +134,7 @@ cmake --build . --target install --config %CONFIGURATION%  || exit /B
 set OLD_PYTHONHOME=%PYTHONHOME%
 set PYTHONHOME=%CONDA_PREFIX%
 
-ctest -VV  || exit /B
+ctest --output-on-failure -j2 || exit /B
 
 set PYTHONHOME=%OLD_PYTHONHOME%
 popd

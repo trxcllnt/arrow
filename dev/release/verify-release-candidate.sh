@@ -74,11 +74,11 @@ fetch_archive() {
   local dist_name=$1
   download_rc_file ${dist_name}.tar.gz
   download_rc_file ${dist_name}.tar.gz.asc
-  download_rc_file ${dist_name}.tar.gz.sha1
   download_rc_file ${dist_name}.tar.gz.sha256
+  download_rc_file ${dist_name}.tar.gz.sha512
   gpg --verify ${dist_name}.tar.gz.asc ${dist_name}.tar.gz
-  shasum -a 1 -c ${dist_name}.tar.gz.sha1
   shasum -a 256 -c ${dist_name}.tar.gz.sha256
+  shasum -a 512 -c ${dist_name}.tar.gz.sha512
 }
 
 verify_binary_artifacts() {
@@ -106,8 +106,8 @@ verify_binary_artifacts() {
     # basename of the artifact
     pushd $(dirname $artifact)
     base_artifact=$(basename $artifact)
-    shasum -a 1 -c $base_artifact.sha1 || exit 1
     shasum -a 256 -c $base_artifact.sha256 || exit 1
+    shasum -a 512 -c $base_artifact.sha512 || exit 1
     popd
   done
 }
@@ -158,6 +158,7 @@ test_and_install_cpp() {
 -DARROW_PLASMA=ON
 -DARROW_ORC=ON
 -DARROW_PYTHON=ON
+-DARROW_PARQUET=ON
 -DARROW_BOOST_USE_SHARED=ON
 -DCMAKE_BUILD_TYPE=release
 -DARROW_BUILD_BENCHMARKS=ON
@@ -171,27 +172,6 @@ test_and_install_cpp() {
   make install
 
   ctest -VV -L unittest
-  popd
-}
-
-# Build and install Parquet master so we can test the Python bindings
-
-install_parquet_cpp() {
-  git clone git@github.com:apache/parquet-cpp.git
-
-  mkdir parquet-cpp/build
-  pushd parquet-cpp/build
-
-  cmake -DCMAKE_INSTALL_PREFIX=$PARQUET_HOME \
-        -DCMAKE_INSTALL_LIBDIR=$PARQUET_HOME/lib \
-        -DCMAKE_BUILD_TYPE=release \
-        -DPARQUET_BOOST_USE_SHARED=on \
-        -DPARQUET_BUILD_TESTS=off \
-        ..
-
-  make -j$NPROC
-  make install
-
   popd
 }
 
@@ -345,7 +325,6 @@ cd ${DIST_NAME}
 test_package_java
 setup_miniconda
 test_and_install_cpp
-install_parquet_cpp
 test_python
 test_glib
 test_ruby

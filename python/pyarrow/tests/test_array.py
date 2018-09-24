@@ -32,7 +32,6 @@ except ImportError:
 
 import pyarrow as pa
 from pyarrow.pandas_compat import get_logical_type
-import pyarrow.formatting as fmt
 
 
 def test_total_bytes_allocated():
@@ -53,7 +52,7 @@ def test_constructor_raises():
 
 def test_list_format():
     arr = pa.array([[1], None, [2, 3, None]])
-    result = fmt.array_format(arr)
+    result = arr.format()
     expected = """\
 [
   [
@@ -71,7 +70,7 @@ def test_list_format():
 
 def test_string_format():
     arr = pa.array([u'', None, u'foo'])
-    result = fmt.array_format(arr)
+    result = arr.format()
     expected = """\
 [
   "",
@@ -83,7 +82,7 @@ def test_string_format():
 
 def test_long_array_format():
     arr = pa.array(range(100))
-    result = fmt.array_format(arr, window=2)
+    result = arr.format(window=2)
     expected = """\
 [
   0,
@@ -1119,6 +1118,33 @@ def test_struct_array_flatten():
     xs, ys = a[1:].flatten()
     assert xs.to_pylist() == [None, None]
     assert ys.to_pylist() == [None, 2.5]
+
+
+def test_struct_array_field():
+    ty = pa.struct([pa.field('x', pa.int16()),
+                    pa.field('y', pa.float32())])
+    a = pa.array([(1, 2.5), (3, 4.5), (5, 6.5)], type=ty)
+
+    x = a.field(0)
+    y = a.field(1)
+    x_ = a.field(-2)
+    y_ = a.field(-1)
+
+    assert isinstance(x, pa.lib.Int16Array)
+    assert isinstance(y, pa.lib.FloatArray)
+
+    assert x.equals(pa.array([1, 3, 5], type=pa.int16()))
+    assert y.equals(pa.array([2.5, 4.5, 6.5], type=pa.float32()))
+    assert x.equals(x_)
+    assert y.equals(y_)
+
+    for invalid_index in [None, 'x']:
+        with pytest.raises(TypeError):
+            a.field(invalid_index)
+
+    for invalid_index in [3, -3]:
+        with pytest.raises(IndexError):
+            a.field(invalid_index)
 
 
 def test_nested_dictionary_array():

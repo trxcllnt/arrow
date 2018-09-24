@@ -140,6 +140,10 @@ Pass multiple labels by dividing with semicolons")
     "Compile with extra error context (line numbers, code)"
     OFF)
 
+  option(ARROW_FLIGHT
+    "Build the Arrow Flight RPC System (requires GRPC, Protocol Buffers)"
+    OFF)
+
   option(ARROW_IPC
     "Build the Arrow IPC extensions"
     ON)
@@ -240,10 +244,6 @@ Pass multiple labels by dividing with semicolons")
     "Build with zstd compression"
     ON)
 
-  option(ARROW_WITH_GRPC
-    "Build with GRPC"
-    OFF)
-
   option(ARROW_GENERATE_COVERAGE
     "Build with C++ code coverage enabled"
     OFF)
@@ -255,6 +255,10 @@ Pass multiple labels by dividing with semicolons")
   option(ARROW_VERBOSE_LINT
     "If off, 'quiet' flags will be passed to linting tools"
     OFF)
+
+  option(ARROW_USE_GLOG
+    "Build libraries with glog support for pluggable logging"
+    ON)
 
   if (MSVC)
     option(ARROW_USE_CLCACHE
@@ -291,7 +295,9 @@ Always OFF if building binaries"
 endif()
 
 if(ARROW_BUILD_TESTS OR ARROW_BUILD_BENCHMARKS)
-  set(ARROW_BUILD_STATIC ON)
+  if (NOT MSVC AND NOT ARROW_BUILD_STATIC)
+    message(FATAL_ERROR "ARROW_BUILD_TESTS needs ARROW_BUILD_STATIC")
+  endif ()
   set(ARROW_WITH_BROTLI ON)
   set(ARROW_WITH_LZ4 ON)
   set(ARROW_WITH_SNAPPY ON)
@@ -302,6 +308,8 @@ endif()
 if (MSVC)
   # ORC doesn't build on windows
   set(ARROW_ORC OFF)
+  # Plasma using glog is not fully tested on windows.
+  set(ARROW_USE_GLOG OFF)
 endif()
 
 if(ARROW_ORC)
@@ -628,29 +636,28 @@ if (ARROW_WITH_ZSTD)
   SET(ARROW_STATIC_LINK_LIBS zstd_static ${ARROW_STATIC_LINK_LIBS})
 endif()
 
-if (ARROW_WITH_GRPC)
-  SET(ARROW_STATIC_LINK_LIBS
-    grpc_grp
-    grpc_grpc
-    grpc_grpcpp
-    ${ARROW_STATIC_LINK_LIBS})
-endif()
-
 if (ARROW_ORC)
   SET(ARROW_STATIC_LINK_LIBS
     ${ARROW_STATIC_LINK_LIBS}
     orc)
 endif()
 
+if (ARROW_USE_GLOG)
+  #add_definitions(-DARROW_USE_GLOG)
+  SET(ARROW_STATIC_LINK_LIBS glog_static ${ARROW_STATIC_LINK_LIBS})
+endif()
+
 if (ARROW_STATIC_LINK_LIBS)
   add_dependencies(arrow_dependencies ${ARROW_STATIC_LINK_LIBS})
 endif()
 
-set(ARROW_BENCHMARK_LINK_LIBS
-  arrow_static
-  arrow_benchmark_main
-  gtest
-  ${ARROW_STATIC_LINK_LIBS})
+if (ARROW_BUILD_BENCHMARKS)
+  set(ARROW_BENCHMARK_LINK_LIBS
+    arrow_static
+    arrow_benchmark_main
+    gtest
+    ${ARROW_STATIC_LINK_LIBS})
+endif()
 
 set(ARROW_SHARED_PRIVATE_LINK_LIBS
   ${ARROW_STATIC_LINK_LIBS}
@@ -669,11 +676,22 @@ if (NOT MSVC)
     ${CMAKE_DL_LIBS})
 endif()
 
-set(ARROW_MIN_TEST_LIBS
-  arrow_static
-  ${ARROW_STATIC_LINK_LIBS}
-  gtest
-  gtest_main)
+if (ARROW_BUILD_STATIC)
+  set(ARROW_MIN_TEST_LIBS
+    arrow_static
+    ${ARROW_STATIC_LINK_LIBS}
+    gtest_main
+    gtest)
+else ()
+  set(ARROW_MIN_TEST_LIBS
+    arrow_shared
+    ${ARROW_LINK_LIBS}
+    ${BOOST_SYSTEM_LIBRARY}
+    ${BOOST_FILESYSTEM_LIBRARY}
+    ${BOOST_REGEX_LIBRARY}
+    gtest_main
+    gtest)
+endif()
 
 if(NOT MSVC)
   set(ARROW_MIN_TEST_LIBS
@@ -731,6 +749,10 @@ if(NOT WIN32 AND ARROW_PLASMA)
 endif()
 
 add_subdirectory(src/arrow)
+
+if(ARROW_FLIGHT)
+  add_subdirectory(src/arrow/flight)
+endif()
 
 if(ARROW_PYTHON)
   add_subdirectory(src/arrow/python)
