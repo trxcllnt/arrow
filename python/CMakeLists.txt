@@ -17,6 +17,9 @@
 #
 # Includes code assembled from BSD/MIT/Apache-licensed code from some 3rd-party
 # projects, including Kudu, Impala, and libdynd. See python/LICENSE.txt
+#
+# TODO(ARROW-3209): rename arrow_gpu to arrow_cuda
+#
 
 cmake_minimum_required(VERSION 2.7)
 project(pyarrow)
@@ -58,6 +61,9 @@ endif()
 
 # Top level cmake dir
 if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+  option(PYARROW_BUILD_CUDA
+    "Build the PyArrow CUDA support"
+    OFF)
   option(PYARROW_BUILD_PARQUET
     "Build the PyArrow Parquet integration"
     OFF)
@@ -69,6 +75,9 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     ON)
   option(PYARROW_BUILD_PLASMA
     "Build the PyArrow Plasma integration"
+    OFF)
+  option(PYARROW_USE_TENSORFLOW
+    "Build PyArrow with TensorFlow support"
     OFF)
   option(PYARROW_BUILD_ORC
     "Build the PyArrow ORC integration"
@@ -178,6 +187,11 @@ set(LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 # where to put generated binaries
 set(EXECUTABLE_OUTPUT_PATH "${BUILD_OUTPUT_ROOT_DIRECTORY}")
 
+if (PYARROW_USE_TENSORFLOW)
+  # TensorFlow uses the old GLIBCXX ABI, so we have to use it too
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+endif()
+
 ## Python and libraries
 find_package(PythonLibsNew REQUIRED)
 find_package(NumPy REQUIRED)
@@ -255,6 +269,35 @@ function(bundle_boost_lib library_path)
   endif()
 endfunction()
 
+function(bundle_zlib)
+  # We can assume that manylinux1 and macosx have system zlib.
+  # See https://mail.python.org/mm3/archives/list/distutils-sig@python.org/thread/ZZG6GL3XTBLBJXSITYHEXMFKN43EREB7/
+  # for manylinux1.
+  if (MSVC)
+    # zlib uses zlib.dll for Windows
+    set(ZLIB_SHARED_LIB_NAME zlib.dll)
+    if (DEFINED ENV{ARROW_BUILD_TOOLCHAIN})
+      set(ZLIB_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+    endif()
+    if (DEFINED ENV{ZLIB_HOME})
+      set(ZLIB_HOME "$ENV{ZLIB_HOME}")
+    endif()
+    if ("${ZLIB_HOME}" STREQUAL "")
+      find_library(ZLIB_SHARED_LIB NAMES ${ZLIB_SHARED_LIB_NAME})
+    else()
+      find_library(ZLIB_SHARED_LIB
+	NAMES ${ZLIB_SHARED_LIB_NAME}
+	PATHS ${ZLIB_HOME} NO_DEFAULT_PATH
+	PATH_SUFFIXES "bin")
+    endif()
+    if (ZLIB_SHARED_LIB)
+      file(COPY
+	${ZLIB_SHARED_LIB}
+	DESTINATION ${BUILD_OUTPUT_ROOT_DIRECTORY})
+    endif()
+  endif()
+endfunction()
+
 # Always bundle includes
 file(COPY ${ARROW_INCLUDE_DIR}/arrow DESTINATION ${BUILD_OUTPUT_ROOT_DIRECTORY}/include)
 
@@ -294,6 +337,8 @@ if (PYARROW_BUNDLE_ARROW_CPP)
     bundle_boost_lib(Boost_SYSTEM_LIBRARY)
   endif()
 
+  bundle_zlib()
+
   if (MSVC)
     bundle_arrow_implib(ARROW_SHARED_IMP_LIB)
     bundle_arrow_implib(ARROW_PYTHON_SHARED_IMP_LIB)
@@ -328,6 +373,32 @@ set(LINK_LIBS
   arrow_shared
   arrow_python_shared
 )
+
+if (PYARROW_BUILD_CUDA)
+  ## Arrow CUDA
+  find_package(ArrowCuda)
+  if(NOT ARROW_CUDA_FOUND)
+    message(FATAL_ERROR "Unable to locate Arrow CUDA libraries")
+  else()
+    if (PYARROW_BUNDLE_ARROW_CPP)
+      bundle_arrow_lib(ARROW_CUDA_SHARED_LIB
+        ABI_VERSION ${ARROW_ABI_VERSION}
+        SO_VERSION ${ARROW_SO_VERSION})
+      if (MSVC)
+        bundle_arrow_implib(ARROW_CUDA_SHARED_IMP_LIB)
+      endif()
+    endif()
+    if (MSVC)
+      ADD_THIRDPARTY_LIB(arrow_gpu
+        SHARED_LIB ${ARROW_CUDA_SHARED_IMP_LIB})
+    else()
+      ADD_THIRDPARTY_LIB(arrow_gpu
+        SHARED_LIB ${ARROW_CUDA_SHARED_LIB})
+    endif()
+    set(LINK_LIBS ${LINK_LIBS} arrow_gpu_shared)
+    set(CYTHON_EXTENSIONS ${CYTHON_EXTENSIONS} _cuda)
+  endif()
+endif()
 
 if (PYARROW_BUILD_PARQUET)
   ## Parquet
@@ -394,6 +465,8 @@ if (PYARROW_BUILD_PLASMA)
   ADD_THIRDPARTY_LIB(libplasma
     SHARED_LIB ${PLASMA_SHARED_LIB})
 
+  file(COPY ${ARROW_INCLUDE_DIR}/plasma DESTINATION ${BUILD_OUTPUT_ROOT_DIRECTORY}/include)
+
   if (PYARROW_BUNDLE_ARROW_CPP)
     bundle_arrow_lib(PLASMA_SHARED_LIB
       ABI_VERSION ${ARROW_ABI_VERSION}
@@ -449,15 +522,20 @@ foreach(module ${CYTHON_EXTENSIONS})
       # root of the pyarrow/ package so that libarrow/libarrow_python are able
       # to be loaded properly
       if(APPLE)
-        set(module_install_rpath "@loader_path")
+        set(module_install_rpath "@loader_path/")
       else()
         set(module_install_rpath "\$ORIGIN")
       endif()
-      list(LENGTH directories i)
-      while(${i} GREATER 0)
-        set(module_install_rpath "${module_install_rpath}/..")
-        math(EXPR i "${i} - 1" )
-      endwhile(${i} GREATER 0)
+
+      # XXX(wesm): ARROW-2326 this logic is only needed when we have Cython
+      # modules in interior directories. Since all of our C extensions and
+      # bundled libraries are in the same place, we can skip this part
+
+      # list(LENGTH directories i)
+      # while(${i} GREATER 0)
+      #   set(module_install_rpath "${module_install_rpath}/..")
+      #   math(EXPR i "${i} - 1" )
+      # endwhile(${i} GREATER 0)
 
       set_target_properties(${module_name} PROPERTIES
         INSTALL_RPATH ${module_install_rpath})

@@ -34,6 +34,7 @@ set(ARROW_SRCS
   io/file.cc
   io/interfaces.cc
   io/memory.cc
+  io/readahead.cc
 
   util/bit-util.cc
   util/compression.cc
@@ -56,6 +57,7 @@ if (ARROW_COMPUTE)
   add_subdirectory(compute)
   set(ARROW_SRCS ${ARROW_SRCS}
     compute/context.cc
+    compute/kernels/boolean.cc
     compute/kernels/cast.cc
     compute/kernels/hash.cc
     compute/kernels/util-internal.cc
@@ -102,6 +104,10 @@ if (ARROW_ORC)
   SET(ARROW_SRCS adapters/orc/adapter.cc ${ARROW_SRCS})
 endif()
 
+if (ARROW_TENSORFLOW)
+  add_subdirectory(adapters/tensorflow)
+endif()
+
 if (NOT ARROW_BOOST_HEADER_ONLY)
   set(ARROW_SRCS ${ARROW_SRCS}
     io/hdfs.cc
@@ -140,6 +146,7 @@ set(ARROW_ALL_SRCS
 
 ADD_ARROW_LIB(arrow
   SOURCES ${ARROW_ALL_SRCS}
+  OUTPUTS ARROW_LIBRARIES
   DEPENDENCIES arrow_dependencies
   SHARED_LINK_FLAGS ${ARROW_SHARED_LINK_FLAGS}
   SHARED_LINK_LIBS ${ARROW_LINK_LIBS}
@@ -147,6 +154,15 @@ ADD_ARROW_LIB(arrow
   STATIC_LINK_LIBS ${ARROW_STATIC_LINK_LIBS}
   STATIC_PRIVATE_LINK_LIBS ${ARROW_STATIC_PRIVATE_LINK_LIBS}
 )
+
+foreach(LIB_TARGET ${ARROW_LIBRARIES})
+  target_compile_definitions(${LIB_TARGET}
+    PRIVATE ARROW_EXPORTING)
+endforeach()
+
+if (ARROW_BUILD_STATIC AND WIN32)
+  target_compile_definitions(arrow_static PUBLIC ARROW_STATIC)
+endif()
 
 # Headers: top level
 install(FILES

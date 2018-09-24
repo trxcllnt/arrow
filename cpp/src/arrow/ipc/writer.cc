@@ -599,11 +599,8 @@ Status GetContiguousTensor(const Tensor& tensor, MemoryPool* pool,
   const auto& type = checked_cast<const FixedWidthType&>(*tensor.type());
   const int elem_size = type.bit_width() / 8;
 
-  // TODO(wesm): Do we care enough about this temporary allocation to pass in
-  // a MemoryPool to this function?
   std::shared_ptr<Buffer> scratch_space;
-  RETURN_NOT_OK(AllocateBuffer(default_memory_pool(),
-                               tensor.shape()[tensor.ndim() - 1] * elem_size,
+  RETURN_NOT_OK(AllocateBuffer(pool, tensor.shape()[tensor.ndim() - 1] * elem_size,
                                &scratch_space));
 
   std::shared_ptr<ResizableBuffer> contiguous_data;
@@ -631,7 +628,7 @@ Status WriteTensor(const Tensor& tensor, io::OutputStream* dst, int32_t* metadat
     // is aligned.
     RETURN_NOT_OK(AlignStreamPosition(dst));
     auto data = tensor.data();
-    if (data) {
+    if (data && data->data()) {
       *body_length = data->size();
       return dst->Write(data->data(), *body_length);
     } else {
@@ -651,9 +648,8 @@ Status WriteTensor(const Tensor& tensor, io::OutputStream* dst, int32_t* metadat
     // TODO(wesm): Do we care enough about this temporary allocation to pass in
     // a MemoryPool to this function?
     std::shared_ptr<Buffer> scratch_space;
-    RETURN_NOT_OK(AllocateBuffer(default_memory_pool(),
-                                 tensor.shape()[tensor.ndim() - 1] * elem_size,
-                                 &scratch_space));
+    RETURN_NOT_OK(
+        AllocateBuffer(tensor.shape()[tensor.ndim() - 1] * elem_size, &scratch_space));
 
     return WriteStridedTensorData(0, 0, elem_size, tensor, scratch_space->mutable_data(),
                                   dst);
@@ -739,6 +735,12 @@ class StreamBookKeeper {
 
   Status UpdatePosition() { return sink_->Tell(&position_); }
 
+  Status UpdatePositionCheckAligned() {
+    RETURN_NOT_OK(UpdatePosition());
+    DCHECK_EQ(0, position_ % 8) << "Stream is not aligned";
+    return Status::OK();
+  }
+
   Status Align(int64_t alignment = kArrowIpcAlignment) {
     // Adds padding bytes if necessary to ensure all memory blocks are written on
     // 8-byte (or other alignment) boundaries.
@@ -768,13 +770,17 @@ class SchemaWriter : public StreamBookKeeper {
       : StreamBookKeeper(sink), schema_(schema), dictionary_memo_(dictionary_memo) {}
 
   Status WriteSchema() {
+#ifndef NDEBUG
+    // Catch bug fixed in ARROW-3236
+    RETURN_NOT_OK(UpdatePositionCheckAligned());
+#endif
+
     std::shared_ptr<Buffer> schema_fb;
     RETURN_NOT_OK(internal::WriteSchemaMessage(schema_, dictionary_memo_, &schema_fb));
 
     int32_t metadata_length = 0;
     RETURN_NOT_OK(internal::WriteMessage(*schema_fb, sink_, &metadata_length));
-    RETURN_NOT_OK(UpdatePosition());
-    DCHECK_EQ(0, position_ % 8) << "WriteSchema did not perform an aligned write";
+    RETURN_NOT_OK(UpdatePositionCheckAligned());
     return Status::OK();
   }
 
@@ -794,8 +800,7 @@ class SchemaWriter : public StreamBookKeeper {
       const int64_t buffer_start_offset = 0;
       RETURN_NOT_OK(WriteDictionary(entry.first, entry.second, buffer_start_offset, sink_,
                                     &block->metadata_length, &block->body_length, pool_));
-      RETURN_NOT_OK(UpdatePosition());
-      DCHECK(position_ % 8 == 0) << "WriteDictionary did not perform aligned writes";
+      RETURN_NOT_OK(UpdatePositionCheckAligned());
     }
 
     return Status::OK();
@@ -860,9 +865,7 @@ class RecordBatchStreamWriter::RecordBatchStreamWriterImpl : public StreamBookKe
     RETURN_NOT_OK(arrow::ipc::WriteRecordBatch(
         batch, buffer_start_offset, sink_, &block->metadata_length, &block->body_length,
         pool_, kMaxNestingDepth, allow_64bit));
-    RETURN_NOT_OK(UpdatePosition());
-
-    DCHECK(position_ % 8 == 0) << "WriteRecordBatch did not perform aligned writes";
+    RETURN_NOT_OK(UpdatePositionCheckAligned());
 
     return Status::OK();
   }
@@ -926,6 +929,11 @@ class RecordBatchFileWriter::RecordBatchFileWriterImpl
       : BASE(sink, schema) {}
 
   Status Start() override {
+    // ARROW-3236: The initial position -1 needs to be updated to the stream's
+    // current position otherwise an incorrect amount of padding will be
+    // written to new files.
+    RETURN_NOT_OK(UpdatePosition());
+
     // It is only necessary to align to 8-byte boundary at the start of the file
     RETURN_NOT_OK(Write(kArrowMagicBytes, strlen(kArrowMagicBytes)));
     RETURN_NOT_OK(Align());

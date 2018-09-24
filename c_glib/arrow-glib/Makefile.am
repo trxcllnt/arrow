@@ -38,6 +38,10 @@ libarrow_glib_la_CXXFLAGS =			\
 	$(ARROW_CFLAGS)				\
 	$(GARROW_CXXFLAGS)
 
+libarrow_glib_la_LDFLAGS =			\
+	-version-info $(LT_VERSION_INFO)	\
+	-no-undefined
+
 libarrow_glib_la_LIBADD =			\
 	$(GLIB_LIBS)				\
 	$(ARROW_LIBS)
@@ -71,8 +75,8 @@ libarrow_glib_la_headers +=			\
 	input-stream.h				\
 	output-stream.h				\
 	readable.h				\
-	writeable.h				\
-	writeable-file.h
+	writable.h				\
+	writable-file.h
 
 libarrow_glib_la_headers +=			\
 	metadata-version.h			\
@@ -81,6 +85,11 @@ libarrow_glib_la_headers +=			\
 
 libarrow_glib_la_headers +=			\
 	compute.h
+
+if HAVE_ARROW_ORC
+libarrow_glib_la_headers +=			\
+	orc-file-reader.h
+endif
 
 libarrow_glib_la_generated_headers =		\
 	enums.h					\
@@ -117,8 +126,8 @@ libarrow_glib_la_sources +=			\
 	input-stream.cpp			\
 	output-stream.cpp			\
 	readable.cpp				\
-	writeable.cpp				\
-	writeable-file.cpp
+	writable.cpp				\
+	writable-file.cpp
 
 libarrow_glib_la_sources +=			\
 	metadata-version.cpp			\
@@ -127,6 +136,11 @@ libarrow_glib_la_sources +=			\
 
 libarrow_glib_la_sources +=			\
 	compute.cpp
+
+if HAVE_ARROW_ORC
+libarrow_glib_la_sources +=			\
+	orc-file-reader.cpp
+endif
 
 libarrow_glib_la_cpp_headers =			\
 	array.hpp				\
@@ -154,8 +168,8 @@ libarrow_glib_la_cpp_headers +=			\
 	input-stream.hpp			\
 	output-stream.hpp			\
 	readable.hpp				\
-	writeable.hpp				\
-	writeable-file.hpp
+	writable.hpp				\
+	writable-file.hpp
 
 libarrow_glib_la_cpp_headers +=			\
 	metadata-version.hpp			\
@@ -164,6 +178,11 @@ libarrow_glib_la_cpp_headers +=			\
 
 libarrow_glib_la_cpp_headers +=			\
 	compute.hpp
+
+if HAVE_ARROW_ORC
+libarrow_glib_la_cpp_headers +=			\
+	orc-file-reader.hpp
+endif
 
 libarrow_glib_la_SOURCES =			\
 	$(libarrow_glib_la_sources)		\
@@ -217,19 +236,16 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =				\
 	arrow-glib.pc
 
+if HAVE_ARROW_ORC
+pkgconfig_DATA +=				\
+	arrow-orc-glib.pc
+endif
+
 if HAVE_INTROSPECTION
 -include $(INTROSPECTION_MAKEFILE)
 INTROSPECTION_GIRS =
 INTROSPECTION_SCANNER_ARGS =
 INTROSPECTION_SCANNER_ENV =
-if USE_ARROW_BUILD_DIR
-INTROSPECTION_SCANNER_ENV +=			\
-	LD_LIBRARY_PATH=$(ARROW_LIB_DIR):$${LD_LIBRARY_PATH}
-endif
-if OS_MACOS
-INTROSPECTION_SCANNER_ENV +=			\
-	ARCHFLAGS=
-endif
 INTROSPECTION_COMPILER_ARGS =
 
 Arrow-1.0.gir: libarrow-glib.la
@@ -241,12 +257,21 @@ Arrow_1_0_gir_INCLUDES =			\
 	Gio-2.0
 Arrow_1_0_gir_CFLAGS =				\
 	$(AM_CPPFLAGS)
-Arrow_1_0_gir_LIBS = libarrow-glib.la
+Arrow_1_0_gir_LIBS =
 Arrow_1_0_gir_FILES = $(libarrow_glib_la_sources)
 Arrow_1_0_gir_SCANNERFLAGS =			\
+	--library-path=$(ARROW_LIB_DIR)		\
 	--warn-all				\
 	--identifier-prefix=GArrow		\
 	--symbol-prefix=garrow
+if OS_MACOS
+Arrow_1_0_gir_LIBS += arrow-glib
+Arrow_1_0_gir_SCANNERFLAGS +=			\
+	--no-libtool				\
+	--library-path=$(abs_builddir)/.libs
+else
+Arrow_1_0_gir_LIBS += libarrow-glib.la
+endif
 INTROSPECTION_GIRS += Arrow-1.0.gir
 
 girdir = $(datadir)/gir-1.0

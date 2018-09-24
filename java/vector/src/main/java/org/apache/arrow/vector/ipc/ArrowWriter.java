@@ -42,6 +42,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
+/**
+ * Abstract base class for implementing Arrow writers for IPC over a WriteChannel
+ */
 public abstract class ArrowWriter implements AutoCloseable {
 
   protected static final Logger LOGGER = LoggerFactory.getLogger(ArrowWriter.class);
@@ -81,7 +84,8 @@ public abstract class ArrowWriter implements AutoCloseable {
       Dictionary dictionary = provider.lookup(id);
       FieldVector vector = dictionary.getVector();
       int count = vector.getValueCount();
-      VectorSchemaRoot dictRoot = new VectorSchemaRoot(ImmutableList.of(vector.getField()), ImmutableList.of(vector), count);
+      VectorSchemaRoot dictRoot = new VectorSchemaRoot(ImmutableList.of(vector.getField()), ImmutableList.of(vector),
+          count);
       VectorUnloader unloader = new VectorUnloader(dictRoot);
       ArrowRecordBatch batch = unloader.getRecordBatch();
       this.dictionaries.add(new ArrowDictionaryBatch(id, batch));
@@ -104,14 +108,14 @@ public abstract class ArrowWriter implements AutoCloseable {
   protected ArrowBlock writeDictionaryBatch(ArrowDictionaryBatch batch) throws IOException {
     ArrowBlock block = MessageSerializer.serialize(out, batch);
     LOGGER.debug(String.format("DictionaryRecordBatch at %d, metadata: %d, body: %d",
-      block.getOffset(), block.getMetadataLength(), block.getBodyLength()));
+        block.getOffset(), block.getMetadataLength(), block.getBodyLength()));
     return block;
   }
 
   protected ArrowBlock writeRecordBatch(ArrowRecordBatch batch) throws IOException {
     ArrowBlock block = MessageSerializer.serialize(out, batch);
     LOGGER.debug(String.format("RecordBatch at %d, metadata: %d, body: %d",
-      block.getOffset(), block.getMetadataLength(), block.getBodyLength()));
+        block.getOffset(), block.getMetadataLength(), block.getBodyLength()));
     return block;
   }
 
@@ -149,9 +153,11 @@ public abstract class ArrowWriter implements AutoCloseable {
     }
   }
 
-  protected abstract void startInternal(WriteChannel out) throws IOException;
+  protected void startInternal(WriteChannel out) throws IOException {
+  }
 
-  protected abstract void endInternal(WriteChannel out) throws IOException;
+  protected void endInternal(WriteChannel out) throws IOException {
+  }
 
   @Override
   public void close() {

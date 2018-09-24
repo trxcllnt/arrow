@@ -20,7 +20,7 @@
 
   <groupId>org.apache.arrow</groupId>
   <artifactId>arrow-java-root</artifactId>
-  <version>0.10.0-SNAPSHOT</version>
+  <version>0.11.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Apache Arrow Java Root POM</name>
@@ -37,14 +37,14 @@
     <dep.hadoop.version>2.7.1</dep.hadoop.version>
     <fbs.version>1.2.0-3f79e055</fbs.version>
     <forkCount>2</forkCount>
-    <checkstyle.failOnViolation>false</checkstyle.failOnViolation>
+    <checkstyle.failOnViolation>true</checkstyle.failOnViolation>
   </properties>
 
   <scm>
     <connection>scm:git:https://github.com/apache/arrow.git</connection>
     <developerConnection>scm:git:https://github.com/apache/arrow.git</developerConnection>
     <url>https://github.com/apache/arrow</url>
-    <tag>apache-arrow-0.7.1</tag>
+    <tag>apache-arrow-0.10.0</tag>
   </scm>
 
   <mailingLists>
@@ -307,6 +307,7 @@
           <configLocation>dev/checkstyle/checkstyle.xml</configLocation>
           <headerLocation>dev/checkstyle/checkstyle.license</headerLocation>
           <suppressionsLocation>dev/checkstyle/suppressions.xml</suppressionsLocation>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
           <encoding>UTF-8</encoding>
           <consoleOutput>true</consoleOutput>
           <failsOnError>${checkstyle.failOnViolation}</failsOnError>
@@ -368,6 +369,7 @@
           <version>2.20</version>
           <configuration>
             <enableAssertions>true</enableAssertions>
+            <childDelegation>true</childDelegation>
             <forkCount>${forkCount}</forkCount>
             <reuseForks>true</reuseForks>
             <systemPropertyVariables>
@@ -635,6 +637,7 @@
       </activation>
       <properties>
 	<doclint>none</doclint>
+	<additionalparam>-Xdoclint:none</additionalparam>
       </properties>
     </profile>
   </profiles>

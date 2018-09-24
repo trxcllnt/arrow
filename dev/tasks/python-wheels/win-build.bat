@@ -35,14 +35,13 @@ pushd %ARROW_SRC%
 @rem fix up symlinks
 git config core.symlinks true
 git reset --hard || exit /B
-git checkout "%pyarrow_ref%" || exit /B
+git checkout "%PYARROW_REF%" || exit /B
 
 popd
 
 set ARROW_HOME=%CONDA_PREFIX%\Library
 set PARQUET_HOME=%CONDA_PREFIX%\Library
 set ARROW_BUILD_TOOLCHAIN=%CONDA_PREFIX%\Library
-set PARQUET_BUILD_TOOLCHAIN=%CONDA_PREFIX%\Library
 
 echo %ARROW_HOME%
 
@@ -57,6 +56,7 @@ cmake -G "%GENERATOR%" ^
       -DCMAKE_BUILD_TYPE=Release ^
       -DARROW_CXXFLAGS="/MP" ^
       -DARROW_PYTHON=ON ^
+      -DARROW_PARQUET=ON ^
       ..  || exit /B
 cmake --build . --target INSTALL --config Release  || exit /B
 
@@ -65,29 +65,12 @@ set PYTHONPATH=%CONDA_PREFIX%\Lib;%CONDA_PREFIX%\Lib\site-packages;%CONDA_PREFIX
 ctest -VV  || exit /B
 popd
 
-@rem Build parquet-cpp
-git clone https://github.com/apache/parquet-cpp.git || exit /B
-pushd parquet-cpp
-git checkout "%parquet_cpp_ref%"
-popd
-
-mkdir parquet-cpp\build
-pushd parquet-cpp\build
-
-cmake -G "%GENERATOR%" ^
-     -DCMAKE_INSTALL_PREFIX=%PARQUET_HOME% ^
-     -DCMAKE_BUILD_TYPE=Release ^
-     -DPARQUET_BOOST_USE_SHARED=OFF ^
-     -DPARQUET_BUILD_TESTS=OFF .. || exit /B
-cmake --build . --target INSTALL --config Release || exit /B
-popd
-
 @rem Build and import pyarrow
 set PYTHONPATH=
 
 pushd %ARROW_SRC%\python
 set PYARROW_BUILD_TYPE=Release
-set SETUPTOOLS_SCM_PRETEND_VERSION=%pyarrow_version%
+set SETUPTOOLS_SCM_PRETEND_VERSION=%PYARROW_VERSION%
 
 python setup.py build_ext ^
        --with-parquet ^

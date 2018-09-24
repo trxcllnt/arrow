@@ -15,7 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+include "common.fbs";
+
 // Plasma protocol specification
+namespace plasma.flatbuf;
 
 enum MessageType:long {
   // Message that gets send when a client hangs up.
@@ -43,6 +46,9 @@ enum MessageType:long {
   // See if the store contains an object (will be deprecated).
   PlasmaContainsRequest,
   PlasmaContainsReply,
+  // List all objects in the store.
+  PlasmaListRequest,
+  PlasmaListReply,
   // Get information for a newly connecting client.
   PlasmaConnectRequest,
   PlasmaConnectReply,
@@ -200,15 +206,19 @@ table PlasmaReleaseReply {
 }
 
 table PlasmaDeleteRequest {
+  // The number of objects to delete.
+  count: int;
   // ID of the object to be deleted.
-  object_id: string;
+  object_ids: [string];
 }
 
 table PlasmaDeleteReply {
+  // The number of objects to delete.
+  count: int;
   // ID of the object that was deleted.
-  object_id: string;
+  object_ids: [string];
   // Error code.
-  error: PlasmaError;
+  errors: [PlasmaError];
 }
 
 table PlasmaStatusRequest {
@@ -250,6 +260,13 @@ table PlasmaContainsReply {
   object_id: string;
   // 1 if the object is in the store and 0 otherwise.
   has_object: int;
+}
+
+table PlasmaListRequest {
+}
+
+table PlasmaListReply {
+  objects: [ObjectInfo];
 }
 
 // PlasmaConnect is used by a plasma client the first time it connects with the

@@ -70,10 +70,19 @@ esac
 AC_MSG_RESULT([$os_macos])
 AM_CONDITIONAL(OS_MACOS, test "$os_macos" = "yes")
 
+LT_INIT
+LT_CURRENT=${GARROW_VERSION_MINOR}
+LT_REVISION=${GARROW_VERSION_MICRO}
+LT_AGE=0
+LT_VERSION_INFO="\$(LT_CURRENT):\$(LT_REVISION):\$(LT_AGE)"
+AC_SUBST(LT_CURRENT)
+AC_SUBST(LT_REVISION)
+AC_SUBST(LT_AGE)
+AC_SUBST(LT_VERSION_INFO)
+
 AC_PROG_CC
 AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_11([ext], [mandatory])
-LT_INIT
 
 GARROW_CFLAGS="-Wall"
 GARROW_CXXFLAGS="-Wall"
@@ -115,6 +124,12 @@ if test "x$GARROW_ARROW_CPP_BUILD_DIR" = "x"; then
   USE_ARROW_BUILD_DIR=no
 
   PKG_CHECK_MODULES([ARROW], [arrow arrow-compute])
+  _PKG_CONFIG(ARROW_LIB_DIR, [variable=libdir], [arrow])
+  ARROW_LIB_DIR="$pkg_cv_ARROW_LIB_DIR"
+  PKG_CHECK_MODULES([ARROW_ORC],
+                    [arrow-orc],
+                    [HAVE_ARROW_ORC=yes],
+                    [HAVE_ARROW_ORC=no])
   PKG_CHECK_MODULES([ARROW_GPU],
                     [arrow-gpu],
                     [HAVE_ARROW_GPU=yes],
@@ -135,6 +150,12 @@ else
   AC_SUBST(ARROW_CFLAGS)
   AC_SUBST(ARROW_LIBS)
 
+  if test -f "${GARROW_ARROW_CPP_BUILD_DIR}/src/arrow/adapters/orc/arrow-orc.pc"; then
+    HAVE_ARROW_ORC=yes
+  else
+    HAVE_ARROW_ORC=no
+  fi
+
   ARROW_GPU_CFLAGS=""
   if test -f "${GARROW_ARROW_CPP_BUILD_DIR}/src/arrow/gpu/arrow-gpu.pc"; then
     HAVE_ARROW_GPU=yes
@@ -150,6 +171,11 @@ fi
 AM_CONDITIONAL([USE_ARROW_BUILD_DIR],
                [test "$USE_ARROW_BUILD_DIR" = "yes"])
 
+AM_CONDITIONAL([HAVE_ARROW_ORC], [test "$HAVE_ARROW_ORC" = "yes"])
+if test "$HAVE_ARROW_ORC" = "yes"; then
+  AC_DEFINE(HAVE_ARROW_ORC, [1], [Define to 1 if Apache Arrow supports ORC.])
+fi
+
 AM_CONDITIONAL([HAVE_ARROW_GPU], [test "$HAVE_ARROW_GPU" = "yes"])
 if test "$HAVE_ARROW_GPU" = "yes"; then
   AC_DEFINE(HAVE_ARROW_GPU, [1], [Define to 1 if Apache Arrow supports GPU.])
@@ -162,6 +188,7 @@ AC_CONFIG_FILES([
   Makefile
   arrow-glib/Makefile
   arrow-glib/arrow-glib.pc
+  arrow-glib/arrow-orc-glib.pc
   arrow-glib/version.h
   arrow-gpu-glib/Makefile
   arrow-gpu-glib/arrow-gpu-glib.pc

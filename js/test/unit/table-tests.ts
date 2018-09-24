@@ -19,7 +19,7 @@ import Arrow, { vector, RecordBatch } from '../Arrow';
 
 const { predicate, Table } = Arrow;
 
-const { col, lit, custom } = predicate;
+const { col, lit, custom, and, or, And, Or } = predicate;
 
 const F32 = 0, I32 = 1, DICT = 2;
 const test_data = [
@@ -86,13 +86,20 @@ describe(`Table`, () => {
             });
             test(`gets expected values`, () => {
                 for (let i = -1; ++i < values.length;) {
-                    expect(table.get(i).toArray()).toEqual(values[i]);
+                    const row = table.get(i);
+                    const expected = values[i];
+                    expect(row.f32).toEqual(expected[F32]);
+                    expect(row.i32).toEqual(expected[I32]);
+                    expect(row.dictionary).toEqual(expected[DICT]);
                 }
             });
             test(`iterates expected values`, () => {
                 let i = 0;
                 for (let row of table) {
-                    expect(row.toArray()).toEqual(values[i++]);
+                    const expected = values[i++];
+                    expect(row.f32).toEqual(expected[F32]);
+                    expect(row.i32).toEqual(expected[I32]);
+                    expect(row.dictionary).toEqual(expected[DICT]);
                 }
             });
             describe(`scan()`, () => {
@@ -252,8 +259,8 @@ describe(`Table`, () => {
                 let idx = 0, expected_row;
                 for (let row of selected) {
                     expected_row = values[idx++];
-                    expect(row.get(0)).toEqual(expected_row[F32]);
-                    expect(row.get(1)).toEqual(expected_row[DICT]);
+                    expect(row.f32).toEqual(expected_row[F32]);
+                    expect(row.dictionary).toEqual(expected_row[DICT]);
                 }
             });
             test(`table.toString()`, () => {
@@ -290,6 +297,24 @@ describe(`Table`, () => {
             });
         });
     }
+});
+
+describe(`Predicate`, () => {
+    const p1 = col('a').gt(100);
+    const p2 = col('a').lt(1000);
+    const p3 = col('b').eq('foo');
+    const p4 = col('c').eq('bar');
+    const expected = [p1, p2, p3, p4]
+    test(`and flattens children`, () => {
+        expect(and(p1, p2, p3, p4).children).toEqual(expected);
+        expect(and(p1.and(p2), new And(p3, p4)).children).toEqual(expected);
+        expect(and(p1.and(p2, p3, p4)).children).toEqual(expected);
+    });
+    test(`or flattens children`, () => {
+        expect(or(p1, p2, p3, p4).children).toEqual(expected);
+        expect(or(p1.or(p2), new Or(p3, p4)).children).toEqual(expected);
+        expect(or(p1.or(p2, p3, p4)).children).toEqual(expected);
+    });
 });
 
 function leftPad(str: string, fill: string, n: number) {

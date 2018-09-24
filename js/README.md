@@ -39,6 +39,7 @@ Apache Arrow is the emerging standard for large in-memory columnar data ([Spark]
 
 # Usage
 
+
 ## Get a table from an Arrow file on disk (in IPC format)
 
 ```es6
@@ -83,6 +84,31 @@ console.log(table.toString());
 */
 ```
 
+## Create a Table from JavaScript arrays
+
+```es6
+const fields = [{
+        name: 'precipitation',
+        type: { name: 'floatingpoint', precision: 'SINGLE'},
+        nullable: false, children: []
+    }, {
+        name: 'date',
+        type: { name: 'date', unit: 'MILLISECOND' },
+        nullable: false, children: []
+    }];
+const rainAmounts = Array.from({length: LENGTH}, () => Number((Math.random() * 20).toFixed(1)));
+const rainDates = Array.from({length: LENGTH}, (_, i) => Date.now() - 1000 * 60 * 60 * 24 * i);
+
+const LENGTH = 2000;
+const rainfall = arrow.Table.from({
+  schema: { fields: fields },
+  batches: [{
+    count: LENGTH,
+    columns: [
+      {name: "precipitation", count: LENGTH, VALIDITY: [], DATA: rainAmounts },
+      {name: "date",          count: LENGTH, VALIDITY: [], DATA: rainDates } ] }] })
+```
+
 ## Load data with `fetch`
 
 ```es6
@@ -96,7 +122,7 @@ fetch(require("simple.arrow")).then(response => {
 });
 ```
 
-## Columns are what you'd expect
+## Columns look like JS Arrays
 
 ```es6
 import { readFileSync } from 'fs';
@@ -107,9 +133,10 @@ const table = Table.from([
     'latlong/records.arrow'
 ].map(readFileSync));
 
-const column = table.col('origin_lat');
-const typed = column.slice();
+const column = table.getColumn('origin_lat');
 
+// Copy the data into a TypedArray
+const typed = column.slice();
 assert(typed instanceof Float32Array);
 
 for (let i = -1, n = column.length; ++i < n;) {
@@ -157,6 +184,12 @@ Index,   origin_city
     4,   San Antonio
 */
 ```
+
+# Tutorials and examples
+
+* [JavaScript Introduction to Arrow][5]
+* [Manipulating flat arrays arrow-style][6]
+* [/js/test/unit](https://github.com/apache/arrow/tree/master/js/test/unit) - Unit tests for Table and Vector
 
 # Getting involved
 
@@ -215,18 +248,18 @@ If you think we missed a compilation target and it's a blocker for adoption, ple
 
 Full list of broader Apache Arrow [committers](https://arrow.apache.org/committers/).
 
-* Brian Hulette, CCRi,  _contributor_
+* Brian Hulette,  _committer_
 * Paul Taylor, Graphistry, Inc.,  _committer_
 
-# Powered By Apache Arrow in JS 
+# Powered By Apache Arrow in JS
 
 Full list of broader Apache Arrow [projects & organizations](https://github.com/apache/arrow/blob/master/site/powered_by.md).
- 
+
 ## Open Source Projects
 
 * [Apache Arrow](https://arrow.apache.org) -- Parent project for Powering Columnar In-Memory Analytics, including affiliated open source projects
 * [rxjs-mapd](https://github.com/graphistry/rxjs-mapd) -- A MapD Core node-driver that returns query results as Arrow columns
-* [Perspective](https://github.com/jpmorganchase/perspective) -- Perspective is a streaming data visualization engine by J.P. Morgan for JavaScript for building real-time & user-configurable analytics entirely in the browser. 
+* [Perspective](https://github.com/jpmorganchase/perspective) -- Perspective is a streaming data visualization engine by J.P. Morgan for JavaScript for building real-time & user-configurable analytics entirely in the browser.
 
 ## Companies & Organizations
 
@@ -242,3 +275,5 @@ Full list of broader Apache Arrow [projects & organizations](https://github.com/
 [2]: https://github.com/apache/arrow/tree/master/format
 [3]: https://issues.apache.org/jira/browse/ARROW
 [4]: https://github.com/apache/arrow
+[5]: https://beta.observablehq.com/@theneuralbit/introduction-to-apache-arrow
+[6]: https://beta.observablehq.com/@lmeyerov/manipulating-flat-arrays-arrow-style

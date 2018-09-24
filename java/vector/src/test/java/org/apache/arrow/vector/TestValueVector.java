@@ -17,31 +17,30 @@
  */
 
 package org.apache.arrow.vector;
-import org.apache.arrow.vector.util.OversizedAllocationException;
 
 import static org.apache.arrow.vector.TestUtils.newVarBinaryVector;
 import static org.apache.arrow.vector.TestUtils.newVarCharVector;
 import static org.apache.arrow.vector.TestUtils.newVector;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.ArrayList;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.Types.MinorType;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.OversizedAllocationException;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 import org.junit.After;
@@ -477,7 +476,8 @@ public class TestValueVector {
   public void testNullableFixedType1() {
 
     // Create a new value vector for 1024 integers.
-    try (final UInt4Vector vector = newVector(UInt4Vector.class, EMPTY_SCHEMA_PATH, new ArrowType.Int(32, false), allocator);) {
+    try (final UInt4Vector vector = newVector(UInt4Vector.class, EMPTY_SCHEMA_PATH, new ArrowType.Int(32, false),
+      allocator);) {
       boolean error = false;
       int initialCapacity = 1024;
 
@@ -565,7 +565,7 @@ public class TestValueVector {
       /* reset the vector */
       vector.reset();
 
-       /* capacity shouldn't change after reset */
+      /* capacity shouldn't change after reset */
       assertEquals(initialCapacity * 2, vector.getValueCapacity());
 
       /* vector data should be zeroed out */
@@ -816,7 +816,7 @@ public class TestValueVector {
       vector.zeroVector();
 
       for (int i = 0; i < vector.getValueCapacity(); i+=2) {
-          vector.set(i, baseValue + i);
+        vector.set(i, baseValue + i);
       }
 
       for (int i = 0; i < vector.getValueCapacity(); i++) {
@@ -846,7 +846,7 @@ public class TestValueVector {
       /* reset the vector */
       vector.reset();
 
-       /* capacity shouldn't change after reset */
+      /* capacity shouldn't change after reset */
       assertEquals(valueCapacity * 4, vector.getValueCapacity());
 
       /* vector data should be zeroed out */
@@ -1414,7 +1414,8 @@ public class TestValueVector {
   @Test
   public void testCopyFromWithNulls() {
     try (final VarCharVector vector = newVector(VarCharVector.class, EMPTY_SCHEMA_PATH, MinorType.VARCHAR, allocator);
-         final VarCharVector vector2 = newVector(VarCharVector.class, EMPTY_SCHEMA_PATH, MinorType.VARCHAR, allocator)) {
+         final VarCharVector vector2 = newVector(VarCharVector.class, EMPTY_SCHEMA_PATH, MinorType.VARCHAR, allocator))
+    {
 
       vector.allocateNew();
       int capacity = vector.getValueCapacity();
@@ -1474,7 +1475,8 @@ public class TestValueVector {
   @Test
   public void testCopyFromWithNulls1() {
     try (final VarCharVector vector = newVector(VarCharVector.class, EMPTY_SCHEMA_PATH, MinorType.VARCHAR, allocator);
-         final VarCharVector vector2 = newVector(VarCharVector.class, EMPTY_SCHEMA_PATH, MinorType.VARCHAR, allocator)) {
+         final VarCharVector vector2 = newVector(VarCharVector.class, EMPTY_SCHEMA_PATH, MinorType.VARCHAR, allocator))
+    {
 
       vector.allocateNew();
       int capacity = vector.getValueCapacity();

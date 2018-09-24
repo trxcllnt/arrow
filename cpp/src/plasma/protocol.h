@@ -30,8 +30,11 @@ namespace plasma {
 
 using arrow::Status;
 
+using flatbuf::MessageType;
+using flatbuf::PlasmaError;
+
 template <class T>
-bool verify_flatbuffer(T* object, uint8_t* data, size_t size) {
+bool VerifyFlatbuffer(T* object, uint8_t* data, size_t size) {
   flatbuffers::Verifier verifier(data, size);
   return object->Verify(verifier);
 }
@@ -100,15 +103,17 @@ Status SendReleaseReply(int sock, ObjectID object_id, PlasmaError error);
 
 Status ReadReleaseReply(uint8_t* data, size_t size, ObjectID* object_id);
 
-/* Plasma Delete message functions. */
+/* Plasma Delete objects message functions. */
 
-Status SendDeleteRequest(int sock, ObjectID object_id);
+Status SendDeleteRequest(int sock, const std::vector<ObjectID>& object_ids);
 
-Status ReadDeleteRequest(uint8_t* data, size_t size, ObjectID* object_id);
+Status ReadDeleteRequest(uint8_t* data, size_t size, std::vector<ObjectID>* object_ids);
 
-Status SendDeleteReply(int sock, ObjectID object_id, PlasmaError error);
+Status SendDeleteReply(int sock, const std::vector<ObjectID>& object_ids,
+                       const std::vector<PlasmaError>& errors);
 
-Status ReadDeleteReply(uint8_t* data, size_t size, ObjectID* object_id);
+Status ReadDeleteReply(uint8_t* data, size_t size, std::vector<ObjectID>* object_ids,
+                       std::vector<PlasmaError>* errors);
 
 /* Satus messages. */
 
@@ -135,6 +140,16 @@ Status SendContainsReply(int sock, ObjectID object_id, bool has_object);
 
 Status ReadContainsReply(uint8_t* data, size_t size, ObjectID* object_id,
                          bool* has_object);
+
+/* Plasma List message functions. */
+
+Status SendListRequest(int sock);
+
+Status ReadListRequest(uint8_t* data, size_t size);
+
+Status SendListReply(int sock, const ObjectTable& objects);
+
+Status ReadListReply(uint8_t* data, size_t size, ObjectTable* objects);
 
 /* Plasma Connect message functions. */
 

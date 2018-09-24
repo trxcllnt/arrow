@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from io import BytesIO, TextIOWrapper
+from io import (BytesIO, TextIOWrapper, BufferedIOBase, IOBase)
 import gc
 import os
 import pickle
@@ -64,7 +64,7 @@ def test_python_file_write():
     s1 = b'enga\xc3\xb1ado'
     s2 = b'foobar'
 
-    f.write(s1.decode('utf8'))
+    f.write(s1)
     assert f.tell() == len(s1)
 
     f.write(s2)
@@ -105,6 +105,47 @@ def test_python_file_read():
     f.close()
 
 
+def test_python_file_readall():
+    data = b'some sample data'
+
+    buf = BytesIO(data)
+    with pa.PythonFile(buf, mode='r') as f:
+        assert f.readall() == data
+
+
+def test_python_file_readinto():
+    length = 10
+    data = b'some sample data longer than 10'
+    dst_buf = bytearray(length)
+    src_buf = BytesIO(data)
+
+    with pa.PythonFile(src_buf, mode='r') as f:
+        assert f.readinto(dst_buf) == 10
+
+        assert dst_buf[:length] == data[:length]
+        assert len(dst_buf) == length
+
+
+def test_python_file_correct_abc():
+    with pa.PythonFile(BytesIO(b''), mode='r') as f:
+        assert isinstance(f, BufferedIOBase)
+        assert isinstance(f, IOBase)
+
+
+def test_python_file_iterable():
+    data = b'''line1
+    line2
+    line3
+    '''
+
+    buf = BytesIO(data)
+    buf2 = BytesIO(data)
+
+    with pa.PythonFile(buf, mode='r') as f:
+        for read, expected in zip(f, buf2):
+            assert read == expected
+
+
 def test_python_file_large_seeks():
     def factory(filename):
         return pa.PythonFile(open(filename, 'rb'))
@@ -125,6 +166,9 @@ def test_bytes_reader():
 
     f.seek(0)
     assert f.tell() == 0
+
+    f.seek(0, 2)
+    assert f.tell() == len(data)
 
     f.seek(5)
     assert f.tell() == 5
@@ -180,6 +224,26 @@ def test_python_file_implicit_mode(tmpdir):
     assert bio.getvalue() == b'foobar\n'
 
 
+def test_python_file_writelines(tmpdir):
+    lines = [b'line1\n', b'line2\n' b'line3']
+    path = os.path.join(str(tmpdir), 'foo.txt')
+    with open(path, 'wb') as f:
+        try:
+            f = pa.PythonFile(f, mode='w')
+            assert f.writable()
+            f.writelines(lines)
+        finally:
+            f.close()
+
+    with open(path, 'rb') as f:
+        try:
+            f = pa.PythonFile(f, mode='r')
+            assert f.readable()
+            assert f.read() == b''.join(lines)
+        finally:
+            f.close()
+
+
 def test_python_file_closing():
     bio = BytesIO()
     pf = pa.PythonFile(bio)
@@ -190,6 +254,18 @@ def test_python_file_closing():
     pf = pa.PythonFile(bio)
     pf.close()
     assert bio.closed
+
+
+# ----------------------------------------------------------------------
+# MemoryPool
+
+
+def test_memory_pool_cannot_use_ctor():
+    with pytest.raises(TypeError):
+        pa.MemoryPool()
+
+    with pytest.raises(TypeError):
+        pa.ProxyMemoryPool()
 
 
 # ----------------------------------------------------------------------
@@ -374,6 +450,17 @@ def test_buffer_hashing():
         hash(pa.py_buffer(b'123'))
 
 
+def test_buffer_protocol_respects_immutability():
+    # ARROW-3228; NumPy's frombuffer ctor determines whether a buffer-like
+    # object is mutable by first attempting to get a mutable buffer using
+    # PyObject_FromBuffer. If that fails, it assumes that the object is
+    # immutable
+    a = b'12345'
+    arrow_ref = pa.py_buffer(a)
+    numpy_ref = np.frombuffer(arrow_ref, dtype=np.uint8)
+    assert not numpy_ref.flags.writeable
+
+
 def test_foreign_buffer():
     obj = np.array([1, 2], dtype=np.int32)
     addr = obj.__array_interface__["data"][0]
@@ -391,6 +478,7 @@ def test_allocate_buffer():
     buf = pa.allocate_buffer(100)
     assert buf.size == 100
     assert buf.is_mutable
+    assert buf.parent is None
 
     bit = b'abcde'
     writer = pa.FixedSizeBufferWriter(buf)
@@ -472,7 +560,7 @@ def test_memory_output_stream():
     for i in range(K):
         f.write(val)
 
-    buf = f.get_result()
+    buf = f.getvalue()
 
     assert len(buf) == len(val) * K
     assert buf.to_pybytes() == val * K
@@ -481,7 +569,7 @@ def test_memory_output_stream():
 def test_inmemory_write_after_closed():
     f = pa.BufferOutputStream()
     f.write(b'ok')
-    f.get_result()
+    f.getvalue()
 
     with pytest.raises(ValueError):
         f.write(b'not ok')
@@ -513,7 +601,7 @@ def test_nativefile_write_memoryview():
     f.write(arr)
     f.write(bytearray(data))
 
-    buf = f.get_result()
+    buf = f.getvalue()
 
     assert buf.to_pybytes() == data * 2
 
@@ -537,7 +625,7 @@ def test_mock_output_stream():
         f1.write(val)
         f2.write(val)
 
-    assert f1.size() == len(f2.get_result())
+    assert f1.size() == len(f2.getvalue())
 
     # Do the same test with a pandas DataFrame
     val = pd.DataFrame({'a': [1, 2, 3]})
@@ -554,7 +642,7 @@ def test_mock_output_stream():
     stream_writer1.close()
     stream_writer2.close()
 
-    assert f1.size() == len(f2.get_result())
+    assert f1.size() == len(f2.getvalue())
 
 
 # ----------------------------------------------------------------------
@@ -574,6 +662,7 @@ def sample_disk_data(request, tmpdir):
 
     def teardown():
         _try_delete(path)
+
     request.addfinalizer(teardown)
     return path, data
 
@@ -656,7 +745,7 @@ def test_memory_map_writer(tmpdir):
     f = pa.memory_map(path, mode='r+b')
 
     f.seek(10)
-    f.write('peekaboo')
+    f.write(b'peekaboo')
     assert f.tell() == 18
 
     f.seek(10)
@@ -673,7 +762,7 @@ def test_memory_map_writer(tmpdir):
 
     # Does not truncate file
     f3 = pa.memory_map(path, mode='w')
-    f3.write('foo')
+    f3.write(b'foo')
 
     with pa.memory_map(path) as f4:
         assert f4.size() == SIZE
@@ -683,6 +772,26 @@ def test_memory_map_writer(tmpdir):
 
     f.seek(0)
     assert f.read(3) == b'foo'
+
+
+def test_memory_map_resize(tmpdir):
+    SIZE = 4096
+    arr = np.random.randint(0, 256, size=SIZE).astype(np.uint8)
+    data1 = arr.tobytes()[:(SIZE // 2)]
+    data2 = arr.tobytes()[(SIZE // 2):]
+
+    path = os.path.join(str(tmpdir), guid())
+
+    mmap = pa.create_memory_map(path, SIZE / 2)
+    mmap.write(data1)
+
+    mmap.resize(SIZE)
+    mmap.write(data2)
+
+    mmap.close()
+
+    with open(path, 'rb') as f:
+        assert f.read() == arr.tobytes()
 
 
 def test_memory_zero_length(tmpdir):
@@ -708,13 +817,20 @@ def test_os_file_writer(tmpdir):
 
     # Truncates file
     f2 = pa.OSFile(path, mode='w')
-    f2.write('foo')
+    f2.write(b'foo')
 
     with pa.OSFile(path) as f3:
         assert f3.size() == 3
 
     with pytest.raises(IOError):
         f2.read(5)
+
+
+def test_native_file_write_reject_unicode():
+    # ARROW-3227
+    nf = pa.BufferOutputStream()
+    with pytest.raises(TypeError):
+        nf.write(u'foo')
 
 
 def test_native_file_modes(tmpdir):

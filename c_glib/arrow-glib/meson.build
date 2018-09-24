@@ -43,8 +43,8 @@ sources += files(
   'input-stream.cpp',
   'output-stream.cpp',
   'readable.cpp',
-  'writeable.cpp',
-  'writeable-file.cpp',
+  'writable.cpp',
+  'writable-file.cpp',
 )
 
 sources += files(
@@ -56,6 +56,12 @@ sources += files(
 sources += files(
   'compute.cpp',
 )
+
+if arrow_orc_dependency.found()
+  sources += files(
+    'orc-file-reader.cpp',
+  )
+endif
 
 c_headers = files(
   'array.h',
@@ -88,8 +94,8 @@ c_headers += files(
   'input-stream.h',
   'output-stream.h',
   'readable.h',
-  'writeable.h',
-  'writeable-file.h',
+  'writable.h',
+  'writable-file.h',
 )
 
 c_headers += files(
@@ -101,6 +107,12 @@ c_headers += files(
 c_headers += files(
   'compute.h',
 )
+
+if arrow_orc_dependency.found()
+  c_headers += files(
+    'orc-file-reader.h',
+  )
+endif
 
 
 cpp_headers = files(
@@ -130,8 +142,8 @@ cpp_headers += files(
   'input-stream.hpp',
   'output-stream.hpp',
   'readable.hpp',
-  'writeable.hpp',
-  'writeable-file.hpp',
+  'writable.hpp',
+  'writable-file.hpp',
 )
 
 cpp_headers += files(
@@ -144,6 +156,11 @@ cpp_headers += files(
   'compute.hpp',
 )
 
+if arrow_orc_dependency.found()
+  cpp_headers += files(
+    'orc-file-reader.hpp',
+  )
+endif
 
 version_h_conf = configuration_data()
 version_h_conf.set('GARROW_VERSION_MAJOR', version_major)
@@ -198,6 +215,13 @@ pkgconfig.generate(filebase: meson.project_name(),
                    version: version,
                    requires: ['gio-2.0', 'arrow'],
                    libraries: [libarrow_glib])
+if arrow_orc_dependency.found()
+  pkgconfig.generate(filebase: 'arrow-orc-glib',
+                     name: 'Apache Arrow GLib ORC',
+                     description: 'ORC modules for Apache Arrow GLib',
+                     version: version,
+                     requires: ['arrow-glib'])
+endif
 
 arrow_glib_gir = gnome.generate_gir(libarrow_glib,
                                     sources: sources + c_headers + enums,

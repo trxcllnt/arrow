@@ -22,14 +22,23 @@
 set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/thirdparty")
 
 if (NOT "$ENV{ARROW_BUILD_TOOLCHAIN}" STREQUAL "")
-  set(FLATBUFFERS_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
-  set(RAPIDJSON_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
-  set(JEMALLOC_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
-  set(GFLAGS_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
-  set(SNAPPY_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
-  set(ZLIB_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
   set(BROTLI_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(FLATBUFFERS_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(GFLAGS_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(GRPC_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  # Using gtest from the toolchain breaks AppVeyor builds
+  if (NOT MSVC)
+    set(GTEST_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  endif()
+  set(JEMALLOC_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
   set(LZ4_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  # orc disabled as it's not in conda-forge (but in Anaconda with an incompatible ABI)
+#   set(ORC_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(PROTOBUF_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(RAPIDJSON_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(SNAPPY_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(THRIFT_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
+  set(ZLIB_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
   set(ZSTD_HOME "$ENV{ARROW_BUILD_TOOLCHAIN}")
 
   if (NOT DEFINED ENV{BOOST_ROOT})
@@ -39,44 +48,75 @@ if (NOT "$ENV{ARROW_BUILD_TOOLCHAIN}" STREQUAL "")
   endif()
 endif()
 
-if (DEFINED ENV{FLATBUFFERS_HOME})
-  set(FLATBUFFERS_HOME "$ENV{FLATBUFFERS_HOME}")
+# Home path for each third-party lib can be overriden with env vars
+
+if (DEFINED ENV{BROTLI_HOME})
+  set(BROTLI_HOME "$ENV{BROTLI_HOME}")
 endif()
 
-if (DEFINED ENV{RAPIDJSON_HOME})
-  set(RAPIDJSON_HOME "$ENV{RAPIDJSON_HOME}")
+if (DEFINED ENV{FLATBUFFERS_HOME})
+  set(FLATBUFFERS_HOME "$ENV{FLATBUFFERS_HOME}")
 endif()
 
 if (DEFINED ENV{GFLAGS_HOME})
   set(GFLAGS_HOME "$ENV{GFLAGS_HOME}")
 endif()
 
-if (DEFINED ENV{SNAPPY_HOME})
-  set(SNAPPY_HOME "$ENV{SNAPPY_HOME}")
+if (DEFINED ENV{GRPC_HOME})
+  set(GRPC_HOME "$ENV{GRPC_HOME}")
 endif()
 
-if (DEFINED ENV{ZLIB_HOME})
-  set(ZLIB_HOME "$ENV{ZLIB_HOME}")
+if (DEFINED ENV{GTEST_HOME})
+  set(GTEST_HOME "$ENV{GTEST_HOME}")
 endif()
 
-if (DEFINED ENV{BROTLI_HOME})
-  set(BROTLI_HOME "$ENV{BROTLI_HOME}")
+if (DEFINED ENV{JEMALLOC_HOME})
+  set(JEMALLOC_HOME "$ENV{JEMALLOC_HOME}")
 endif()
 
 if (DEFINED ENV{LZ4_HOME})
   set(LZ4_HOME "$ENV{LZ4_HOME}")
 endif()
 
-if (DEFINED ENV{ZSTD_HOME})
-  set(ZSTD_HOME "$ENV{ZSTD_HOME}")
-endif()
-
-if (DEFINED ENV{GRPC_HOME})
-  set(GRPC_HOME "$ENV{GRPC_HOME}")
+if (DEFINED ENV{ORC_HOME})
+  set(ORC_HOME "$ENV{ORC_HOME}")
 endif()
 
 if (DEFINED ENV{PROTOBUF_HOME})
   set(PROTOBUF_HOME "$ENV{PROTOBUF_HOME}")
+endif()
+
+if (DEFINED ENV{RAPIDJSON_HOME})
+  set(RAPIDJSON_HOME "$ENV{RAPIDJSON_HOME}")
+endif()
+
+if (DEFINED ENV{SNAPPY_HOME})
+  set(SNAPPY_HOME "$ENV{SNAPPY_HOME}")
+endif()
+
+if (DEFINED ENV{THRIFT_HOME})
+  set(THRIFT_HOME "$ENV{THRIFT_HOME}")
+endif()
+
+if (DEFINED ENV{ZLIB_HOME})
+  set(ZLIB_HOME "$ENV{ZLIB_HOME}")
+endif()
+
+if (DEFINED ENV{ZSTD_HOME})
+  set(ZSTD_HOME "$ENV{ZSTD_HOME}")
+endif()
+
+# ----------------------------------------------------------------------
+# Some EP's require other EP's
+
+if (ARROW_THRIFT OR ARROW_WITH_ZLIB)
+  set(ARROW_WITH_ZLIB ON)
+endif()
+
+if (ARROW_HIVESERVER2 OR ARROW_PARQUET)
+  set(ARROW_WITH_THRIFT ON)
+else()
+  set(ARROW_WITH_THRIFT OFF)
 endif()
 
 # ----------------------------------------------------------------------
@@ -113,10 +153,22 @@ else()
     "https://dl.bintray.com/boostorg/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_UNDERSCORES}.tar.gz")
 endif()
 
-if (DEFINED ENV{ARROW_GTEST_URL})
-  set(GTEST_SOURCE_URL "$ENV{ARROW_GTEST_URL}")
+if (DEFINED ENV{ARROW_BROTLI_URL})
+  set(BROTLI_SOURCE_URL "$ENV{ARROW_BROTLI_URL}")
 else()
-  set(GTEST_SOURCE_URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz")
+  set(BROTLI_SOURCE_URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz")
+endif()
+
+if (DEFINED ENV{ARROW_FLATBUFFERS_URL})
+  set(FLATBUFFERS_SOURCE_URL "$ENV{ARROW_FLATBUFFERS_URL}")
+else()
+  set(FLATBUFFERS_SOURCE_URL "https://github.com/google/flatbuffers/archive/${FLATBUFFERS_VERSION}.tar.gz")
+endif()
+
+if (DEFINED ENV{ARROW_GBENCHMARK_URL})
+  set(GBENCHMARK_SOURCE_URL "$ENV{ARROW_GBENCHMARK_URL}")
+else()
+  set(GBENCHMARK_SOURCE_URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz")
 endif()
 
 if (DEFINED ENV{ARROW_GFLAGS_URL})
@@ -125,10 +177,34 @@ else()
   set(GFLAGS_SOURCE_URL "https://github.com/gflags/gflags/archive/v${GFLAGS_VERSION}.tar.gz")
 endif()
 
-if (DEFINED ENV{ARROW_GBENCHMARK_URL})
-  set(GBENCHMARK_SOURCE_URL "$ENV{ARROW_GBENCHMARK_URL}")
+if (DEFINED ENV{ARROW_GRPC_URL})
+  set(GRPC_SOURCE_URL "$ENV{ARROW_GRPC_URL}")
 else()
-  set(GBENCHMARK_SOURCE_URL "https://github.com/google/benchmark/archive/v${GBENCHMARK_VERSION}.tar.gz")
+  set(GRPC_SOURCE_URL "https://github.com/grpc/grpc/archive/v${GRPC_VERSION}.tar.gz")
+endif()
+
+if (DEFINED ENV{ARROW_GTEST_URL})
+  set(GTEST_SOURCE_URL "$ENV{ARROW_GTEST_URL}")
+else()
+  set(GTEST_SOURCE_URL "https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz")
+endif()
+
+if (DEFINED ENV{ARROW_LZ4_URL})
+  set(LZ4_SOURCE_URL "$ENV{ARROW_LZ4_URL}")
+else()
+  set(LZ4_SOURCE_URL "https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz")
+endif()
+
+if (DEFINED ENV{ARROW_ORC_URL})
+  set(ORC_SOURCE_URL "$ENV{ARROW_ORC_URL}")
+else()
+  set(ORC_SOURCE_URL "https://github.com/apache/orc/archive/rel/release-${ORC_VERSION}.tar.gz")
+endif()
+
+if (DEFINED ENV{ARROW_PROTOBUF_URL})
+  set(PROTOBUF_SOURCE_URL "$ENV{ARROW_PROTOBUF_URL}")
+else()
+  set(PROTOBUF_SOURCE_URL "https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-${PROTOBUF_VERSION}.tar.gz")
 endif()
 
 set(RAPIDJSON_SOURCE_MD5 "badd12c511e081fec6c89c43a7027bce")
@@ -138,28 +214,16 @@ else()
   set(RAPIDJSON_SOURCE_URL "https://github.com/miloyip/rapidjson/archive/v${RAPIDJSON_VERSION}.tar.gz")
 endif()
 
-if (DEFINED ENV{ARROW_FLATBUFFERS_URL})
-  set(FLATBUFFERS_SOURCE_URL "$ENV{ARROW_FLATBUFFERS_URL}")
-else()
-  set(FLATBUFFERS_SOURCE_URL "https://github.com/google/flatbuffers/archive/v${FLATBUFFERS_VERSION}.tar.gz")
-endif()
-
 if (DEFINED ENV{ARROW_SNAPPY_URL})
   set(SNAPPY_SOURCE_URL "$ENV{ARROW_SNAPPY_URL}")
 else()
   set(SNAPPY_SOURCE_URL "https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz")
 endif()
 
-if (DEFINED ENV{ARROW_BROTLI_URL})
-  set(BROTLI_SOURCE_URL "$ENV{ARROW_BROTLI_URL}")
+if (DEFINED ENV{ARROW_THRIFT_URL})
+  set(THRIFT_SOURCE_URL "$ENV{ARROW_THRIFT_URL}")
 else()
-  set(BROTLI_SOURCE_URL "https://github.com/google/brotli/archive/${BROTLI_VERSION}.tar.gz")
-endif()
-
-if (DEFINED ENV{ARROW_LZ4_URL})
-  set(LZ4_SOURCE_URL "$ENV{ARROW_LZ4_URL}")
-else()
-  set(LZ4_SOURCE_URL "https://github.com/lz4/lz4/archive/v${LZ4_VERSION}.tar.gz")
+  set(THRIFT_SOURCE_URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz")
 endif()
 
 if (DEFINED ENV{ARROW_ZLIB_URL})
@@ -172,24 +236,6 @@ if (DEFINED ENV{ARROW_ZSTD_URL})
   set(ZSTD_SOURCE_URL "$ENV{ARROW_ZSTD_URL}")
 else()
   set(ZSTD_SOURCE_URL "https://github.com/facebook/zstd/archive/v${ZSTD_VERSION}.tar.gz")
-endif()
-
-if (DEFINED ENV{ARROW_PROTOBUF_URL})
-  set(PROTOBUF_SOURCE_URL "$ENV{ARROW_PROTOBUF_URL}")
-else()
-  set(PROTOBUF_SOURCE_URL "https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-${PROTOBUF_VERSION}.tar.gz")
-endif()
-
-if (DEFINED ENV{ARROW_GRPC_URL})
-  set(GRPC_SOURCE_URL "$ENV{ARROW_GRPC_URL}")
-else()
-  set(GRPC_SOURCE_URL "https://github.com/grpc/grpc/archive/v${GRPC_VERSION}.tar.gz")
-endif()
-
-if (DEFINED ENV{ARROW_ORC_URL})
-  set(ORC_SOURCE_URL "$ENV{ARROW_ORC_URL}")
-else()
-  set(ORC_SOURCE_URL "https://github.com/apache/orc/archive/rel/release-${ORC_VERSION}.tar.gz")
 endif()
 
 # ----------------------------------------------------------------------
@@ -228,7 +274,9 @@ endif()
 # ----------------------------------------------------------------------
 # Find pthreads
 
-if (NOT MSVC)
+if (WIN32)
+  set(PTHREAD_LIBRARY "PTHREAD_LIBRARY-NOTFOUND")
+else()
   find_library(PTHREAD_LIBRARY pthread)
   message(STATUS "Found pthread: ${PTHREAD_LIBRARY}")
 endif()
@@ -259,8 +307,11 @@ if (ARROW_BOOST_VENDORED)
     "${BOOST_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}boost_system${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(BOOST_STATIC_FILESYSTEM_LIBRARY
     "${BOOST_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}boost_filesystem${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  set(BOOST_STATIC_REGEX_LIBRARY
+    "${BOOST_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}boost_regex${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(BOOST_SYSTEM_LIBRARY "${BOOST_STATIC_SYSTEM_LIBRARY}")
   set(BOOST_FILESYSTEM_LIBRARY "${BOOST_STATIC_FILESYSTEM_LIBRARY}")
+  set(BOOST_REGEX_LIBRARY "${BOOST_STATIC_REGEX_LIBRARY}")
   if (ARROW_BOOST_HEADER_ONLY)
     set(BOOST_BUILD_PRODUCTS)
     set(BOOST_CONFIGURE_COMMAND "")
@@ -268,11 +319,12 @@ if (ARROW_BOOST_VENDORED)
   else()
     set(BOOST_BUILD_PRODUCTS
       ${BOOST_SYSTEM_LIBRARY}
-      ${BOOST_FILESYSTEM_LIBRARY})
+      ${BOOST_FILESYSTEM_LIBRARY}
+      ${BOOST_REGEX_LIBRARY})
     set(BOOST_CONFIGURE_COMMAND
       "./bootstrap.sh"
       "--prefix=${BOOST_PREFIX}"
-      "--with-libraries=filesystem,system")
+      "--with-libraries=filesystem,regex,system")
     if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
       set(BOOST_BUILD_VARIANT "debug")
     else()
@@ -312,16 +364,19 @@ else()
     if (ARROW_BOOST_HEADER_ONLY)
       find_package(Boost REQUIRED)
     else()
-      find_package(Boost COMPONENTS system filesystem REQUIRED)
+      find_package(Boost COMPONENTS regex system filesystem REQUIRED)
       if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
         set(BOOST_SHARED_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_DEBUG})
         set(BOOST_SHARED_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_DEBUG})
+        set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
       else()
         set(BOOST_SHARED_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_RELEASE})
         set(BOOST_SHARED_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_RELEASE})
+        set(BOOST_SHARED_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
       endif()
       set(BOOST_SYSTEM_LIBRARY boost_system_shared)
       set(BOOST_FILESYSTEM_LIBRARY boost_filesystem_shared)
+      set(BOOST_REGEX_LIBRARY boost_regex_shared)
     endif()
   else()
     # Find static boost headers and libs
@@ -330,16 +385,19 @@ else()
     if (ARROW_BOOST_HEADER_ONLY)
       find_package(Boost REQUIRED)
     else()
-      find_package(Boost COMPONENTS system filesystem REQUIRED)
+      find_package(Boost COMPONENTS regex system filesystem REQUIRED)
       if ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG")
         set(BOOST_STATIC_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_DEBUG})
         set(BOOST_STATIC_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_DEBUG})
+        set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_DEBUG})
       else()
         set(BOOST_STATIC_SYSTEM_LIBRARY ${Boost_SYSTEM_LIBRARY_RELEASE})
         set(BOOST_STATIC_FILESYSTEM_LIBRARY ${Boost_FILESYSTEM_LIBRARY_RELEASE})
+        set(BOOST_STATIC_REGEX_LIBRARY ${Boost_REGEX_LIBRARY_RELEASE})
       endif()
       set(BOOST_SYSTEM_LIBRARY boost_system_static)
       set(BOOST_FILESYSTEM_LIBRARY boost_filesystem_static)
+      set(BOOST_REGEX_LIBRARY boost_regex_static)
     endif()
   endif()
 endif()
@@ -356,6 +414,10 @@ if (NOT ARROW_BOOST_HEADER_ONLY)
       STATIC_LIB "${BOOST_STATIC_FILESYSTEM_LIBRARY}"
       SHARED_LIB "${BOOST_SHARED_FILESYSTEM_LIBRARY}")
 
+  ADD_THIRDPARTY_LIB(boost_regex
+      STATIC_LIB "${BOOST_STATIC_REGEX_LIBRARY}"
+      SHARED_LIB "${BOOST_SHARED_REGEX_LIBRARY}")
+
   SET(ARROW_BOOST_LIBS boost_system boost_filesystem)
 endif()
 
@@ -364,7 +426,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 if(ARROW_BUILD_TESTS OR ARROW_BUILD_BENCHMARKS)
   add_custom_target(unittest ctest -L unittest)
 
-  if("$ENV{GTEST_HOME}" STREQUAL "")
+  if("${GTEST_HOME}" STREQUAL "")
     if(APPLE)
       set(GTEST_CMAKE_CXX_FLAGS "-fPIC -DGTEST_USE_OWN_TR1_TUPLE=1 -Wno-unused-value -Wno-ignored-attributes")
     elseif(NOT MSVC)
@@ -454,7 +516,7 @@ if(ARROW_BUILD_TESTS OR ARROW_BUILD_BENCHMARKS)
   if(MSVC)
     set_target_properties(gflags
       PROPERTIES
-      IMPORTED_LINK_INTERFACE_LIBRARIES "shlwapi.lib")
+      INTERFACE_LINK_LIBRARIES "shlwapi.lib")
   endif()
 
   if(GFLAGS_VENDORED)
@@ -658,6 +720,13 @@ if (ARROW_WITH_ZLIB)
 # ZLIB
 
   if("${ZLIB_HOME}" STREQUAL "")
+    find_package(ZLIB)
+  else()
+    find_package(ZLIB REQUIRED)
+  endif()
+  if(ZLIB_FOUND)
+    ADD_THIRDPARTY_LIB(zlib SHARED_LIB ${ZLIB_SHARED_LIB})
+  else()
     set(ZLIB_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/zlib_ep/src/zlib_ep-install")
     set(ZLIB_HOME "${ZLIB_PREFIX}")
     set(ZLIB_INCLUDE_DIR "${ZLIB_PREFIX}/include")
@@ -677,25 +746,18 @@ if (ARROW_WITH_ZLIB)
                         -DCMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}=${EP_CXX_FLAGS}
                         -DCMAKE_C_FLAGS_${UPPERCASE_BUILD_TYPE}=${EP_C_FLAGS}
                         -DBUILD_SHARED_LIBS=OFF)
+    ADD_THIRDPARTY_LIB(zlib
+      STATIC_LIB ${ZLIB_STATIC_LIB})
 
     ExternalProject_Add(zlib_ep
       URL ${ZLIB_SOURCE_URL}
       ${EP_LOG_OPTIONS}
       BUILD_BYPRODUCTS "${ZLIB_STATIC_LIB}"
       CMAKE_ARGS ${ZLIB_CMAKE_ARGS})
-    set(ZLIB_VENDORED 1)
-  else()
-    find_package(ZLIB REQUIRED)
-    set(ZLIB_VENDORED 0)
+    add_dependencies(zlib zlib_ep)
   endif()
 
   include_directories(SYSTEM ${ZLIB_INCLUDE_DIR})
-  ADD_THIRDPARTY_LIB(zlib
-    STATIC_LIB ${ZLIB_STATIC_LIB})
-
-  if (ZLIB_VENDORED)
-    add_dependencies(zlib zlib_ep)
-  endif()
 endif()
 
 if (ARROW_WITH_SNAPPY)
@@ -721,7 +783,7 @@ if (ARROW_WITH_SNAPPY)
       endif()
     endif()
 
-    if (MSVC)
+    if (WIN32)
       set(SNAPPY_CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                             "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
                             "-DCMAKE_CXX_FLAGS_${UPPERCASE_BUILD_TYPE}=${EP_CXX_FLAGS}"
@@ -1075,10 +1137,127 @@ if (ARROW_ORC)
 
   include_directories(SYSTEM ${ORC_INCLUDE_DIR})
   ADD_THIRDPARTY_LIB(orc
-    STATIC_LIB ${ORC_STATIC_LIB})
+    STATIC_LIB ${ORC_STATIC_LIB}
+    DEPS protobuf)
 
   if (ORC_VENDORED)
     add_dependencies(orc orc_ep)
   endif()
 
 endif()
+
+# ----------------------------------------------------------------------
+# Thrift
+
+if (ARROW_WITH_THRIFT)
+
+# find thrift headers and libs
+find_package(Thrift)
+
+if (NOT THRIFT_FOUND)
+  set(THRIFT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/thrift_ep/src/thrift_ep-install")
+  set(THRIFT_HOME "${THRIFT_PREFIX}")
+  set(THRIFT_INCLUDE_DIR "${THRIFT_PREFIX}/include")
+  set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
+  set(THRIFT_CMAKE_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+                        "-DCMAKE_CXX_FLAGS=${EP_CXX_FLAGS}"
+                        "-DCMAKE_C_FLAGS=${EP_C_FLAGS}"
+                        "-DCMAKE_INSTALL_PREFIX=${THRIFT_PREFIX}"
+                        "-DCMAKE_INSTALL_RPATH=${THRIFT_PREFIX}/lib"
+                        "-DBUILD_SHARED_LIBS=OFF"
+                        "-DBUILD_TESTING=OFF"
+                        "-DBUILD_EXAMPLES=OFF"
+                        "-DBUILD_TUTORIALS=OFF"
+                        "-DWITH_QT4=OFF"
+                        "-DWITH_C_GLIB=OFF"
+                        "-DWITH_JAVA=OFF"
+                        "-DWITH_PYTHON=OFF"
+                        "-DWITH_HASKELL=OFF"
+                        "-DWITH_CPP=ON"
+                        "-DWITH_STATIC_LIB=ON"
+                        "-DWITH_LIBEVENT=OFF"
+                        )
+
+  # Thrift also uses boost. Forward important boost settings if there were ones passed.
+  if (DEFINED BOOST_ROOT)
+    set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DBOOST_ROOT=${BOOST_ROOT}")
+  endif()
+  if (DEFINED Boost_NAMESPACE)
+    set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DBoost_NAMESPACE=${Boost_NAMESPACE}")
+  endif()
+
+  set(THRIFT_STATIC_LIB_NAME "${CMAKE_STATIC_LIBRARY_PREFIX}thrift")
+  if (MSVC)
+    if (ARROW_USE_STATIC_CRT)
+      set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}mt")
+      set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DWITH_MT=ON")
+    else()
+      set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}md")
+      set(THRIFT_CMAKE_ARGS ${THRIFT_CMAKE_ARGS} "-DWITH_MT=OFF")
+    endif()
+  endif()
+  if (${UPPERCASE_BUILD_TYPE} STREQUAL "DEBUG")
+    set(THRIFT_STATIC_LIB_NAME "${THRIFT_STATIC_LIB_NAME}d")
+  endif()
+  set(THRIFT_STATIC_LIB "${THRIFT_PREFIX}/lib/${THRIFT_STATIC_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+
+  if (ZLIB_SHARED_LIB)
+    set(THRIFT_CMAKE_ARGS "-DZLIB_LIBRARY=${ZLIB_SHARED_LIB}"
+                          ${THRIFT_CMAKE_ARGS})
+  else()
+    set(THRIFT_CMAKE_ARGS "-DZLIB_LIBRARY=${ZLIB_STATIC_LIB}"
+                          ${THRIFT_CMAKE_ARGS})
+  endif()
+  set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} zlib)
+
+  if (MSVC)
+    set(WINFLEXBISON_VERSION 2.4.9)
+    set(WINFLEXBISON_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/winflexbison_ep/src/winflexbison_ep-install")
+    ExternalProject_Add(winflexbison_ep
+      URL https://github.com/lexxmark/winflexbison/releases/download/v.${WINFLEXBISON_VERSION}/win_flex_bison-${WINFLEXBISON_VERSION}.zip
+      URL_HASH MD5=a2e979ea9928fbf8567e995e9c0df765
+      SOURCE_DIR ${WINFLEXBISON_PREFIX}
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND ""
+      INSTALL_COMMAND ""
+      ${EP_LOG_OPTIONS})
+    set(THRIFT_DEPENDENCIES ${THRIFT_DEPENDENCIES} winflexbison_ep)
+
+    set(THRIFT_CMAKE_ARGS "-DFLEX_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_flex.exe"
+                          "-DBISON_EXECUTABLE=${WINFLEXBISON_PREFIX}/win_bison.exe"
+                          "-DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}"
+                          "-DWITH_SHARED_LIB=OFF"
+                          "-DWITH_PLUGIN=OFF"
+                          ${THRIFT_CMAKE_ARGS})
+  elseif (APPLE)
+    if (DEFINED BISON_EXECUTABLE)
+      set(THRIFT_CMAKE_ARGS "-DBISON_EXECUTABLE=${BISON_EXECUTABLE}"
+                            ${THRIFT_CMAKE_ARGS})
+    endif()
+  endif()
+
+  ExternalProject_Add(thrift_ep
+    URL ${THRIFT_SOURCE_URL}
+    BUILD_BYPRODUCTS "${THRIFT_STATIC_LIB}" "${THRIFT_COMPILER}"
+    CMAKE_ARGS ${THRIFT_CMAKE_ARGS}
+    DEPENDS ${THRIFT_DEPENDENCIES}
+    ${EP_LOG_OPTIONS})
+
+  set(THRIFT_VENDORED 1)
+else()
+  set(THRIFT_VENDORED 0)
+endif()
+
+include_directories(SYSTEM ${THRIFT_INCLUDE_DIR} ${THRIFT_INCLUDE_DIR}/thrift)
+message(STATUS "Thrift include dir: ${THRIFT_INCLUDE_DIR}")
+message(STATUS "Thrift static library: ${THRIFT_STATIC_LIB}")
+message(STATUS "Thrift compiler: ${THRIFT_COMPILER}")
+message(STATUS "Thrift version: ${THRIFT_VERSION}")
+add_library(thriftstatic STATIC IMPORTED)
+set_target_properties(thriftstatic PROPERTIES IMPORTED_LOCATION ${THRIFT_STATIC_LIB})
+
+if (THRIFT_VENDORED)
+  add_dependencies(thriftstatic thrift_ep)
+endif()
+
+endif()  # ARROW_HIVESERVER2

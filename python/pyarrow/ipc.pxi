@@ -19,37 +19,29 @@ cdef class Message:
     """
     Container for an Arrow IPC message with metadata and optional body
     """
-    cdef:
-        unique_ptr[CMessage] message
-
     def __cinit__(self):
         pass
 
-    def __null_check(self):
-        if self.message.get() == NULL:
-            raise TypeError('Message improperly initialized (null)')
+    def __init__(self):
+        raise TypeError("Do not call {}'s constructor directly, use "
+                        "`pyarrow.ipc.read_message` function instead."
+                        .format(self.__class__.__name__))
 
-    property type:
+    @property
+    def type(self):
+        return frombytes(FormatMessageType(self.message.get().type()))
 
-        def __get__(self):
-            self.__null_check()
-            return frombytes(FormatMessageType(self.message.get().type()))
+    @property
+    def metadata(self):
+        return pyarrow_wrap_buffer(self.message.get().metadata())
 
-    property metadata:
-
-        def __get__(self):
-            self.__null_check()
-            return pyarrow_wrap_buffer(self.message.get().metadata())
-
-    property body:
-
-        def __get__(self):
-            self.__null_check()
-            cdef shared_ptr[CBuffer] body = self.message.get().body()
-            if body.get() == NULL:
-                return None
-            else:
-                return pyarrow_wrap_buffer(body)
+    @property
+    def body(self):
+        cdef shared_ptr[CBuffer] body = self.message.get().body()
+        if body.get() == NULL:
+            return None
+        else:
+            return pyarrow_wrap_buffer(body)
 
     def equals(self, Message other):
         """
@@ -89,7 +81,7 @@ cdef class Message:
             check_status(self.message.get()
                          .SerializeTo(stream.wr_file.get(),
                                       &output_length))
-        return stream.get_result()
+        return stream.getvalue()
 
     def __repr__(self):
         metadata_len = self.metadata.size
@@ -113,17 +105,14 @@ cdef class MessageReader:
     def __cinit__(self):
         pass
 
-    def __null_check(self):
-        if self.reader.get() == NULL:
-            raise TypeError('Message improperly initialized (null)')
-
-    def __repr__(self):
-        self.__null_check()
-        return object.__repr__(self)
+    def __init__(self):
+        raise TypeError("Do not call {}'s constructor directly, use "
+                        "`pyarrow.ipc.MessageReader.open_stream` function "
+                        "instead.".format(self.__class__.__name__))
 
     @staticmethod
     def open_stream(source):
-        cdef MessageReader result = MessageReader()
+        cdef MessageReader result = MessageReader.__new__(MessageReader)
         cdef shared_ptr[InputStream] in_stream
         cdef unique_ptr[CMessageReader] reader
         get_input_stream(source, &in_stream)
@@ -142,7 +131,7 @@ cdef class MessageReader:
         Read next Message from the stream. Raises StopIteration at end of
         stream
         """
-        cdef Message result = Message()
+        cdef Message result = Message.__new__(Message)
 
         with nogil:
             check_status(self.reader.get().ReadNextMessage(&result.message))
@@ -239,7 +228,13 @@ cdef get_input_stream(object source, shared_ptr[InputStream]* out):
     cdef:
         shared_ptr[RandomAccessFile] file_handle
 
-    get_reader(source, &file_handle)
+    try:
+        source = as_buffer(source)
+    except TypeError:
+        # Non-buffer-like
+        pass
+
+    get_reader(source, True, &file_handle)
     out[0] = <shared_ptr[InputStream]> file_handle
 
 
@@ -334,7 +329,12 @@ cdef class _RecordBatchFileReader:
         pass
 
     def _open(self, source, footer_offset=None):
-        get_reader(source, &self.file)
+        try:
+            source = as_buffer(source)
+        except TypeError:
+            pass
+
+        get_reader(source, True, &self.file)
 
         cdef int64_t offset = 0
         if footer_offset is not None:
@@ -351,10 +351,9 @@ cdef class _RecordBatchFileReader:
 
         self.schema = pyarrow_wrap_schema(self.reader.get().schema())
 
-    property num_record_batches:
-
-        def __get__(self):
-            return self.reader.get().num_record_batches()
+    @property
+    def num_record_batches(self):
+        return self.reader.get().num_record_batches()
 
     def get_batch(self, int i):
         cdef shared_ptr[CRecordBatch] batch
@@ -479,7 +478,7 @@ def read_message(source):
     message : Message
     """
     cdef:
-        Message result = Message()
+        Message result = Message.__new__(Message)
         NativeFile cpp_file
 
     if not isinstance(source, NativeFile):
@@ -522,7 +521,7 @@ def read_schema(obj):
     if isinstance(obj, Message):
         raise NotImplementedError(type(obj))
 
-    get_reader(obj, &cpp_file)
+    get_reader(obj, True, &cpp_file)
 
     with nogil:
         check_status(ReadSchema(cpp_file.get(), &result))

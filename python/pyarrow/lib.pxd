@@ -29,6 +29,10 @@ cdef extern from "Python.h":
 
 cdef int check_status(const CStatus& status) nogil except -1
 
+cdef class Message:
+    cdef:
+        unique_ptr[CMessage] message
+
 
 cdef class MemoryPool:
     cdef:
@@ -357,7 +361,8 @@ cdef class NativeFile:
     cdef read_handle(self, shared_ptr[RandomAccessFile]* file)
     cdef write_handle(self, shared_ptr[OutputStream]* file)
 
-cdef get_reader(object source, shared_ptr[RandomAccessFile]* reader)
+cdef get_reader(object source, c_bool use_memory_map,
+                shared_ptr[RandomAccessFile]* reader)
 cdef get_writer(object source, shared_ptr[OutputStream]* writer)
 
 cdef dict box_metadata(const CKeyValueMetadata* sp_metadata)

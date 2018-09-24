@@ -34,10 +34,6 @@ using arrow::Status;
 
 namespace plasma {
 
-ARROW_DEPRECATED("PLASMA_DEFAULT_RELEASE_DELAY is deprecated")
-constexpr int64_t kDeprecatedPlasmaDefaultReleaseDelay = 64;
-#define PLASMA_DEFAULT_RELEASE_DELAY plasma::kDeprecatedPlasmaDefaultReleaseDelay
-
 /// We keep a queue of unreleased objects cached in the client until we start
 /// sending release requests to the store. This is to avoid frequently mapping
 /// and unmapping objects and evicting data from processor caches.
@@ -151,6 +147,21 @@ class ARROW_EXPORT PlasmaClient {
   /// \return The return status.
   Status Contains(const ObjectID& object_id, bool* has_object);
 
+  /// List all the objects in the object store.
+  ///
+  /// This API is experimental and might change in the future.
+  ///
+  /// \param[out] objects ObjectTable of objects in the store. For each entry
+  ///             in the map, the following fields are available:
+  ///             - metadata_size: Size of the object metadata in bytes
+  ///             - data_size: Size of the object data in bytes
+  ///             - ref_count: Number of clients referencing the object buffer
+  ///             - create_time: Unix timestamp of the object creation
+  ///             - construct_duration: Object creation time in seconds
+  ///             - state: Is the object still being created or already sealed?
+  /// \return The return status.
+  Status List(ObjectTable* objects);
+
   /// Abort an unsealed object in the object store. If the abort succeeds, then
   /// it will be as if the object was never created at all. The unsealed object
   /// must have only a single reference (the one that would have been removed by
@@ -178,6 +189,14 @@ class ARROW_EXPORT PlasmaClient {
   /// \param object_id The ID of the object to delete.
   /// \return The return status.
   Status Delete(const ObjectID& object_id);
+
+  /// Delete a list of objects from the object store. This currently assumes that the
+  /// object is present, has been sealed and not used by another client. Otherwise,
+  /// it is a no operation.
+  ///
+  /// \param object_ids The list of IDs of the objects to delete.
+  /// \return The return status. If all the objects are non-existent, return OK.
+  Status Delete(const std::vector<ObjectID>& object_ids);
 
   /// Delete objects until we have freed up num_bytes bytes or there are no more
   /// released objects that can be deleted.

@@ -17,6 +17,7 @@
 # under the License.
 import decimal
 import json
+import multiprocessing as mp
 from collections import OrderedDict
 from datetime import date, datetime, time, timedelta
 
@@ -56,7 +57,7 @@ def _alltypes_example(size=100):
     })
 
 
-def _check_pandas_roundtrip(df, expected=None, use_threads=False,
+def _check_pandas_roundtrip(df, expected=None, use_threads=True,
                             expected_schema=None,
                             check_dtype=True, schema=None,
                             preserve_index=False,
@@ -529,7 +530,7 @@ class TestConvertPrimitiveTypes(object):
         # ARROW-2135
         df = pd.DataFrame({"a": [1.0, 2.0, pd.np.NaN]})
         schema = pa.schema([pa.field("a", pa.int16(), nullable=True)])
-        table = pa.Table.from_pandas(df, schema=schema)
+        table = pa.Table.from_pandas(df, schema=schema, safe=False)
         assert table[0].to_pylist() == [1, 2, None]
         tm.assert_frame_equal(df, table.to_pandas())
 
@@ -568,6 +569,12 @@ class TestConvertPrimitiveTypes(object):
             data[dtype] = np.arange(12, dtype=dtype)
         df = pd.DataFrame(data)
         _check_pandas_roundtrip(df)
+
+        # Do the same with pa.array()
+        # (for some reason, it doesn't use the same code paths at all)
+        for np_arr in data.values():
+            arr = pa.array(np_arr)
+            assert arr.to_pylist() == np_arr.tolist()
 
     def test_integer_with_nulls(self):
         # pandas requires upcast to float dtype
@@ -865,7 +872,6 @@ class TestConvertDateTimeLikeTypes(object):
 
     @pytest.mark.parametrize('mask', [
         None,
-        np.ones(3),
         np.array([True, False, False]),
     ])
     def test_pandas_datetime_to_date64(self, mask):
@@ -887,7 +893,6 @@ class TestConvertDateTimeLikeTypes(object):
 
     @pytest.mark.parametrize('mask', [
         None,
-        np.ones(3),
         np.array([True, False, False])
     ])
     def test_pandas_datetime_to_date64_failures(self, mask):
@@ -900,6 +905,85 @@ class TestConvertDateTimeLikeTypes(object):
         expected_msg = 'Timestamp value had non-zero intraday milliseconds'
         with pytest.raises(pa.ArrowInvalid, match=expected_msg):
             pa.Array.from_pandas(s, type=pa.date64(), mask=mask)
+
+    def test_array_date_as_object(self):
+        data = [date(2000, 1, 1),
+                None,
+                date(1970, 1, 1),
+                date(2040, 2, 26)]
+        expected = np.array(['2000-01-01',
+                             None,
+                             '1970-01-01',
+                             '2040-02-26'], dtype='datetime64')
+
+        arr = pa.array(data)
+        assert arr.equals(pa.array(expected))
+
+        result = arr.to_pandas()
+        assert result.dtype == expected.dtype
+        npt.assert_array_equal(arr.to_pandas(), expected)
+
+        result = arr.to_pandas(date_as_object=True)
+        expected = expected.astype(object)
+        assert result.dtype == expected.dtype
+        npt.assert_array_equal(result, expected)
+
+    def test_chunked_array_convert_date_as_object(self):
+        data = [date(2000, 1, 1),
+                None,
+                date(1970, 1, 1),
+                date(2040, 2, 26)]
+        expected = np.array(['2000-01-01',
+                             None,
+                             '1970-01-01',
+                             '2040-02-26'], dtype='datetime64')
+        carr = pa.chunked_array([data])
+
+        result = carr.to_pandas()
+        assert result.dtype == expected.dtype
+        npt.assert_array_equal(carr.to_pandas(), expected)
+
+        result = carr.to_pandas(date_as_object=True)
+        expected = expected.astype(object)
+        assert result.dtype == expected.dtype
+        npt.assert_array_equal(result, expected)
+
+    def test_column_convert_date_as_object(self):
+        data = [date(2000, 1, 1),
+                None,
+                date(1970, 1, 1),
+                date(2040, 2, 26)]
+        expected = np.array(['2000-01-01',
+                             None,
+                             '1970-01-01',
+                             '2040-02-26'], dtype='datetime64')
+
+        arr = pa.array(data)
+        column = pa.column('date', arr)
+
+        result = column.to_pandas()
+        npt.assert_array_equal(column.to_pandas(), expected)
+
+        result = column.to_pandas(date_as_object=True)
+        expected = expected.astype(object)
+        assert result.dtype == expected.dtype
+        npt.assert_array_equal(result, expected)
+
+    def test_table_convert_date_as_object(self):
+        df = pd.DataFrame({
+            'date': [date(2000, 1, 1),
+                     None,
+                     date(1970, 1, 1),
+                     date(2040, 2, 26)]})
+
+        table = pa.Table.from_pandas(df, preserve_index=False)
+
+        df_datetime = table.to_pandas()
+        df_object = table.to_pandas(date_as_object=True)
+
+        tm.assert_frame_equal(df.astype('datetime64[ns]'), df_datetime,
+                              check_dtype=True)
+        tm.assert_frame_equal(df, df_object, check_dtype=True)
 
     def test_date_infer(self):
         df = pd.DataFrame({
@@ -1147,13 +1231,13 @@ class TestConvertDateTimeLikeTypes(object):
         _check_pandas_roundtrip(df)
         _check_serialize_components_roundtrip(df)
 
+# ----------------------------------------------------------------------
+# Conversion tests for string and binary types.
+
 
 class TestConvertStringLikeTypes(object):
-    """
-    Conversion tests for string and binary types.
-    """
 
-    def test_unicode(self):
+    def test_pandas_unicode(self):
         repeats = 1000
         values = [u'foo', None, u'bar', u'mañana', np.nan]
         df = pd.DataFrame({'strings': values * repeats})
@@ -1293,8 +1377,7 @@ class TestConvertStringLikeTypes(object):
     def test_array_of_bytes_to_strings_bad_data(self):
         with pytest.raises(
                 pa.lib.ArrowInvalid,
-                match=("'(utf8|utf-8)' codec can't decode byte 0x80 "
-                       "in position 0: invalid start byte")):
+                match="was not a utf8 string"):
             pa.array(np.array([b'\x80\x81'], dtype=object), pa.string())
 
     def test_numpy_string_array_to_fixed_size_binary(self):
@@ -1398,6 +1481,17 @@ class TestConvertDecimalTypes(object):
     def test_decimal_with_None_infer_type(self):
         series = pd.Series([decimal.Decimal('3.14'), None])
         _check_series_roundtrip(series, expected_pa_type=pa.decimal128(3, 2))
+
+    def test_strided_objects(self, tmpdir):
+        # see ARROW-3053
+        data = {
+            'a': {0: 'a'},
+            'b': {0: decimal.Decimal('0.0')}
+        }
+
+        # This yields strided objects
+        df = pd.DataFrame.from_dict(data)
+        _check_pandas_roundtrip(df)
 
 
 class TestListTypes(object):
@@ -1530,6 +1624,14 @@ class TestListTypes(object):
         expected = pa.array(list(data))
         assert arr.equals(expected)
         assert arr.type == pa.list_(pa.null())
+
+    def test_nested_list_first_empty(self):
+        # ARROW-2711
+        data = pd.Series([[], [u"a"]])
+        arr = pa.array(data)
+        expected = pa.array(list(data))
+        assert arr.equals(expected)
+        assert arr.type == pa.list_(pa.string())
 
     def test_nested_smaller_ints(self):
         # ARROW-1345, ARROW-2008, there were some type inference bugs happening
@@ -1812,6 +1914,19 @@ class TestZeroCopyConversion(object):
         self.check_zero_copy_failure(pa.array(arr))
 
 
+# This function must be at the top-level for Python 2.7's multiprocessing
+def _non_threaded_conversion():
+    df = _alltypes_example()
+    _check_pandas_roundtrip(df, use_threads=False)
+    _check_pandas_roundtrip(df, use_threads=False, as_batch=True)
+
+
+def _threaded_conversion():
+    df = _alltypes_example()
+    _check_pandas_roundtrip(df, use_threads=True)
+    _check_pandas_roundtrip(df, use_threads=True, as_batch=True)
+
+
 class TestConvertMisc(object):
     """
     Miscellaneous conversion tests.
@@ -1851,10 +1966,17 @@ class TestConvertMisc(object):
             arr = np.array([], dtype=dtype)
             _check_array_roundtrip(arr, type=pa_type)
 
-    def test_threaded_conversion(self):
-        df = _alltypes_example()
-        _check_pandas_roundtrip(df, use_threads=True)
-        _check_pandas_roundtrip(df, use_threads=True, as_batch=True)
+    def test_non_threaded_conversion(self):
+        _non_threaded_conversion()
+
+    def test_threaded_conversion_multiprocess(self):
+        # Parallel conversion should work from child processes too (ARROW-2963)
+        pool = mp.Pool(2)
+        try:
+            pool.apply(_threaded_conversion)
+        finally:
+            pool.close()
+            pool.join()
 
     def test_category(self):
         repeats = 5
@@ -2013,6 +2135,24 @@ class TestConvertMisc(object):
         expected_df = pd.DataFrame(data=[row], columns=['foo', '123'])
         _check_pandas_roundtrip(df, expected=expected_df, preserve_index=True)
 
+    def test_safe_unsafe_casts(self):
+        # ARROW-2799
+        df = pd.DataFrame({
+            'A': list('abc'),
+            'B': np.linspace(0, 1, 3)
+        })
+
+        schema = pa.schema([
+            pa.field('A', pa.string()),
+            pa.field('B', pa.int32())
+        ])
+
+        with pytest.raises(ValueError):
+            pa.Table.from_pandas(df, schema=schema)
+
+        table = pa.Table.from_pandas(df, schema=schema, safe=False)
+        assert table.column('B').type == pa.int32()
+
 
 def _fully_loaded_dataframe_example():
     from distutils.version import LooseVersion
@@ -2084,3 +2224,19 @@ def _pytime_to_micros(pytime):
             pytime.minute * 60000000 +
             pytime.second * 1000000 +
             pytime.microsecond)
+
+
+def test_convert_unsupported_type_error_message():
+    # ARROW-1454
+
+    df = pd.DataFrame({
+        't1': pd.date_range('2000-01-01', periods=20),
+        't2': pd.date_range('2000-05-01', periods=20)
+    })
+
+    # timedelta64 as yet unsupported
+    df['diff'] = df.t2 - df.t1
+
+    expected_msg = 'Conversion failed for column diff with type timedelta64'
+    with pytest.raises(pa.ArrowNotImplementedError, match=expected_msg):
+        pa.Table.from_pandas(df)

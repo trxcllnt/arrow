@@ -55,6 +55,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
 include(CMakeParseArguments)
 include(ExternalProject)
+include(FindPkgConfig)
 
 # This ensures that things like gnu++11 get passed correctly
 set(CMAKE_CXX_STANDARD 11)
@@ -119,6 +120,10 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "Build the Arrow googletest unit tests"
     ON)
 
+  set(ARROW_TEST_INCLUDE_LABELS "" CACHE STRING
+    "Only build unit tests having the indicated label or labels. \
+Pass multiple labels by dividing with semicolons")
+
   option(ARROW_BUILD_BENCHMARKS
     "Build the Arrow micro benchmarks"
     OFF)
@@ -145,6 +150,10 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 
   option(ARROW_ORC
     "Build the Arrow ORC adapter"
+    OFF)
+
+  option(ARROW_TENSORFLOW
+    "Build Arrow with TensorFlow support enabled"
     OFF)
 
   option(ARROW_JEMALLOC
@@ -195,6 +204,10 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "Build Arrow libraries with install_name set to @rpath"
     ON)
 
+  option(ARROW_HIVESERVER2
+    "Build the HiveServer2 client and Arrow adapter"
+    OFF)
+
   option(ARROW_PLASMA
     "Build the plasma object store along with Arrow"
     OFF)
@@ -239,6 +252,10 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
     "If off, output from ExternalProjects will be logged to files rather than shown"
     OFF)
 
+  option(ARROW_VERBOSE_LINT
+    "If off, 'quiet' flags will be passed to linting tools"
+    OFF)
+
   if (MSVC)
     option(ARROW_USE_CLCACHE
       "Use clcache if available"
@@ -248,8 +265,6 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
       "Brotli static lib suffix used on Windows with MSVC (default -static)")
     set(SNAPPY_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
       "Snappy static lib suffix used on Windows with MSVC (default is empty string)")
-    set(ZLIB_MSVC_STATIC_LIB_SUFFIX "libstatic" CACHE STRING
-      "Zlib static lib suffix used on Windows with MSVC (default libstatic)")
     set(LZ4_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
       "Lz4 static lib suffix used on Windows with MSVC (default _static)")
     set(ZSTD_MSVC_STATIC_LIB_SUFFIX "_static" CACHE STRING
@@ -259,6 +274,20 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
       "Build Arrow with statically linked CRT"
       OFF)
   endif()
+
+  # Parquet-related build options
+  option(ARROW_PARQUET
+    "Build the Parquet libraries"
+    OFF)
+
+  option(PARQUET_MINIMAL_DEPENDENCY
+    "Depend only on Thirdparty headers to build libparquet. \
+Always OFF if building binaries"
+    OFF)
+
+  set(PARQUET_ARROW_LINKAGE "shared" CACHE STRING
+    "How to link Arrow libraries with libparquet.so. static|shared (default shared)")
+
 endif()
 
 if(ARROW_BUILD_TESTS OR ARROW_BUILD_BENCHMARKS)
@@ -297,6 +326,11 @@ if(ARROW_HDFS)
   set(ARROW_BOOST_HEADER_ONLY 0)
 else()
   set(ARROW_BOOST_HEADER_ONLY 1)
+endif()
+
+if (ARROW_TENSORFLOW)
+  # TensorFlow uses the old GLIBCXX ABI, so we have to use it too
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
 endif()
 
 if (MSVC AND ARROW_USE_CLCACHE AND
@@ -470,6 +504,10 @@ endif (UNIX)
 ############################################################
 # "make lint" target
 ############################################################
+if (NOT ARROW_VERBOSE_LINT)
+  set(ARROW_LINT_QUIET "--quiet")
+endif()
+
 if (UNIX)
 
   file(GLOB_RECURSE LINT_FILES
@@ -498,7 +536,7 @@ if (UNIX)
   # so process 12 files per invocation, while still ensuring parallelism
   add_custom_target(lint echo ${FILTERED_LINT_FILES} | xargs -n12 -P8
   ${CPPLINT_BIN}
-  --verbose=2
+  --verbose=2 ${ARROW_LINT_QUIET}
   --linelength=90
   --filter=-whitespace/comments,-readability/todo,-build/header_guard,-build/c++11,-runtime/references,-build/include_order
   )
@@ -513,15 +551,13 @@ endif (UNIX)
 add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
   ${CLANG_FORMAT_BIN}
   ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-  ${CMAKE_CURRENT_SOURCE_DIR}/src --fix)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src --fix ${ARROW_LINT_QUIET})
 
 # runs clang format and exits with a non-zero exit code if any files need to be reformatted
-
-# TODO(wesm): Make this work in run_clang_format.py
 add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
    ${CLANG_FORMAT_BIN}
    ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
-   ${CMAKE_CURRENT_SOURCE_DIR}/src)
+   ${CMAKE_CURRENT_SOURCE_DIR}/src ${ARROW_LINT_QUIET})
 
 ############################################################
 # "make clang-tidy" and "make check-clang-tidy" targets
@@ -561,6 +597,8 @@ endif(UNIX)
 ############################################################
 
 set(ARROW_LINK_LIBS)
+
+# Libraries to link statically with libarrow.so
 set(ARROW_STATIC_LINK_LIBS)
 
 if (ARROW_WITH_BROTLI)
@@ -580,6 +618,9 @@ if (ARROW_WITH_SNAPPY)
 endif()
 
 if (ARROW_WITH_ZLIB)
+  if (ZLIB_SHARED_LIB)
+    SET(ARROW_LINK_LIBS zlib ${ARROW_LINK_LIBS})
+  endif()
   SET(ARROW_STATIC_LINK_LIBS zlib ${ARROW_STATIC_LINK_LIBS})
 endif()
 
@@ -596,18 +637,9 @@ if (ARROW_WITH_GRPC)
 endif()
 
 if (ARROW_ORC)
-  if (ARROW_PROTOBUF_USE_SHARED)
-    SET(ARROW_LINK_LIBS
-      protobuf
-      ${ARROW_LINK_LIBS})
-  else()
-    SET(ARROW_STATIC_LINK_LIBS
-      protobuf
-      ${ARROW_STATIC_LINK_LIBS})
-  endif()
   SET(ARROW_STATIC_LINK_LIBS
-    orc
-    ${ARROW_STATIC_LINK_LIBS})
+    ${ARROW_STATIC_LINK_LIBS}
+    orc)
 endif()
 
 if (ARROW_STATIC_LINK_LIBS)
@@ -620,11 +652,8 @@ set(ARROW_BENCHMARK_LINK_LIBS
   gtest
   ${ARROW_STATIC_LINK_LIBS})
 
-set(ARROW_LINK_LIBS
-  ${ARROW_STATIC_LINK_LIBS}
-  ${ARROW_LINK_LIBS})
-
 set(ARROW_SHARED_PRIVATE_LINK_LIBS
+  ${ARROW_STATIC_LINK_LIBS}
   ${BOOST_SYSTEM_LIBRARY}
   ${BOOST_FILESYSTEM_LIBRARY}
   ${BOOST_REGEX_LIBRARY})
@@ -658,7 +687,11 @@ if (ARROW_JEMALLOC)
   add_definitions(-DARROW_JEMALLOC)
   add_definitions(-DARROW_JEMALLOC_INCLUDE_DIR=${JEMALLOC_INCLUDE_DIR})
 
-  if (CMAKE_COMPILER_IS_GNUCXX)
+  # If using gcc or clang on Linux, we need to link pthread for older Linuxes,
+  # including distros as new as Ubuntu 14.04
+  if ((CMAKE_COMPILER_IS_GNUCXX OR
+        (NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+      AND PTHREAD_LIBRARY)
     set(ARROW_JEMALLOC_LINK_LIBS
       jemalloc_static
       # For glibc <2.17 we need to link to librt.
@@ -678,7 +711,7 @@ if (ARROW_JEMALLOC)
   set(ARROW_STATIC_LINK_LIBS
     ${ARROW_STATIC_LINK_LIBS}
     ${ARROW_JEMALLOC_LINK_LIBS})
-elseif (NOT MSVC)
+elseif (PTHREAD_LIBRARY)
   # We need to separate this as otherwise CMake would mess with the library
   # linking order.
   set(ARROW_LINK_LIBS
@@ -700,12 +733,13 @@ endif()
 add_subdirectory(src/arrow)
 
 if(ARROW_PYTHON)
-  find_package(PythonLibsNew REQUIRED)
-  find_package(NumPy REQUIRED)
-
-  include_directories(SYSTEM
-    ${NUMPY_INCLUDE_DIRS}
-    ${PYTHON_INCLUDE_DIRS})
-
   add_subdirectory(src/arrow/python)
+endif()
+
+if(ARROW_HIVESERVER2)
+  add_subdirectory(src/arrow/dbi/hiveserver2)
+endif()
+
+if(ARROW_PARQUET)
+  add_subdirectory(src/parquet)
 endif()

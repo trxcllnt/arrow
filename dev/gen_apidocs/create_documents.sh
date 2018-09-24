@@ -34,9 +34,9 @@ export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
 # Make Java documentation
 # Override user.home to cache dependencies outside the Docker container
 pushd arrow/java
-#mvn -Duser.home=`pwd`/.apidocs-m2 -Drat.skip=true -Dcheckstyle.skip=true install site
-#mkdir -p ../site/asf-site/docs/java/
-#rsync -r target/site/apidocs/ ../site/asf-site/docs/java/
+mvn -Duser.home=`pwd`/.apidocs-m2 -Drat.skip=true -Dcheckstyle.skip=true install site
+mkdir -p ../site/asf-site/docs/java/
+rsync -r target/site/apidocs/ ../site/asf-site/docs/java/
 popd
 
 # Make Javascript documentation
@@ -48,7 +48,7 @@ popd
 
 # Make Python documentation (Depends on C++ )
 # Build Arrow C++
-source activate pyarrow-dev
+conda activate pyarrow-dev
 export ARROW_BUILD_TOOLCHAIN=$CONDA_PREFIX
 export PARQUET_BUILD_TOOLCHAIN=$CONDA_PREFIX
 export LD_LIBRARY_PATH=$(pwd)/apidocs-dist/lib:${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}

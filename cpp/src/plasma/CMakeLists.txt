@@ -39,7 +39,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-conversion")
 # Compile flatbuffers
 
 set(PLASMA_FBS_SRC "${CMAKE_CURRENT_LIST_DIR}/format/plasma.fbs" "${CMAKE_CURRENT_LIST_DIR}/format/common.fbs")
-set(OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR}/)
+set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/src/plasma)
 
 set(PLASMA_FBS_OUTPUT_FILES
   "${OUTPUT_DIR}/common_generated.h"
@@ -88,13 +88,17 @@ if (ARROW_GPU)
   add_definitions(-DPLASMA_GPU)
 endif()
 
-
-
 ADD_ARROW_LIB(plasma
   SOURCES ${PLASMA_SRCS}
+  OUTPUTS PLASMA_LIBRARIES
   DEPENDENCIES gen_plasma_fbs
   SHARED_LINK_LIBS ${FLATBUFFERS_STATIC_LIB} ${CMAKE_THREAD_LIBS_INIT} ${PLASMA_LINK_LIBS}
   STATIC_LINK_LIBS ${FLATBUFFERS_STATIC_LIB} ${CMAKE_THREAD_LIBS_INIT} ${PLASMA_LINK_LIBS})
+
+foreach(LIB_TARGET ${PLASMA_LIBRARIES})
+  target_compile_definitions(${LIB_TARGET}
+    PRIVATE ARROW_EXPORTING)
+endforeach()
 
 # The optimization flag -O3 is suggested by dlmalloc.c, which is #included in
 # malloc.cc; we set it here regardless of whether we do a debug or release build.
@@ -124,8 +128,8 @@ if ("${COMPILER_FAMILY}" STREQUAL "gcc")
     " -Wno-conversion")
 endif()
 
-add_executable(plasma_store store.cc)
-target_link_libraries(plasma_store plasma_static ${PLASMA_LINK_LIBS})
+add_executable(plasma_store_server store.cc)
+target_link_libraries(plasma_store_server plasma_static ${PLASMA_LINK_LIBS})
 
 if (ARROW_RPATH_ORIGIN)
   if (APPLE)
@@ -133,25 +137,22 @@ if (ARROW_RPATH_ORIGIN)
   else()
     set(_lib_install_rpath "\$ORIGIN")
   endif()
-  set_target_properties(plasma_store PROPERTIES
+  set_target_properties(plasma_store_server PROPERTIES
       INSTALL_RPATH ${_lib_install_rpath})
 endif()
 
 # Headers: top level
 install(FILES
   common.h
-  common_generated.h
   compat.h
   client.h
   events.h
-  plasma.h
-  plasma_generated.h
-  protocol.h
+  test-util.h
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/plasma")
 
 # Plasma store
-set_target_properties(plasma_store PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-install(TARGETS plasma_store DESTINATION ${CMAKE_INSTALL_BINDIR})
+set_target_properties(plasma_store_server PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+install(TARGETS plasma_store_server DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # pkg-config support
 configure_file(plasma.pc.in
@@ -200,7 +201,8 @@ endif()
 # Unit tests
 #######################################
 
-ADD_ARROW_TEST(test/serialization_tests)
-ARROW_TEST_LINK_LIBRARIES(test/serialization_tests plasma_static ${PLASMA_LINK_LIBS})
-ADD_ARROW_TEST(test/client_tests)
-ARROW_TEST_LINK_LIBRARIES(test/client_tests plasma_static ${PLASMA_LINK_LIBS})
+ADD_ARROW_TEST(test/serialization_tests
+  EXTRA_LINK_LIBS plasma_static ${PLASMA_LINK_LIBS})
+ADD_ARROW_TEST(test/client_tests
+  EXTRA_LINK_LIBS plasma_static ${PLASMA_LINK_LIBS}
+  EXTRA_DEPENDENCIES plasma_store_server)

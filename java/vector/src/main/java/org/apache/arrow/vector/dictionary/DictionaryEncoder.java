@@ -24,14 +24,14 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableList;
-
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
+
+import com.google.common.collect.ImmutableList;
 
 public class DictionaryEncoder {
 
@@ -136,7 +136,8 @@ public class DictionaryEncoder {
   private static void validateType(MinorType type) {
     // byte arrays don't work as keys in our dictionary map - we could wrap them with something to
     // implement equals and hashcode if we want that functionality
-    if (type == MinorType.VARBINARY || type == MinorType.FIXEDSIZEBINARY || type == MinorType.LIST || type == MinorType.STRUCT || type == MinorType.UNION) {
+    if (type == MinorType.VARBINARY || type == MinorType.FIXEDSIZEBINARY || type == MinorType.LIST ||
+        type == MinorType.STRUCT || type == MinorType.UNION) {
       throw new IllegalArgumentException("Dictionary encoding for complex types not implemented: type " + type);
     }
   }

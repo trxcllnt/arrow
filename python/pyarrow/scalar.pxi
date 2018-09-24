@@ -16,10 +16,10 @@
 # under the License.
 
 
-NA = None
+_NULL = NA = None
 
 
-cdef class NAType(Scalar):
+cdef class NullType(Scalar):
     """
     Null (NA) value singleton
     """
@@ -31,13 +31,13 @@ cdef class NAType(Scalar):
         self.type = null()
 
     def __repr__(self):
-        return 'NA'
+        return 'NULL'
 
     def as_py(self):
         return None
 
 
-NA = NAType()
+_NULL = NA = NullType()
 
 
 cdef class ArrayValue(Scalar):
@@ -228,12 +228,11 @@ else:
 
 cdef class TimestampValue(ArrayValue):
 
-    property value:
-
-        def __get__(self):
-            cdef CTimestampArray* ap = <CTimestampArray*> self.sp_array.get()
-            cdef CTimestampType* dtype = <CTimestampType*> ap.type().get()
-            return ap.Value(self.index)
+    @property
+    def value(self):
+        cdef CTimestampArray* ap = <CTimestampArray*> self.sp_array.get()
+        cdef CTimestampType* dtype = <CTimestampType*> ap.type().get()
+        return ap.Value(self.index)
 
     def as_py(self):
         cdef CTimestampArray* ap = <CTimestampArray*> self.sp_array.get()
@@ -413,23 +412,17 @@ cdef class DictionaryValue(ArrayValue):
     def as_py(self):
         return self.dictionary_value.as_py()
 
-    property index_value:
+    @property
+    def index_value(self):
+        cdef CDictionaryArray* darr = <CDictionaryArray*>(self.sp_array.get())
+        indices = pyarrow_wrap_array(darr.indices())
+        return indices[self.index]
 
-        def __get__(self):
-            cdef CDictionaryArray* darr
-
-            darr = <CDictionaryArray*>(self.sp_array.get())
-            indices = pyarrow_wrap_array(darr.indices())
-            return indices[self.index]
-
-    property dictionary_value:
-
-        def __get__(self):
-            cdef CDictionaryArray* darr
-
-            darr = <CDictionaryArray*>(self.sp_array.get())
-            dictionary = pyarrow_wrap_array(darr.dictionary())
-            return dictionary[self.index_value.as_py()]
+    @property
+    def dictionary_value(self):
+        cdef CDictionaryArray* darr = <CDictionaryArray*>(self.sp_array.get())
+        dictionary = pyarrow_wrap_array(darr.dictionary())
+        return dictionary[self.index_value.as_py()]
 
 
 cdef dict _scalar_classes = {
@@ -466,9 +459,9 @@ cdef object box_scalar(DataType type, const shared_ptr[CArray]& sp_array,
     cdef ArrayValue value
 
     if type.type.id() == _Type_NA:
-        return NA
+        return _NULL
     elif sp_array.get().IsNull(index):
-        return NA
+        return _NULL
     else:
         klass = _scalar_classes[type.type.id()]
         value = klass.__new__(klass)

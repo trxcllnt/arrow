@@ -18,7 +18,6 @@
 
 package org.apache.arrow.vector.types.pojo;
 
-
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.arrow.vector.complex.BaseRepeatedValueVector.DATA_VECTOR_NAME;
 import static org.apache.arrow.vector.types.pojo.ArrowType.getTypeForField;
@@ -29,6 +28,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 
+import org.apache.arrow.flatbuf.KeyValue;
+import org.apache.arrow.flatbuf.Type;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.TypeLayout;
+import org.apache.arrow.vector.types.pojo.ArrowType.Int;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -38,13 +44,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.flatbuffers.FlatBufferBuilder;
-
-import org.apache.arrow.flatbuf.KeyValue;
-import org.apache.arrow.flatbuf.Type;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.TypeLayout;
-import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 
 public class Field {
 
@@ -132,6 +131,7 @@ public class Field {
 
   /**
    * Helper method to ensure backward compatibility with schemas generated prior to ARROW-1347, ARROW-1663
+   *
    * @param field
    * @param originalChildField original field which name might be mutated
    * @return original or mutated field

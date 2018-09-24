@@ -19,9 +19,8 @@
 package org.apache.arrow.vector;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -121,8 +120,8 @@ public class TestBitVector {
           for (int i = 0; i < length; i++) {
             int actual = toVector.get(i);
             int expected = sourceVector.get(start + i);
-            assertEquals("different data values not expected --> sourceVector index: " + (start + i) + " toVector index: " + i,
-                    expected, actual);
+            assertEquals("different data values not expected --> sourceVector index: " + (start + i) +
+                " toVector index: " + i, expected, actual);
           }
         }
       }
@@ -164,8 +163,8 @@ public class TestBitVector {
           for (int i = 0; i < length; i++) {
             int actual = toVector.get(i);
             int expected = sourceVector.get(start + i);
-            assertEquals("different data values not expected --> sourceVector index: " + (start + i) + " toVector index: " + i,
-                    expected, actual);
+            assertEquals("different data values not expected --> sourceVector index: " + (start + i) +
+                " toVector index: " + i, expected, actual);
           }
         }
       }
@@ -215,8 +214,8 @@ public class TestBitVector {
           for (int i = 0; i < length; i++) {
             int actual = toVector.get(i);
             int expected = sourceVector.get(start + i);
-            assertEquals("different data values not expected --> sourceVector index: " + (start + i) + " toVector index: " + i,
-                    expected, actual);
+            assertEquals("different data values not expected --> sourceVector index: " + (start + i) +
+                " toVector index: " + i, expected, actual);
           }
         }
       }

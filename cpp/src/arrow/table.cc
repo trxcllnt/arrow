@@ -66,6 +66,9 @@ bool ChunkedArray::Equals(const ChunkedArray& other) const {
   if (null_count_ != other.null_count()) {
     return false;
   }
+  if (length_ == 0) {
+    return type_->Equals(other.type_);
+  }
 
   // Check contents of the underlying arrays. This checks for equality of
   // the underlying data independently of the chunk size.
@@ -186,6 +189,9 @@ Column::Column(const std::shared_ptr<Field>& field, const std::shared_ptr<Array>
 }
 
 Column::Column(const std::string& name, const std::shared_ptr<Array>& data)
+    : Column(::arrow::field(name, data->type()), data) {}
+
+Column::Column(const std::string& name, const std::shared_ptr<ChunkedArray>& data)
     : Column(::arrow::field(name, data->type()), data) {}
 
 Column::Column(const std::shared_ptr<Field>& field,

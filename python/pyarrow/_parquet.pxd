@@ -134,7 +134,7 @@ cdef extern from "parquet/api/schema.h" namespace "parquet" nogil:
         c_bool Equals(const SchemaDescriptor& other)
         int num_columns()
 
-    cdef c_string FormatStatValue(ParquetType parquet_type, const char* val)
+    cdef c_string FormatStatValue(ParquetType parquet_type, c_string val)
 
 
 cdef extern from "parquet/api/reader.h" namespace "parquet" nogil:
@@ -288,7 +288,7 @@ cdef extern from "parquet/arrow/reader.h" namespace "parquet::arrow" nogil:
 
         const ParquetFileReader* parquet_reader()
 
-        void set_num_threads(int num_threads)
+        void set_use_threads(c_bool use_threads)
 
 
 cdef extern from "parquet/arrow/schema.h" namespace "parquet::arrow" nogil:

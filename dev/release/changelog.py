@@ -69,9 +69,18 @@ def format_changelog_markdown(issues, out):
 
         out.write('## {0}\n\n'.format(issue_type))
         for issue in issue_group:
+            markdown_summary = _escape_for_markdown(issue.fields.summary)
             out.write('* {0} - {1}\n'.format(issue.key,
-                                             issue.fields.summary))
+                                             markdown_summary))
         out.write('\n')
+
+
+def _escape_for_markdown(x):
+    return (
+        x.replace('_', '\_')  # underscores
+        .replace('`', '\`')   # backticks
+        .replace('*', '\*')   # asterisks
+    )
 
 
 def format_changelog_website(issues, out):
@@ -103,7 +112,9 @@ def format_changelog_website(issues, out):
         out.write('## {0}\n\n'.format(issue_category))
         for issue in issue_group:
             name = LINK_TEMPLATE.format(issue.key)
-            out.write('* {0} - {1}\n'.format(name, issue.fields.summary))
+            markdown_summary = _escape_for_markdown(issue.fields.summary)
+            out.write('* {0} - {1}\n'
+                      .format(name, markdown_summary))
         out.write('\n')
 
 
@@ -135,7 +146,7 @@ def append_changelog(version, changelog_path):
     print('# Apache Arrow {0} ({1})'.format(version, today),
           end='', file=result)
     print('\n', file=result)
-    print(new_changelog.replace('_', '\_'),
+    print(_escape_for_markdown(new_changelog),
           end='', file=result)
 
     # Prior versions

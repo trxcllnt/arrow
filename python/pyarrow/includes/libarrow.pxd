@@ -221,10 +221,6 @@ cdef extern from "arrow/api.h" namespace "arrow" nogil:
     CStatus AllocateResizableBuffer(CMemoryPool* pool, const int64_t size,
                                     shared_ptr[CResizableBuffer]* out)
 
-    cdef cppclass PoolBuffer(CResizableBuffer):
-        PoolBuffer()
-        PoolBuffer(CMemoryPool*)
-
     cdef CMemoryPool* c_default_memory_pool" arrow::default_memory_pool"()
 
     cdef cppclass CListType" arrow::ListType"(CDataType):
@@ -311,8 +307,17 @@ cdef extern from "arrow/api.h" namespace "arrow" nogil:
         shared_ptr[CSchema] RemoveMetadata()
 
     cdef cppclass PrettyPrintOptions:
+        PrettyPrintOptions(int indent_arg)
+        PrettyPrintOptions(int indent_arg, int window_arg)
         int indent
+        int window
 
+    CStatus PrettyPrint(const CArray& schema,
+                        const PrettyPrintOptions& options,
+                        c_string* result)
+    CStatus PrettyPrint(const CChunkedArray& schema,
+                        const PrettyPrintOptions& options,
+                        c_string* result)
     CStatus PrettyPrint(const CSchema& schema,
                         const PrettyPrintOptions& options,
                         c_string* result)
@@ -435,6 +440,8 @@ cdef extern from "arrow/api.h" namespace "arrow" nogil:
         int64_t length()
         int64_t null_count()
         int num_chunks()
+        c_bool Equals(const CChunkedArray& other)
+
         shared_ptr[CArray] chunk(int i)
         shared_ptr[CDataType] type()
         shared_ptr[CChunkedArray] Slice(int64_t offset, int64_t length) const
@@ -586,16 +593,18 @@ cdef extern from "arrow/io/api.h" namespace "arrow::io" nogil:
         FileMode mode()
 
     cdef cppclass Readable:
+        # put overload under a different name to avoid cython bug with multiple
+        # layers of inheritance
         CStatus ReadB" Read"(int64_t nbytes, shared_ptr[CBuffer]* out)
         CStatus Read(int64_t nbytes, int64_t* bytes_read, uint8_t* out)
 
     cdef cppclass Seekable:
         CStatus Seek(int64_t position)
 
-    cdef cppclass Writeable:
+    cdef cppclass Writable:
         CStatus Write(const uint8_t* data, int64_t nbytes)
 
-    cdef cppclass OutputStream(FileInterface, Writeable):
+    cdef cppclass OutputStream(FileInterface, Writable):
         pass
 
     cdef cppclass InputStream(FileInterface, Readable):
@@ -607,14 +616,15 @@ cdef extern from "arrow/io/api.h" namespace "arrow::io" nogil:
         CStatus ReadAt(int64_t position, int64_t nbytes,
                        int64_t* bytes_read, uint8_t* buffer)
         CStatus ReadAt(int64_t position, int64_t nbytes,
-                       int64_t* bytes_read, shared_ptr[CBuffer]* out)
+                       shared_ptr[CBuffer]* out)
+        c_bool supports_zero_copy()
 
-    cdef cppclass WriteableFile(OutputStream, Seekable):
+    cdef cppclass WritableFile(OutputStream, Seekable):
         CStatus WriteAt(int64_t position, const uint8_t* data,
                         int64_t nbytes)
 
     cdef cppclass ReadWriteFileInterface(RandomAccessFile,
-                                         WriteableFile):
+                                         WritableFile):
         pass
 
     cdef cppclass FileSystem:
@@ -646,6 +656,8 @@ cdef extern from "arrow/io/api.h" namespace "arrow::io" nogil:
         @staticmethod
         CStatus Open(const c_string& path, FileMode mode,
                      shared_ptr[CMemoryMappedFile]* file)
+
+        CStatus Resize(int64_t size)
 
         int file_descriptor()
 
@@ -715,10 +727,10 @@ cdef extern from "arrow/io/api.h" namespace "arrow::io" nogil:
         CStatus OpenReadable(const c_string& path,
                              shared_ptr[HdfsReadableFile]* handle)
 
-        CStatus OpenWriteable(const c_string& path, c_bool append,
-                              int32_t buffer_size, int16_t replication,
-                              int64_t default_block_size,
-                              shared_ptr[HdfsOutputStream]* handle)
+        CStatus OpenWritable(const c_string& path, c_bool append,
+                             int32_t buffer_size, int16_t replication,
+                             int64_t default_block_size,
+                             shared_ptr[HdfsOutputStream]* handle)
 
     cdef cppclass CBufferReader \
             " arrow::io::BufferReader"(RandomAccessFile):
@@ -735,7 +747,7 @@ cdef extern from "arrow/io/api.h" namespace "arrow::io" nogil:
         int64_t GetExtentBytesWritten()
 
     cdef cppclass CFixedSizeBufferWriter \
-            " arrow::io::FixedSizeBufferWriter"(WriteableFile):
+            " arrow::io::FixedSizeBufferWriter"(WritableFile):
         CFixedSizeBufferWriter(const shared_ptr[CBuffer]& buffer)
 
         void set_memcopy_threads(int num_threads)
@@ -891,8 +903,13 @@ cdef extern from "arrow/compute/api.h" namespace "arrow::compute" nogil:
         CFunctionContext(CMemoryPool* pool)
 
     cdef cppclass CCastOptions" arrow::compute::CastOptions":
+        CCastOptions()
+        CCastOptions(c_bool safe)
+        CCastOptions Safe()
+        CCastOptions Unsafe()
         c_bool allow_int_overflow
         c_bool allow_time_truncate
+        c_bool allow_float_truncate
 
     enum DatumType" arrow::compute::Datum::type":
         DatumType_NONE" arrow::compute::Datum::NONE"
@@ -937,22 +954,29 @@ cdef extern from "arrow/python/api.h" namespace "arrow::py" nogil:
 
     object PyHalf_FromHalf(npy_half value)
 
-    CStatus ConvertPySequence(object obj, CMemoryPool* pool,
-                              shared_ptr[CArray]* out)
-    CStatus ConvertPySequence(object obj, const shared_ptr[CDataType]& type,
-                              CMemoryPool* pool, shared_ptr[CArray]* out)
-    CStatus ConvertPySequence(object obj, int64_t size, CMemoryPool* pool,
-                              shared_ptr[CArray]* out)
-    CStatus ConvertPySequence(object obj, int64_t size,
-                              const shared_ptr[CDataType]& type,
-                              CMemoryPool* pool,
-                              shared_ptr[CArray]* out)
+    cdef cppclass PyConversionOptions:
+        PyConversionOptions()
+
+        shared_ptr[CDataType] type
+        int64_t size
+        CMemoryPool* pool
+        c_bool from_pandas
+
+    CStatus ConvertPySequence(object obj, object mask,
+                              const PyConversionOptions& options,
+                              shared_ptr[CChunkedArray]* out)
 
     CStatus NumPyDtypeToArrow(object dtype, shared_ptr[CDataType]* type)
 
     CStatus NdarrayToArrow(CMemoryPool* pool, object ao, object mo,
-                           c_bool use_pandas_null_sentinels,
+                           c_bool from_pandas,
                            const shared_ptr[CDataType]& type,
+                           shared_ptr[CChunkedArray]* out)
+
+    CStatus NdarrayToArrow(CMemoryPool* pool, object ao, object mo,
+                           c_bool from_pandas,
+                           const shared_ptr[CDataType]& type,
+                           const CCastOptions& cast_options,
                            shared_ptr[CChunkedArray]* out)
 
     CStatus NdarrayToTensor(CMemoryPool* pool, object ao,
@@ -1005,6 +1029,7 @@ cdef extern from "arrow/python/api.h" namespace "arrow::py" nogil:
         c_bool strings_to_categorical
         c_bool zero_copy_only
         c_bool integer_object_nulls
+        c_bool date_as_object
         c_bool use_threads
 
 cdef extern from "arrow/python/api.h" namespace 'arrow::py' nogil:

@@ -27,9 +27,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableList;
-import com.google.flatbuffers.FlatBufferBuilder;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.complex.FixedSizeListVector;
@@ -48,6 +45,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
+
+import com.google.common.collect.ImmutableList;
+import com.google.flatbuffers.FlatBufferBuilder;
 
 /**
  * Test conversion between Flatbuf and Pojo field representations
@@ -98,7 +98,8 @@ public class TestConvert {
 
     Schema tempSchema = Schema.fromJSON(modifiedSchema);
     FlatBufferBuilder schemaBuilder = new FlatBufferBuilder();
-    org.apache.arrow.vector.types.pojo.Schema schema = new org.apache.arrow.vector.types.pojo.Schema(tempSchema.getFields());
+    org.apache.arrow.vector.types.pojo.Schema schema =
+        new org.apache.arrow.vector.types.pojo.Schema(tempSchema.getFields());
     schemaBuilder.finish(schema.getSchema(schemaBuilder));
     Schema finalSchema = Schema.deserialize(ByteBuffer.wrap(schemaBuilder.sizedByteArray()));
     assertFalse(finalSchema.toString().contains("[DEFAULT]"));
@@ -137,11 +138,13 @@ public class TestConvert {
     childrenBuilder.add(new Field("child4", FieldType.nullable(new List()), ImmutableList.<Field>of(
         new Field("child4.1", FieldType.nullable(Utf8.INSTANCE), null)
     )));
-    childrenBuilder.add(new Field("child5", FieldType.nullable(new Union(UnionMode.Sparse, new int[] {MinorType.TIMESTAMPMILLI.ordinal(), MinorType.FLOAT8.ordinal()})), ImmutableList.<Field>of(
-        new Field("child5.1", FieldType.nullable(new Timestamp(TimeUnit.MILLISECOND, null)), null),
-        new Field("child5.2", FieldType.nullable(new FloatingPoint(DOUBLE)), ImmutableList.<Field>of()),
-        new Field("child5.3", true, new Timestamp(TimeUnit.MILLISECOND, "UTC"), null)
-    )));
+    childrenBuilder.add(new Field("child5", FieldType.nullable(
+        new Union(UnionMode.Sparse, new int[] {MinorType.TIMESTAMPMILLI.ordinal(), MinorType.FLOAT8.ordinal()})),
+          ImmutableList.<Field>of(
+            new Field("child5.1", FieldType.nullable(new Timestamp(TimeUnit.MILLISECOND, null)), null),
+            new Field("child5.2", FieldType.nullable(new FloatingPoint(DOUBLE)), ImmutableList.<Field>of()),
+            new Field("child5.3", true, new Timestamp(TimeUnit.MILLISECOND, "UTC"), null)
+          )));
     Schema initialSchema = new Schema(childrenBuilder.build());
     run(initialSchema);
   }
@@ -157,7 +160,8 @@ public class TestConvert {
   private void run(Schema initialSchema) {
     FlatBufferBuilder builder = new FlatBufferBuilder();
     builder.finish(initialSchema.getSchema(builder));
-    org.apache.arrow.flatbuf.Schema flatBufSchema = org.apache.arrow.flatbuf.Schema.getRootAsSchema(builder.dataBuffer());
+    org.apache.arrow.flatbuf.Schema flatBufSchema =
+        org.apache.arrow.flatbuf.Schema.getRootAsSchema(builder.dataBuffer());
     Schema finalSchema = Schema.convertSchema(flatBufSchema);
     assertEquals(initialSchema, finalSchema);
   }

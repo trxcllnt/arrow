@@ -26,33 +26,31 @@ build:
   number: 0
   skip: true  # [win32]
   skip: true  # [win and py<35]
-  features:
-    - vc14  # [win and py>=35]
 
 requirements:
   build:
+    - cmake
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+  host:
     - python
-    - toolchain
     - setuptools
     - setuptools_scm
     - cython
-    - cmake
-    - numpy 1.10.*  # [not (win and py>=36)]
-    - numpy 1.12.*  # [win and py>=36]
+    - numpy 1.10.*   # [not (win and py>=36)]
+    - numpy 1.12.*   # [win and py>=36]
     - six
     - arrow-cpp {{ ARROW_VERSION }}
-    - parquet-cpp 1.4.0
 
   run:
     - python
     - setuptools
-    - numpy >=1.10  # [not (win and py>=36)]
-    - numpy >=1.12  # [win and py>=36]
+    - {{ pin_compatible('numpy', lower_bound='1.10') }}   # [not (win and py>=36)]
+    - {{ pin_compatible('numpy', lower_bound='1.12') }}   # [win and py>=36]
     - pandas
     - six
-    - arrow-cpp {{ ARROW_VERSION }}
-    - parquet-cpp 1.4.0
     - futures  # [py27]
+    - arrow-cpp {{ ARROW_VERSION }}
 
 test:
   imports:
@@ -74,3 +72,6 @@ extra:
     - pcmoritz
     - robertnishihara
     - siddharthteotia
+    - kou
+    - kszucs
+    - pitrou

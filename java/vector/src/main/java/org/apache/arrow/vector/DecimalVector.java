@@ -18,18 +18,20 @@
 
 package org.apache.arrow.vector;
 
-import io.netty.buffer.ArrowBuf;
+import java.math.BigDecimal;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.impl.DecimalReaderImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.DecimalHolder;
 import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.arrow.vector.util.TransferPair;
 
-import java.math.BigDecimal;
+import io.netty.buffer.ArrowBuf;
 
 /**
  * DecimalVector implements a fixed width vector (16 bytes) of
@@ -51,8 +53,8 @@ public class DecimalVector extends BaseFixedWidthVector {
    */
   public DecimalVector(String name, BufferAllocator allocator,
                                int precision, int scale) {
-    this(name, FieldType.nullable(new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(precision, scale)),
-            allocator);
+    this(name, FieldType.nullable(
+      new ArrowType.Decimal(precision, scale)), allocator);
   }
 
   /**
@@ -64,7 +66,7 @@ public class DecimalVector extends BaseFixedWidthVector {
    */
   public DecimalVector(String name, FieldType fieldType, BufferAllocator allocator) {
     super(name, allocator, fieldType, TYPE_WIDTH);
-    org.apache.arrow.vector.types.pojo.ArrowType.Decimal arrowType = (org.apache.arrow.vector.types.pojo.ArrowType.Decimal) fieldType.getType();
+    ArrowType.Decimal arrowType = (ArrowType.Decimal) fieldType.getType();
     reader = new DecimalReaderImpl(DecimalVector.this);
     this.precision = arrowType.getPrecision();
     this.scale = arrowType.getScale();
@@ -387,9 +389,8 @@ public class DecimalVector extends BaseFixedWidthVector {
    */
   public void setNull(int index) {
     handleSafe(index);
-      /* not really needed to set the bit to 0 as long as
-       * the buffer always starts from 0.
-       */
+    // not really needed to set the bit to 0 as long as
+    // the buffer always starts from 0.
     BitVectorHelper.setValidityBit(validityBuffer, index, 0);
   }
 

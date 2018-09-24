@@ -36,8 +36,9 @@ version_minor = version_numbers[1].to_int()
 version_micro = version_numbers[2].to_int()
 
 api_version = '1.0'
-so_version = 0
-library_version = '@0@.@1@.@2@'.format(so_version, 0, 0)
+so_version = version_minor
+so_version_patch = version_micro
+library_version = '@0@.@1@.@2@'.format(so_version, so_version_patch, 0)
 
 prefix = get_option('prefix')
 include_dir = join_paths(prefix, get_option('includedir'))
@@ -48,6 +49,8 @@ pkgconfig = import('pkgconfig')
 
 root_inc = include_directories('.')
 
+arrow_orc_dependency = dependency('arrow-orc', required: false)
+
 subdir('arrow-glib')
 arrow_gpu_dependency = dependency('arrow-gpu', required: false)
 if arrow_gpu_dependency.found()
@@ -55,7 +58,7 @@ if arrow_gpu_dependency.found()
 endif
 subdir('example')
 
-if get_option('enable_gtk_doc')
+if get_option('gtk_doc')
   subdir('doc/reference')
 endif
 
