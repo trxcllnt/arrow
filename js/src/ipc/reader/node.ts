@@ -29,6 +29,10 @@ export async function* fromReadableStream(stream: NodeJS.ReadableStream) {
 
     for await (let chunk of (stream as any as AsyncIterable<Uint8Array | Buffer | string>)) {
 
+        if (chunk == null) {
+            continue;
+        }
+
         const grown = new Uint8Array(bytes.byteLength + chunk.length);
 
         if (typeof chunk !== 'string') {
