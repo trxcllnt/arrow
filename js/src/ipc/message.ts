@@ -20,7 +20,7 @@ import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
 import _Message = Message_.org.apache.arrow.flatbuf.Message;
 
-import { PADDING, MAGIC } from './magic';
+import { PADDING } from './magic';
 
 // import { Schema, Long } from '../schema';
 import { MessageHeader, MetadataVersion } from '../enum';

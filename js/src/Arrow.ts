@@ -22,19 +22,19 @@ import * as visitor_ from './visitor';
 import * as util_int_ from './util/int';
 import * as util_bit_ from './util/bit';
 import * as util_node from './util/node';
-import * as predicate_ from './predicate';
+// import * as predicate_ from './predicate';
 
 import { Data } from './data';
 import { Type } from './enum';
 import { Vector } from './vector';
 import { Schema, Field } from './schema';
 import { RecordBatch } from './recordbatch';
-import { Table, DataFrame, NextFunc, BindFunc, CountByResult } from './table';
+// import { Table, DataFrame, NextFunc, BindFunc, CountByResult } from './table';
 
 export import IntBitWidth = type_.IntBitWidth;
 export import TimeBitWidth = type_.TimeBitWidth;
 
-export { Table, DataFrame, NextFunc, BindFunc, CountByResult };
+// export { Table, DataFrame, NextFunc, BindFunc, CountByResult };
 export { Field, Schema, RecordBatch, Vector, Type, Data };
 
 export namespace util {
@@ -119,6 +119,7 @@ export namespace vector {
     export import Uint64Vector = vector_.Uint64Vector;
     export import FloatVector = vector_.FloatVector;
     export import Float16Vector = vector_.Float16Vector;
+    
     export import Float32Vector = vector_.Float32Vector;
     export import Float64Vector = vector_.Float64Vector;
     export import DateVector = vector_.DateVector;
@@ -155,24 +156,24 @@ export namespace visitor {
     export import Visitor = visitor_.Visitor;
 }
 
-export namespace predicate {
-    export import col = predicate_.col;
-    export import lit = predicate_.lit;
-    export import custom = predicate_.custom;
+// export namespace predicate {
+//     export import col = predicate_.col;
+//     export import lit = predicate_.lit;
+//     export import custom = predicate_.custom;
 
-    export import Or = predicate_.Or;
-    export import Col = predicate_.Col;
-    export import And = predicate_.And;
-    export import Not = predicate_.Not;
-    export import GTeq = predicate_.GTeq;
-    export import LTeq = predicate_.LTeq;
-    export import Value = predicate_.Value;
-    export import Equals = predicate_.Equals;
-    export import Literal = predicate_.Literal;
-    export import Predicate = predicate_.Predicate;
+//     export import Or = predicate_.Or;
+//     export import Col = predicate_.Col;
+//     export import And = predicate_.And;
+//     export import Not = predicate_.Not;
+//     export import GTeq = predicate_.GTeq;
+//     export import LTeq = predicate_.LTeq;
+//     export import Value = predicate_.Value;
+//     export import Equals = predicate_.Equals;
+//     export import Literal = predicate_.Literal;
+//     export import Predicate = predicate_.Predicate;
 
-    export import PredicateFunc = predicate_.PredicateFunc;
-}
+//     export import PredicateFunc = predicate_.PredicateFunc;
+// }
 
 /* These exports are needed for the closure and uglify umd targets */
 try {
@@ -184,7 +185,7 @@ try {
         Arrow['enum_'] = enum_;
         Arrow['vector'] = vector;
         Arrow['visitor'] = visitor;
-        Arrow['predicate'] = predicate;
+        // Arrow['predicate'] = predicate;
 
         Arrow['Type'] = Type;
         Arrow['Field'] = Field;
@@ -192,8 +193,8 @@ try {
         Arrow['Vector'] = Vector;
         Arrow['RecordBatch'] = RecordBatch;
 
-        Arrow['Table'] = Table;
-        Arrow['CountByResult'] = CountByResult;
+        // Arrow['Table'] = Table;
+        // Arrow['CountByResult'] = CountByResult;
     }
 } catch (e) { /* not the UMD bundle */ }
 /* end umd exports */
@@ -203,11 +204,11 @@ try {
 // set them via string indexers to save them from the mangler
 Vector['new'] = Vector.new;
 Schema['from'] = Schema.from;
-Table['from'] = Table.from;
-Table['fromAsync'] = Table.fromAsync;
-Table['fromStruct'] = Table.fromStruct;
-Table['empty'] = Table.empty;
-RecordBatch['from'] = RecordBatch.from;
+// Table['from'] = Table.from;
+// Table['fromAsync'] = Table.fromAsync;
+// Table['fromStruct'] = Table.fromStruct;
+// Table['empty'] = Table.empty;
+// RecordBatch['from'] = RecordBatch.from;
 
 Data['Null'] = Data.Null;
 Data['Int'] = Data.Int;
