@@ -15,31 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// import Arrow from '../Arrow';
-// type IntVector = import('../Arrow').Arrow.vector.IntVector;
-
-
-// type Arrow = typeof import('../Arrow');
-
-// const x = new Arrow.vector.IntVector(<any>null);
-
-// type zoop = typeof x;
-
-// const a:  zoop = x;
-
-// const { vector } = Arrow;
-
-// const { Int } = Arrow.type;
-// const { Vector, IntVector } = Arrow.vector;
-
-
-
 import { Arrow } from '../Arrow';
 
 const { vector, Data } = Arrow;
 const { Int } = Arrow.type;
 const { Vector } = vector;
-
 
 describe('Int8Vector', () => {
     test('can create an Int8Vector from Data instance', () => {

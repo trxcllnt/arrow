@@ -76,7 +76,7 @@ export class Data<T extends DataType = DataType> {
 
     constructor(type: T, offset: number, length: number, nullCount?: number, buffers?: Buffers<T>, childData?: Data[]) {
         this.type = type;
-        this.childData = childData!;
+        this.childData = childData || [];
         this.offset = Math.floor(Math.max(offset || 0, 0));
         this.length = Math.floor(Math.max(length || 0, 0));
         this._buffers = Object.assign([], buffers) as Buffers<T>;

@@ -236,7 +236,7 @@ export class DictionaryVector<T extends DataType = any> extends ArrowVector<Dict
 
 // Perf: bind and assign the operator Visitor methods to each of the Vector subclasses for each Type
 (Object.keys(Type) as any[])
-    .filter((TType) => TType !== Type.NONE)
+    .filter((TType) => TType !== Type.NONE && TType !== Type[Type.NONE])
     .filter((T: any): T is Type => typeof Type[T] === 'number')
     .forEach((TType) => {
         let typeIds: Type[];
