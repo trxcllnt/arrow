@@ -18,7 +18,7 @@
 import { Field } from './schema';
 import { Vector } from './interfaces';
 import { flatbuffers } from 'flatbuffers';
-import { DictionaryBatch } from './ipc/metadata';
+// import { DictionaryBatch } from './ipc/metadata';
 
 import Long = flatbuffers.Long;
 import {
@@ -390,6 +390,9 @@ export class Map_<T extends { [key: string]: DataType; } = any> extends DataType
     })(Map_.prototype);
 }
 
+
+const getId = ((atomicDictionaryId) => () => ++atomicDictionaryId)(-1);
+
 export interface Dictionary<T extends DataType = any, TKey extends Int = Int32> extends DataType<Type.Dictionary> { TArray: TKey['TArray']; TValue: T['TValue']; }
 export class Dictionary<T extends DataType = any, TKey extends Int = Int32> extends DataType<Type.Dictionary> {
     public readonly id: number;
@@ -401,7 +404,7 @@ export class Dictionary<T extends DataType = any, TKey extends Int = Int32> exte
         this.indices = indices;
         this.dictionary = dictionary;
         this.isOrdered = isOrdered || false;
-        this.id = id == null ? DictionaryBatch.getId() : typeof id === 'number' ? id : id.low;
+        this.id = id == null ? getId() : typeof id === 'number' ? id : id.low;
     }
     public get valueType(): T { return this.dictionary.type as T; }
     public get ArrayType(): T['ArrayType'] { return this.dictionary.type.ArrayType; }
@@ -419,55 +422,3 @@ export type ArrayBufferViewConstructor<T> = {
     readonly BYTES_PER_ELEMENT: number;
     from(arrayLike: ArrayLike<number> | Iterable<number>, mapfn?: (v: number, k: number) => number, thisArg?: any): T;
 };
-
-// export interface TypedArrayConstructor<T extends TypedArray = TypedArray> {
-//     readonly prototype: T;
-//     readonly BYTES_PER_ELEMENT: number;
-//     new (length: number): T;
-//     new (elements: Iterable<number>): T;
-//     new (arrayOrArrayBuffer: ArrayLike<number> | ArrayBufferLike): T;
-//     new (buffer: ArrayBufferLike, byteOffset: number, length?: number): T;
-//     of(...items: number[]): T;
-//     from(arrayLike: ArrayLike<number> | Iterable<number>, mapfn?: (v: number, k: number) => number, thisArg?: any): T;
-// }
-
-
-// export interface TypedArray extends Iterable<number> {
-//     [index: number]: number;
-//     readonly length: number;
-//     readonly byteLength: number;
-//     readonly byteOffset: number;
-//     readonly buffer: ArrayBufferLike;
-//     readonly BYTES_PER_ELEMENT: number;
-//     [Symbol.toStringTag]: any;
-//     [Symbol.iterator](): IterableIterator<number>;
-//     entries(): IterableIterator<[number, number]>;
-//     keys(): IterableIterator<number>;
-//     values(): IterableIterator<number>;
-//     copyWithin(target: number, start: number, end?: number): this;
-//     every(callbackfn: (value: number, index: number, array: TypedArray) => boolean, thisArg?: any): boolean;
-//     fill(value: number, start?: number, end?: number): this;
-//     filter(callbackfn: (value: number, index: number, array: TypedArray) => any, thisArg?: any): TypedArray;
-//     find(predicate: (value: number, index: number, obj: TypedArray) => boolean, thisArg?: any): number | undefined;
-//     findIndex(predicate: (value: number, index: number, obj: TypedArray) => boolean, thisArg?: any): number;
-//     forEach(callbackfn: (value: number, index: number, array: TypedArray) => void, thisArg?: any): void;
-//     includes(searchElement: number, fromIndex?: number): boolean;
-//     indexOf(searchElement: number, fromIndex?: number): number;
-//     join(separator?: string): string;
-//     lastIndexOf(searchElement: number, fromIndex?: number): number;
-//     map(callbackfn: (value: number, index: number, array: TypedArray) => number, thisArg?: any): TypedArray;
-//     reduce(callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: TypedArray) => number): number;
-//     reduce(callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: TypedArray) => number, initialValue: number): number;
-//     reduce<U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: TypedArray) => U, initialValue: U): U;
-//     reduceRight(callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: TypedArray) => number): number;
-//     reduceRight(callbackfn: (previousValue: number, currentValue: number, currentIndex: number, array: TypedArray) => number, initialValue: number): number;
-//     reduceRight<U>(callbackfn: (previousValue: U, currentValue: number, currentIndex: number, array: TypedArray) => U, initialValue: U): U;
-//     reverse(): TypedArray;
-//     set(array: ArrayLike<number>, offset?: number): void;
-//     slice(start?: number, end?: number): TypedArray;
-//     some(callbackfn: (value: number, index: number, array: TypedArray) => boolean, thisArg?: any): boolean;
-//     sort(compareFn?: (a: number, b: number) => number): this;
-//     subarray(begin: number, end?: number): TypedArray;
-//     toLocaleString(): string;
-//     toString(): string;
-// }
