@@ -15,20 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Arrow } from '../Arrow';
-
-const { vector, Data } = Arrow;
-const { Int } = Arrow.type;
-const { Vector } = vector;
+import { Int } from '../../src/type';
+import { Data } from '../../src/data';
+import { Vector } from '../../src/vector';
 
 describe('Int8Vector', () => {
     test('can create an Int8Vector from Data instance', () => {
-        const intType = new Int(false, 8);
-        const intVector = Vector.new(Data.Int(intType, 0, 10, 0, null, Int8Array.from({length: 10}, (_, b) => b)));
 
-        for (let i = 0; i < 10; i++)
-        {
-            expect(intVector.get(i) === i).toBe(true);
+        const intType = new Int(false, 8);
+        const intVals = Int8Array.from({length: 10}, (_, b) => b);
+        const intVector = Vector.new(Data.Int(intType, 0, 10, 0, null, intVals));
+
+        for (let i = 0; i < 10; i++) {
+            expect(intVector.get(i)).toEqual(i);
         }
     })
 })
