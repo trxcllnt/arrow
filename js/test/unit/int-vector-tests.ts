@@ -15,18 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Int } from '../../src/type';
+import { Int8 } from '../../src/type';
 import { Data } from '../../src/data';
-import { Vector } from '../../src/vector';
+import { IntVector } from '../../src/vector';
 
 describe('Int8Vector', () => {
     test('can create an Int8Vector from Data instance', () => {
-
-        const intType = new Int(false, 8);
-        const intVals = Int8Array.from({length: 10}, (_, b) => b);
-        const intVector = Vector.new(Data.Int(intType, 0, 10, 0, null, intVals));
-
-        for (let i = 0; i < 10; i++) {
+        const length = 10;
+        const intType = new Int8();
+        const intVals = Int8Array.from({ length }, (_, b) => b);
+        const intVector = IntVector.new(Data.Int(intType, 0, length, 0, null, intVals));
+        for (let i = 0; i < length; i++) {
             expect(intVector.get(i)).toEqual(i);
         }
     })
