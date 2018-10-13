@@ -104,7 +104,6 @@ export type DataTypeCtor<T extends Type | DataType | Vector = any> =
 type TypeToVector<T extends Type> =
     T extends Type.Null                 ? vecs.NullVector                 :
     T extends Type.Bool                 ? vecs.BoolVector                 :
-    T extends Type.Int                  ? vecs.IntVector                  :
     T extends Type.Int8                 ? vecs.Int8Vector                 :
     T extends Type.Int16                ? vecs.Int16Vector                :
     T extends Type.Int32                ? vecs.Int32Vector                :
@@ -113,10 +112,11 @@ type TypeToVector<T extends Type> =
     T extends Type.Uint16               ? vecs.Uint16Vector               :
     T extends Type.Uint32               ? vecs.Uint32Vector               :
     T extends Type.Uint64               ? vecs.Uint64Vector               :
-    T extends Type.Float                ? vecs.FloatVector                :
+    T extends Type.Int                  ? vecs.IntVector                  :
     T extends Type.Float16              ? vecs.Float16Vector              :
     T extends Type.Float32              ? vecs.Float32Vector              :
     T extends Type.Float64              ? vecs.Float64Vector              :
+    T extends Type.Float                ? vecs.FloatVector                :
     T extends Type.Utf8                 ? vecs.Utf8Vector                 :
     T extends Type.Binary               ? vecs.BinaryVector               :
     T extends Type.FixedSizeBinary      ? vecs.FixedSizeBinaryVector      :
@@ -151,7 +151,6 @@ type TypeToVector<T extends Type> =
 type DataTypeToVector<T extends DataType = any> =
     T extends type.Null                 ? vecs.NullVector                          :
     T extends type.Bool                 ? vecs.BoolVector                          :
-    T extends type.Int                  ? vecs.IntVector                           :
     T extends type.Int8                 ? vecs.Int8Vector                          :
     T extends type.Int16                ? vecs.Int16Vector                         :
     T extends type.Int32                ? vecs.Int32Vector                         :
@@ -160,10 +159,11 @@ type DataTypeToVector<T extends DataType = any> =
     T extends type.Uint16               ? vecs.Uint16Vector                        :
     T extends type.Uint32               ? vecs.Uint32Vector                        :
     T extends type.Uint64               ? vecs.Uint64Vector                        :
-    T extends type.Float                ? vecs.FloatVector                         :
+    T extends type.Int                  ? vecs.IntVector                           :
     T extends type.Float16              ? vecs.Float16Vector                       :
     T extends type.Float32              ? vecs.Float32Vector                       :
     T extends type.Float64              ? vecs.Float64Vector                       :
+    T extends type.Float                ? vecs.FloatVector                         :
     T extends type.Utf8                 ? vecs.Utf8Vector                          :
     T extends type.Binary               ? vecs.BinaryVector                        :
     T extends type.FixedSizeBinary      ? vecs.FixedSizeBinaryVector               :
@@ -199,7 +199,6 @@ type TypeToDataType<T extends Type> =
       T extends Type.Null                 ? type.Null
     : T extends Type.Bool                 ? type.Bool
     : T extends Type.Int                  ? type.Int
-    : T extends Type.Int8                 ? type.Int8
     : T extends Type.Int16                ? type.Int16
     : T extends Type.Int32                ? type.Int32
     : T extends Type.Int64                ? type.Int64
@@ -207,10 +206,11 @@ type TypeToDataType<T extends Type> =
     : T extends Type.Uint16               ? type.Uint16
     : T extends Type.Uint32               ? type.Uint32
     : T extends Type.Uint64               ? type.Uint64
-    : T extends Type.Float                ? type.Float
+    : T extends Type.Int8                 ? type.Int8
     : T extends Type.Float16              ? type.Float16
     : T extends Type.Float32              ? type.Float32
     : T extends Type.Float64              ? type.Float64
+    : T extends Type.Float                ? type.Float
     : T extends Type.Utf8                 ? type.Utf8
     : T extends Type.Binary               ? type.Binary
     : T extends Type.FixedSizeBinary      ? type.FixedSizeBinary
@@ -239,7 +239,8 @@ type TypeToDataType<T extends Type> =
     : T extends Type.Struct               ? type.Struct
     : T extends Type.Dictionary           ? type.Dictionary
     : T extends Type.FixedSizeList        ? type.FixedSizeList
-                                          : DataType;
+                                          : DataType
+    ;
 
 /**
  * Obtain the constructor function type of an instance type
