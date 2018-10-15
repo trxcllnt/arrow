@@ -200,7 +200,11 @@ function calculateOffsets<T extends DataType>(vectors: Vector<T>[]) {
     return offsets;
 }
 
-const typedSet = (src: TypedArray, dst: TypedArray, offset: number) => dst.set(src, offset) || (offset + src.length);
+const typedSet = (src: TypedArray, dst: TypedArray, offset: number) => {
+    dst.set(src, offset);
+    return (offset + src.length);
+}
+
 const arraySet = (src: any[], dst: any[], offset: number) => {
     let idx = offset - 1;
     for (let i = -1, n = src.length; ++i < n;) {

@@ -72,14 +72,14 @@ export type ConstructorType<
     T,
     TCtor extends new (...args: any[]) => T =
                   new (...args: any[]) => T
-> = TCtor extends new (...args: any[]) => infer T ? TCtor : never;
+> = TCtor extends new (...args: any[]) => T ? TCtor : never;
 
 export type VectorCtorType<
     T extends Vector<R>,
     R extends DataType = any,
     TCtor extends new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T =
                   new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T
-> = TCtor extends new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => infer T ? TCtor : never;
+> = TCtor extends new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T ? TCtor : never;
 
 export type Vector<T extends Type | DataType = any> =
     T extends Type          ? TypeToVector<T>     :
