@@ -49,12 +49,12 @@ export const epochNanosecondsLongToDate = (data: Int32Array, index: number) => e
 export const epochMillisecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochMillisecondsLongToMs(data, index));
 
 export interface GetVisitor extends Visitor {
-    visitMany <T extends Vector>  (nodes: T[])                                                     : T['TValue'][];
-    visit     <T extends Vector>  (node: T, ...args: any[])                                        : T['TValue'];
-    getVisitFn<T extends Type>    (node: T)         : (vector: Vector<T>, ...args: any[]) => Vector<T>['TValue'];
-    getVisitFn<T extends DataType>(node: Vector<T>) : (vector: Vector<T>, ...args: any[]) => Vector<T>['TValue'];
-    getVisitFn<T extends DataType>(node: Data<T>)   : (vector: Vector<T>, ...args: any[]) => Vector<T>['TValue'];
-    getVisitFn<T extends DataType>(node: T)         : (vector: Vector<T>, ...args: any[]) => Vector<T>['TValue'];
+    visitMany <T extends Vector>  (nodes: T[], indices: number[]): T['TValue'][];
+    visit     <T extends Vector>  (node: T, index: number       ): T['TValue'];
+    getVisitFn<T extends Type>    (node: T        ): (vector: Vector<T>, index: number) => Vector<T>['TValue'];
+    getVisitFn<T extends DataType>(node: Vector<T>): (vector: Vector<T>, index: number) => Vector<T>['TValue'];
+    getVisitFn<T extends DataType>(node: Data<T>  ): (vector: Vector<T>, index: number) => Vector<T>['TValue'];
+    getVisitFn<T extends DataType>(node: T        ): (vector: Vector<T>, index: number) => Vector<T>['TValue'];
 }
 
 export class GetVisitor extends Visitor {

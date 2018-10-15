@@ -17,74 +17,65 @@
 
 import { Data } from '../data';
 import { Type } from '../enum';
+import * as type from '../type';
+import { DataType } from '../type';
 import { Visitor } from '../visitor';
 import { Vector } from '../interfaces';
 import { DataTypeCtor } from '../interfaces';
-import {
-    DataType, Dictionary,
-    Bool, Null, Utf8, Binary, Decimal, FixedSizeBinary, List, FixedSizeList, Map_, Struct,
-    Float, Float16, Float32, Float64,
-    Int, Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64,
-    Date_, DateDay, DateMillisecond,
-    Interval, IntervalDayTime, IntervalYearMonth,
-    Time, TimeSecond, TimeMillisecond, TimeMicrosecond, TimeNanosecond,
-    Timestamp, TimestampSecond, TimestampMillisecond, TimestampMicrosecond, TimestampNanosecond,
-    Union, DenseUnion, SparseUnion,
-} from '../type';
 
 export interface GetDataTypeConstructor extends Visitor {
-    visitMany <T extends Type>    (nodes: T[])                                              : DataTypeCtor<T>[];
-    visit     <T extends Type>    (node: T,                                ...args: any[])  : DataTypeCtor<T>;
-    getVisitFn<T extends Type>    (node: T)         : (typeId: T,          ...args: any[]) => DataTypeCtor<T>;
-    getVisitFn<T extends DataType>(node: Vector<T>) : (typeId: T['TType'], ...args: any[]) => DataTypeCtor<T>;
-    getVisitFn<T extends DataType>(node: Data<T>)   : (typeId: T['TType'], ...args: any[]) => DataTypeCtor<T>;
-    getVisitFn<T extends DataType>(node: T)         : (typeId: T['TType'], ...args: any[]) => DataTypeCtor<T>;
+    visitMany <T extends Type>    (nodes: T[]     ): DataTypeCtor<T>[];
+    visit     <T extends Type>    (node: T,       ): DataTypeCtor<T>;
+    getVisitFn<T extends Type>    (node: T        ): () => DataTypeCtor<T>;
+    getVisitFn<T extends DataType>(node: Vector<T>): () => DataTypeCtor<T>;
+    getVisitFn<T extends DataType>(node: Data<T>  ): () => DataTypeCtor<T>;
+    getVisitFn<T extends DataType>(node: T        ): () => DataTypeCtor<T>;
 }
 
 export class GetDataTypeConstructor extends Visitor {
-    public visitNull                 (_: Type.Null                 ) { return Null; }
-    public visitBool                 (_: Type.Bool                 ) { return Bool; }
-    public visitInt                  (_: Type.Int                  ) { return Int; }
-    public visitInt8                 (_: Type.Int8                 ) { return Int8; }
-    public visitInt16                (_: Type.Int16                ) { return Int16; }
-    public visitInt32                (_: Type.Int32                ) { return Int32; }
-    public visitInt64                (_: Type.Int64                ) { return Int64; }
-    public visitUint8                (_: Type.Uint8                ) { return Uint8; }
-    public visitUint16               (_: Type.Uint16               ) { return Uint16; }
-    public visitUint32               (_: Type.Uint32               ) { return Uint32; }
-    public visitUint64               (_: Type.Uint64               ) { return Uint64; }
-    public visitFloat                (_: Type.Float                ) { return Float; }
-    public visitFloat16              (_: Type.Float16              ) { return Float16; }
-    public visitFloat32              (_: Type.Float32              ) { return Float32; }
-    public visitFloat64              (_: Type.Float64              ) { return Float64; }
-    public visitUtf8                 (_: Type.Utf8                 ) { return Utf8; }
-    public visitBinary               (_: Type.Binary               ) { return Binary; }
-    public visitFixedSizeBinary      (_: Type.FixedSizeBinary      ) { return FixedSizeBinary; }
-    public visitDate                 (_: Type.Date                 ) { return Date_; }
-    public visitDateDay              (_: Type.DateDay              ) { return DateDay; }
-    public visitDateMillisecond      (_: Type.DateMillisecond      ) { return DateMillisecond; }
-    public visitTimestamp            (_: Type.Timestamp            ) { return Timestamp; }
-    public visitTimestampSecond      (_: Type.TimestampSecond      ) { return TimestampSecond; }
-    public visitTimestampMillisecond (_: Type.TimestampMillisecond ) { return TimestampMillisecond; }
-    public visitTimestampMicrosecond (_: Type.TimestampMicrosecond ) { return TimestampMicrosecond; }
-    public visitTimestampNanosecond  (_: Type.TimestampNanosecond  ) { return TimestampNanosecond; }
-    public visitTime                 (_: Type.Time                 ) { return Time; }
-    public visitTimeSecond           (_: Type.TimeSecond           ) { return TimeSecond; }
-    public visitTimeMillisecond      (_: Type.TimeMillisecond      ) { return TimeMillisecond; }
-    public visitTimeMicrosecond      (_: Type.TimeMicrosecond      ) { return TimeMicrosecond; }
-    public visitTimeNanosecond       (_: Type.TimeNanosecond       ) { return TimeNanosecond; }
-    public visitDecimal              (_: Type.Decimal              ) { return Decimal; }
-    public visitList                 (_: Type.List                 ) { return List; }
-    public visitStruct               (_: Type.Struct               ) { return Struct; }
-    public visitUnion                (_: Type.Union                ) { return Union; }
-    public visitDenseUnion           (_: Type.DenseUnion           ) { return DenseUnion; }
-    public visitSparseUnion          (_: Type.SparseUnion          ) { return SparseUnion; }
-    public visitDictionary           (_: Type.Dictionary           ) { return Dictionary; }
-    public visitInterval             (_: Type.Interval             ) { return Interval; }
-    public visitIntervalDayTime      (_: Type.IntervalDayTime      ) { return IntervalDayTime; }
-    public visitIntervalYearMonth    (_: Type.IntervalYearMonth    ) { return IntervalYearMonth; }
-    public visitFixedSizeList        (_: Type.FixedSizeList        ) { return FixedSizeList; }
-    public visitMap                  (_: Type.Map                  ) { return Map_; }
+    public visitNull                 () { return type.Null; }
+    public visitBool                 () { return type.Bool; }
+    public visitInt                  () { return type.Int; }
+    public visitInt8                 () { return type.Int8; }
+    public visitInt16                () { return type.Int16; }
+    public visitInt32                () { return type.Int32; }
+    public visitInt64                () { return type.Int64; }
+    public visitUint8                () { return type.Uint8; }
+    public visitUint16               () { return type.Uint16; }
+    public visitUint32               () { return type.Uint32; }
+    public visitUint64               () { return type.Uint64; }
+    public visitFloat                () { return type.Float; }
+    public visitFloat16              () { return type.Float16; }
+    public visitFloat32              () { return type.Float32; }
+    public visitFloat64              () { return type.Float64; }
+    public visitUtf8                 () { return type.Utf8; }
+    public visitBinary               () { return type.Binary; }
+    public visitFixedSizeBinary      () { return type.FixedSizeBinary; }
+    public visitDate                 () { return type.Date_; }
+    public visitDateDay              () { return type.DateDay; }
+    public visitDateMillisecond      () { return type.DateMillisecond; }
+    public visitTimestamp            () { return type.Timestamp; }
+    public visitTimestampSecond      () { return type.TimestampSecond; }
+    public visitTimestampMillisecond () { return type.TimestampMillisecond; }
+    public visitTimestampMicrosecond () { return type.TimestampMicrosecond; }
+    public visitTimestampNanosecond  () { return type.TimestampNanosecond; }
+    public visitTime                 () { return type.Time; }
+    public visitTimeSecond           () { return type.TimeSecond; }
+    public visitTimeMillisecond      () { return type.TimeMillisecond; }
+    public visitTimeMicrosecond      () { return type.TimeMicrosecond; }
+    public visitTimeNanosecond       () { return type.TimeNanosecond; }
+    public visitDecimal              () { return type.Decimal; }
+    public visitList                 () { return type.List; }
+    public visitStruct               () { return type.Struct; }
+    public visitUnion                () { return type.Union; }
+    public visitDenseUnion           () { return type.DenseUnion; }
+    public visitSparseUnion          () { return type.SparseUnion; }
+    public visitDictionary           () { return type.Dictionary; }
+    public visitInterval             () { return type.Interval; }
+    public visitIntervalDayTime      () { return type.IntervalDayTime; }
+    public visitIntervalYearMonth    () { return type.IntervalYearMonth; }
+    public visitFixedSizeList        () { return type.FixedSizeList; }
+    public visitMap                  () { return type.Map_; }
 }
 
 export const instance = new GetDataTypeConstructor();

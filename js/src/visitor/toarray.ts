@@ -33,12 +33,12 @@ import {
 } from '../type';
 
 export interface ToArrayVisitor extends Visitor {
-    visitMany <T extends Vector>  (nodes: T[])                                                     : T['TArray'][];
-    visit     <T extends Vector>  (node: T, ...args: any[])                                        : T['TArray'];
-    getVisitFn<T extends Type>    (node: T)         : (vector: Vector<T>, ...args: any[]) => Vector<T>['TArray'];
-    getVisitFn<T extends DataType>(node: Vector<T>) : (vector: Vector<T>, ...args: any[]) => Vector<T>['TArray'];
-    getVisitFn<T extends DataType>(node: Data<T>)   : (vector: Vector<T>, ...args: any[]) => Vector<T>['TArray'];
-    getVisitFn<T extends DataType>(node: T)         : (vector: Vector<T>, ...args: any[]) => Vector<T>['TArray'];
+    visitMany <T extends Vector>  (nodes: T[]     ): T['TArray'][];
+    visit     <T extends Vector>  (node: T        ): T['TArray'];
+    getVisitFn<T extends Type>    (node: T        ): (vector: Vector<T>) => Vector<T>['TArray'];
+    getVisitFn<T extends DataType>(node: Vector<T>): (vector: Vector<T>) => Vector<T>['TArray'];
+    getVisitFn<T extends DataType>(node: Data<T>  ): (vector: Vector<T>) => Vector<T>['TArray'];
+    getVisitFn<T extends DataType>(node: T        ): (vector: Vector<T>) => Vector<T>['TArray'];
 }
 
 export class ToArrayVisitor extends Visitor {
