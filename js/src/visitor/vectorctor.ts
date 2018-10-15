@@ -37,10 +37,10 @@ import {
 export interface GetVectorConstructor extends Visitor {
     visitMany<T extends Type>(nodes: T[]): VectorCtor<T>[];
     visit<T extends Type>(node: T, ...args: any[]): VectorCtor<T>;
-    getVisitFn<T extends Type>(node: T): (typeId: T, ...args: any[]) => VectorCtor<T>;
-    getVisitFn<T extends DataType>(node: T): (typeId: T['TType'], ...args: any[]) => VectorCtor<T>;
-    getVisitFn<T extends DataType>(node: Data<T>): (typeId: T['TType'], ...args: any[]) => VectorCtor<T>;
-    getVisitFn<T extends DataType>(node: Vector<T>): (typeId: T['TType'], ...args: any[]) => VectorCtor<T>;
+    getVisitFn<T extends Type>(node: T): (...args: any[]) => VectorCtor<T>;
+    getVisitFn<T extends DataType>(node: T): (...args: any[]) => VectorCtor<T>;
+    getVisitFn<T extends DataType>(node: Data<T>): (...args: any[]) => VectorCtor<T>;
+    getVisitFn<T extends DataType>(node: Vector<T>): (...args: any[]) => VectorCtor<T>;
 }
 
 export class GetVectorConstructor extends Visitor {
