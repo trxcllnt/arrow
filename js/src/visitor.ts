@@ -21,14 +21,14 @@ import { Type, Precision, DateUnit, TimeUnit, IntervalUnit, UnionMode } from './
 import { DataType, Float, Int, Date_, Interval, Time, Timestamp, Union, } from './type';
 
 export abstract class Visitor {
-    public visitMany(nodes: any[]) {
-        return nodes.map((node) => this.visit(node));
+    public visitMany(nodes: any[], ...args: any[][]) {
+        return nodes.map((node, i) => this.visit(node, ...args.map((x) => x[i])));
     }
     public visit(node: any, ...args: any[]) {
-        return this.getVisitFn(node, false)(node, ...args);
+        return this.getVisitFn(node, false).call(this, node, ...args);
     }
     public getVisitFn(node: any, throwIfNotFound = true) {
-        return getVisitFn(this, node, throwIfNotFound).bind(this);
+        return getVisitFn(this, node, throwIfNotFound);
     }
     public visitNull            (_node: any, ..._args: any[]): any { return null; }
     public visitBool            (_node: any, ..._args: any[]): any { return null; }
@@ -53,18 +53,11 @@ export abstract class Visitor {
 function getVisitFn<T extends DataType>(visitor: Visitor, node: any, throwIfNotFound = true) {
     let fn: any = null;
     let dtype: T['TType'] = Type.NONE;
-    if (node in Type) {
-        if (typeof (dtype = node) !== 'number') {
-            dtype = Type[node] as any as T['TType'];
-        }
-    } else {
-        dtype = (
-              (node instanceof DataType) ? inferDType(node      as T)
-            : (node instanceof Data    ) ? inferDType(node.type as T)
-            : (node instanceof Vector_ ) ? inferDType(node.type as T)
-            : Type.NONE
-        ) as T['TType'];
-    }
+    if      (node instanceof Data    ) { dtype = inferDType(node.type as T); }
+    else if (node instanceof Vector_ ) { dtype = inferDType(node.type as T); }
+    else if (node instanceof DataType) { dtype = inferDType(node      as T); }
+    else if (typeof (dtype = node) !== 'number') { dtype = Type[node] as any as T['TType']; }
+
     switch (dtype) {
         case Type.Null:                 fn = visitor.visitNull; break;
         case Type.Bool:                 fn = visitor.visitBool; break;

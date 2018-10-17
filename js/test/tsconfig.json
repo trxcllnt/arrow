@@ -5,6 +5,7 @@
     "target": "es2015",
     "module": "commonjs",
     "allowJs": true,
+    "declaration": false,
     "importHelpers": false,
     "noEmitHelpers": false
   }

@@ -66,7 +66,7 @@ class ArrowVector<T extends DataType = any> {
     protected _children: Vector[] | void;
 
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
-        const VectorCtor = getVectorConstructor.visit(data.TType);
+        const VectorCtor = getVectorConstructor.getVisitFn(data.type)();
         // Return the correct Vector subclass based on the Arrow Type
         if (!(this instanceof VectorCtor)) {
             return Reflect.construct(ArrowVector, arguments, VectorCtor);

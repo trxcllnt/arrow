@@ -34,12 +34,12 @@ import {
 } from '../type';
 
 export interface IteratorVisitor extends Visitor {
-    visitMany <T extends Vector>  (nodes: T[])                                                     : IterableIterator<T['TValue'] | null>[];
-    visit     <T extends Vector>  (node: T, ...args: any[])                                        : IterableIterator<T['TValue'] | null>;
-    getVisitFn<T extends Type>    (node: T)         : (vector: Vector<T>, ...args: any[]) => IterableIterator<Vector<T>['TValue'] | null>;
-    getVisitFn<T extends DataType>(node: Vector<T>) : (vector: Vector<T>, ...args: any[]) => IterableIterator<Vector<T>['TValue'] | null>;
-    getVisitFn<T extends DataType>(node: Data<T>)   : (vector: Vector<T>, ...args: any[]) => IterableIterator<Vector<T>['TValue'] | null>;
-    getVisitFn<T extends DataType>(node: T)         : (vector: Vector<T>, ...args: any[]) => IterableIterator<Vector<T>['TValue'] | null>;
+    visitMany <T extends Vector>  (nodes: T[]     ): IterableIterator<T['TValue'] | null>[];
+    visit     <T extends Vector>  (node: T        ): IterableIterator<T['TValue'] | null>;
+    getVisitFn<T extends Type>    (node: T        ): (vector: Vector<T>) => IterableIterator<Vector<T>['TValue'] | null>;
+    getVisitFn<T extends DataType>(node: Vector<T>): (vector: Vector<T>) => IterableIterator<Vector<T>['TValue'] | null>;
+    getVisitFn<T extends DataType>(node: Data<T>  ): (vector: Vector<T>) => IterableIterator<Vector<T>['TValue'] | null>;
+    getVisitFn<T extends DataType>(node: T        ): (vector: Vector<T>) => IterableIterator<Vector<T>['TValue'] | null>;
 }
 
 export class IteratorVisitor extends Visitor {

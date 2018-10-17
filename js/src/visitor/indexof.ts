@@ -34,12 +34,12 @@ import {
 } from '../type';
 
 export interface IndexOfVisitor extends Visitor {
-    visitMany <T extends Vector>  (nodes: T[])                                             : number[];
-    visit     <T extends Vector>  (node: T, ...args: any[])                                : number;
-    getVisitFn<T extends Type>    (node: T)         : (vector: Vector<T>, ...args: any[]) => number;
-    getVisitFn<T extends DataType>(node: Vector<T>) : (vector: Vector<T>, ...args: any[]) => number;
-    getVisitFn<T extends DataType>(node: Data<T>)   : (vector: Vector<T>, ...args: any[]) => number;
-    getVisitFn<T extends DataType>(node: T)         : (vector: Vector<T>, ...args: any[]) => number;
+    visitMany <T extends Vector>  (nodes: T[], values: (T['TValue'] | null)[], indices: number[]): number[];
+    visit     <T extends Vector>  (node: T, value: T['TValue'] | null, index: number            ): number;
+    getVisitFn<T extends Type>    (node: T         ): (vector: Vector<T>, value: Vector<T>['TValue'] | null, index: number) => number;
+    getVisitFn<T extends DataType>(node: Vector<T> ): (vector: Vector<T>, value:         T['TValue'] | null, index: number) => number;
+    getVisitFn<T extends DataType>(node: Data<T>   ): (vector: Vector<T>, value:         T['TValue'] | null, index: number) => number;
+    getVisitFn<T extends DataType>(node: T         ): (vector: Vector<T>, value:         T['TValue'] | null, index: number) => number;
 }
 
 export class IndexOfVisitor extends Visitor {
@@ -156,7 +156,10 @@ function arrayIndexOf<T extends DataType>(vector: Vector<T>, fromIndex: number, 
     return -1;
 }
 
-function listIndexOf<T extends DataType>(vector: Vector<List<T> | FixedSizeList<T>>, fromIndex: number, searchElement: Vector<T> | ArrayLike<T> | null): number {
+function listIndexOf<
+    T extends DataType,
+    R extends List<T> | FixedSizeList<T>
+>(vector: Vector<R>, fromIndex: number, searchElement: Vector<T> | ArrayLike<T> | null): number {
     if (searchElement === undefined) { return -1; }
     if (searchElement === null) { return indexOfNull(vector, fromIndex); }
     const getSearchElement = (Array.isArray(searchElement) || ArrayBuffer.isView(searchElement))
