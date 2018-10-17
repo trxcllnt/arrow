@@ -25,10 +25,10 @@ export abstract class Visitor {
         return nodes.map((node, i) => this.visit(node, ...args.map((x) => x[i])));
     }
     public visit(node: any, ...args: any[]) {
-        return this.getVisitFn(node, false)(node, ...args);
+        return this.getVisitFn(node, false).call(this, node, ...args);
     }
     public getVisitFn(node: any, throwIfNotFound = true) {
-        return getVisitFn(this, node, throwIfNotFound).bind(this);
+        return getVisitFn(this, node, throwIfNotFound);
     }
     public visitNull            (_node: any, ..._args: any[]): any { return null; }
     public visitBool            (_node: any, ..._args: any[]): any { return null; }
