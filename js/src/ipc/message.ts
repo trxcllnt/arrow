@@ -89,11 +89,11 @@ export function readMessages<T extends TElement>(source: Readable | ReadableStre
 export function readMessages<T extends TElement>(source: PromiseLike<T> | AsyncIterable<T>): AsyncIterableIterator<Message>;
 export function readMessages<T extends TElement>(source: Readable | ReadableStream<T> | AsyncIterable<T> | PromiseLike<T> | Iterable<T> | T) {
     return (
-        (isReadableDOMStream<T>(source)) ? (new AsyncMessageReader(fromReadableDOMStream<T>(source))) as AsyncIterator<Message> :
-        (  isReadableNodeStream(source)) ? (new AsyncMessageReader(  fromReadableNodeStream(source))) as AsyncIterator<Message> :
-        (    isAsyncIterable<T>(source)) ? (new AsyncMessageReader(    fromAsyncIterable<T>(source))) as AsyncIterator<Message> :
-        (          isPromise<T>(source)) ? (new AsyncMessageReader(    fromAsyncIterable<T>(source))) as AsyncIterator<Message> :
-                                           (     new MessageReader(    fromIterable<T>(source as T))) as      Iterator<Message>);
+        (isReadableDOMStream<T>(source)) ? (new AsyncMessageReader(fromReadableDOMStream<T>(source))) as AsyncIterableIterator<Message> :
+        (  isReadableNodeStream(source)) ? (new AsyncMessageReader(  fromReadableNodeStream(source))) as AsyncIterableIterator<Message> :
+        (    isAsyncIterable<T>(source)) ? (new AsyncMessageReader(    fromAsyncIterable<T>(source))) as AsyncIterableIterator<Message> :
+        (          isPromise<T>(source)) ? (new AsyncMessageReader(    fromAsyncIterable<T>(source))) as AsyncIterableIterator<Message> :
+                                           (     new MessageReader(    fromIterable<T>(source as T))) as      IterableIterator<Message>);
 }
 
 const invalidMessageBody = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, got ${actual}`;

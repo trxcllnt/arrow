@@ -42,7 +42,7 @@ export function fromReadableDOMStream<T extends TElement>(source: ReadableStream
     return pumped;
 }
 
-export async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
+export function fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
     const pumped = _fromReadableNodeStream(stream);
     pumped.next();
     return pumped;
