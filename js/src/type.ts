@@ -377,7 +377,7 @@ export class FixedSizeList<T extends DataType = any> extends DataType<Type.Fixed
 }
 
 /* tslint:disable:class-name */
-export interface Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map> { TArray: Uint8Array; TValue: Row<T>, dataTypes: T; }
+export interface Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map> { TArray: Uint8Array; TValue: Row<T>; dataTypes: T; }
 export class Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map, T> {
     constructor(public readonly children: Field<T[keyof T]>[],
                 public readonly keysSorted: boolean = false) {
@@ -389,24 +389,23 @@ export class Map_<T extends { [key: string]: DataType; } = any> extends DataType
     })(Map_.prototype);
 }
 
-
 const getId = ((atomicDictionaryId) => () => ++atomicDictionaryId)(-1);
 
 export interface Dictionary<T extends DataType = any, TKey extends Int = Int32> extends DataType<Type.Dictionary> { TArray: TKey['TArray']; TValue: T['TValue']; }
 export class Dictionary<T extends DataType = any, TKey extends Int = Int32> extends DataType<Type.Dictionary> {
     public readonly id: number;
     public readonly indices: TKey;
-    public readonly dictionary: Vector<T>;
+    public readonly dictionary: T;
     public readonly isOrdered: boolean;
-    constructor(indices: TKey, dictionary: Vector<T>, id?: Long | number | null, isOrdered?: boolean | null) {
+    constructor(dictionary: T, indices: TKey, id?: Long | number | null, isOrdered?: boolean | null) {
         super(Type.Dictionary);
         this.indices = indices;
         this.dictionary = dictionary;
         this.isOrdered = isOrdered || false;
         this.id = id == null ? getId() : typeof id === 'number' ? id : id.low;
     }
-    public get valueType(): T { return this.dictionary.type as T; }
-    public get ArrayType(): T['ArrayType'] { return this.dictionary.type.ArrayType; }
+    public get valueType(): T { return this.dictionary as T; }
+    public get ArrayType(): T['ArrayType'] { return this.dictionary.ArrayType; }
     public toString() { return `Dictionary<${this.indices}, ${this.dictionary}>`; }
     protected static [Symbol.toStringTag] = ((proto: Dictionary) => {
         return proto[Symbol.toStringTag] = 'Dictionary';
@@ -432,7 +431,6 @@ export type ArrayBufferViewConstructor<T> = {
 //     of(...items: number[]): T;
 //     from(arrayLike: ArrayLike<number> | Iterable<number>, mapfn?: (v: number, k: number) => number, thisArg?: any): T;
 // }
-
 
 // export interface TypedArray extends Iterable<number> {
 //     [index: number]: number;

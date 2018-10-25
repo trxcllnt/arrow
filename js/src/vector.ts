@@ -33,7 +33,7 @@ import {
     Utf8, Binary, Decimal, FixedSizeBinary,
     List, FixedSizeList, Map_, Struct, Union,
     Bool, Null, Int, Float, Date_, Time, Interval, Timestamp,
-    
+
     DenseUnion, SparseUnion,
     DateDay, DateMillisecond,
     IntervalDayTime, IntervalYearMonth,
@@ -59,7 +59,7 @@ class ArrowVector<T extends DataType = any> {
     static new <T extends DataType>(data: Data<T>, ...args: VectorCtorArgs<Vector<T>>): Vector<T> {
         return new ArrowVector<T>(data, ...args) as Vector<T>;
     }
-    
+
     public readonly data: Data<T>;
     public readonly stride: number;
     public readonly numChildren: number;
@@ -79,16 +79,16 @@ class ArrowVector<T extends DataType = any> {
 
     // @ts-ignore
     protected bindDataAccessors(data: Data<T>) {}
-    
+
     public get type() { return this.data.type; }
     public get length() { return this.data.length; }
     public get offset() { return this.data.offset; }
     public get nullCount() { return this.data.nullCount; }
     public get VectorName() { return this.constructor.name; }
     public get TType(): T['TType'] { return this.data.TType; }
-    public get TArray(): T['TArray'] { return this.data.TArray; };
-    public get TValue(): T['TValue'] { return this.data.TValue; };
-    public get ArrayType(): T['ArrayType'] { return this.data.ArrayType; };
+    public get TArray(): T['TArray'] { return this.data.TArray; }
+    public get TValue(): T['TValue'] { return this.data.TValue; }
+    public get ArrayType(): T['ArrayType'] { return this.data.ArrayType; }
 
     public get values() { return this.data.values; }
     public get typeIds() { return this.data.typeIds; }
@@ -259,7 +259,6 @@ export class DictionaryVector<T extends DataType = any> extends ArrowVector<Dict
             VectorCtor.prototype[Symbol.iterator] = partial0(iteratorVisitor.getVisitFn(<any> TType));
         });
     });
-
 
 function partial0<T extends DataType, V extends Vector<T>>(visit: (node: V) => any) {
     return function(this: V) { return visit(this); };

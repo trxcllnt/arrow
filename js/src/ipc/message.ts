@@ -19,16 +19,15 @@ import * as Message_ from '../fb/Message';
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
 import _Message = Message_.org.apache.arrow.flatbuf.Message;
+type ReadableStream<R = any> = import('whatwg-streams').ReadableStream<R>;
 
 import { PADDING } from './magic';
-
-// import { Schema, Long } from '../schema';
+import { Schema, Long } from '../schema';
 import { MessageHeader, MetadataVersion } from '../enum';
 import { BufferReader, AsyncBufferReader } from './reader';
-import { IteratorBase, AsyncIteratorBase, done } from './reader';
+import { IteratorBase, AsyncIteratorBase, ITERATOR_DONE } from './reader';
 
 import { Readable } from 'stream';
-import { ReadableStream } from 'whatwg-streams';
 import { isPromise, isAsyncIterable, isReadableNodeStream, isReadableDOMStream } from '../util/compat';
 import { fromIterable, fromAsyncIterable, fromReadableDOMStream, fromReadableNodeStream } from './stream';
 
@@ -45,16 +44,49 @@ export class Message {
     public get type(): MessageHeader { return this._message.headerType(); }
     public get version(): MetadataVersion { return this._message.version(); }
     public get bodyLength(): number { return this._message.bodyLength().low; }
-    // static isSchema(m: Message): m is Schema { return m.headerType === MessageHeader.Schema; }
-    // static isRecordBatch(m: Message): m is RecordBatchMetadata { return m.headerType === MessageHeader.RecordBatch; }
-    // static isDictionaryBatch(m: Message): m is DictionaryBatch { return m.headerType === MessageHeader.DictionaryBatch; }
+    public header<T extends flatbuffers.Table>(obj: T) {
+        return this._message.header(obj);
+    }
+}
+
+export class Footer {
+    constructor(public dictionaryBatches: FileBlock[],
+                public recordBatches: FileBlock[],
+                public schema: Schema) {}
+}
+
+export class FileBlock {
+    public offset: number;
+    public bodyLength: number;
+    constructor(public metaDataLength: number, bodyLength: Long | number, offset: Long | number) {
+        this.offset = typeof offset === 'number' ? offset : offset.low;
+        this.bodyLength = typeof bodyLength === 'number' ? bodyLength : bodyLength.low;
+    }
+}
+
+export class BufferMetadata {
+    public offset: number;
+    public length: number;
+    constructor(offset: Long | number, length: Long | number) {
+        this.offset = typeof offset === 'number' ? offset : offset.low;
+        this.length = typeof length === 'number' ? length : length.low;
+    }
+}
+
+export class FieldMetadata {
+    public length: number;
+    public nullCount: number;
+    constructor(length: Long | number, nullCount: Long | number) {
+        this.length = typeof length === 'number' ? length : length.low;
+        this.nullCount = typeof nullCount === 'number' ? nullCount : nullCount.low;
+    }
 }
 
 type TElement = ArrayBufferLike | ArrayBufferView | string;
 
-export function readMessages<T extends TElement>(source: T | Iterable<T>): Iterator<Message>;
-export function readMessages<T extends TElement>(source: Readable | ReadableStream<T>): AsyncIterator<Message>;
-export function readMessages<T extends TElement>(source: PromiseLike<T> | AsyncIterable<T>): AsyncIterator<Message>;
+export function readMessages<T extends TElement>(source: T | Iterable<T>): IterableIterator<Message>;
+export function readMessages<T extends TElement>(source: Readable | ReadableStream<T>): AsyncIterableIterator<Message>;
+export function readMessages<T extends TElement>(source: PromiseLike<T> | AsyncIterable<T>): AsyncIterableIterator<Message>;
 export function readMessages<T extends TElement>(source: Readable | ReadableStream<T> | AsyncIterable<T> | PromiseLike<T> | Iterable<T> | T) {
     return (
         (isReadableDOMStream<T>(source)) ? (new AsyncMessageReader(fromReadableDOMStream<T>(source))) as AsyncIterator<Message> :
@@ -73,28 +105,24 @@ export class MessageReader extends IteratorBase<Message, BufferReader> {
     }
     next() {
         let r, m: _Message;
-        if ((r = this.readMetadataLength()).done) return done;
-        if ((r = this.readMetadata(r.value)).done) return done;
-        if ((r = this.readBody(m = r.value)).done) return done;
+        if ((r = this.readMetadataLength()).done) { return ITERATOR_DONE; }
+        if ((r = this.readMetadata(r.value)).done) { return ITERATOR_DONE; }
+        if ((r = this.readBody(m = r.value)).done) { return ITERATOR_DONE; }
         (r as IteratorResult<any>).value = r.done ? null : new Message(m, r.value);
         return (r as any) as IteratorResult<Message>;
     }
     readMetadataLength(): IteratorResult<number> {
         let r: IteratorResult<any> = this.source.next(PADDING);
-        r.done || (r.done = (r.value = r.value.readInt32(0)));
+        r.done || (r.done = !(r.value = r.value.readInt32(0)));
         return r;
     }
     readMetadata(metadataLength: number): IteratorResult<_Message> {
-        let r: IteratorResult<any>
-        if ((r = this.source.next(metadataLength)).done) return done;
+        let r: IteratorResult<any>;
+        if ((r = this.source.next(metadataLength)).done) { return ITERATOR_DONE; }
         if ((r.value.capacity() < metadataLength)) {
             throw new Error(invalidMessageMetadata(metadataLength, r.value.capacity()));
         }
-        const { value: bb } = r;
-        bb.setPosition(bb.position() + PADDING);
-        const message = _Message.getRootAsMessage(bb);
-        bb.setPosition(bb.position() + metadataLength);
-        r.done = (r.value = message) == null;
+        r.done = !(r.value = _Message.getRootAsMessage(r.value));
         return r;
     }
     readBody(message: _Message): IteratorResult<ByteBuffer> {
@@ -113,28 +141,24 @@ export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncBufferRe
     }
     async next() {
         let r, m: _Message;
-        if ((r = await this.readMetadataLength()).done) return done;
-        if ((r = await this.readMetadata(r.value)).done) return done;
-        if ((r = await this.readBody(m = r.value)).done) return done;
+        if ((r = await this.readMetadataLength()).done) { return ITERATOR_DONE; }
+        if ((r = await this.readMetadata(r.value)).done) { return ITERATOR_DONE; }
+        if ((r = await this.readBody(m = r.value)).done) { return ITERATOR_DONE; }
         (r as IteratorResult<any>).value = r.done ? null : new Message(m, r.value);
         return (r as any) as IteratorResult<Message>;
     }
     async readMetadataLength(): Promise<IteratorResult<number>> {
         let r: IteratorResult<any> = await this.source.next(PADDING);
-        r.done || (r.done = (r.value = r.value.readInt32(0)));
+        r.done || (r.done = !(r.value = r.value.readInt32(0)));
         return r;
     }
     async readMetadata(metadataLength: number): Promise<IteratorResult<_Message>> {
-        let r: IteratorResult<any>
-        if ((r = await this.source.next(metadataLength)).done) return done;
+        let r: IteratorResult<any>;
+        if ((r = await this.source.next(metadataLength)).done) { return ITERATOR_DONE; }
         if ((r.value.capacity() < metadataLength)) {
             throw new Error(invalidMessageMetadata(metadataLength, r.value.capacity()));
         }
-        const { value: bb } = r;
-        bb.setPosition(bb.position() + PADDING);
-        const message = _Message.getRootAsMessage(bb);
-        bb.setPosition(bb.position() + metadataLength);
-        r.done = (r.value = message) == null;
+        r.done = !(r.value = _Message.getRootAsMessage(r.value));
         return r as IteratorResult<_Message>;
     }
     async readBody(message: _Message): Promise<IteratorResult<ByteBuffer>> {
