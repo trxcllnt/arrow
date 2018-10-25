@@ -31,7 +31,7 @@ export function concat(chunks: Uint8Array[], size?: number | null): [Uint8Array,
         if (length <= (offset += sliced.length)) {
             if (sliced.length < source.length) {
                 chunks[index] = source.subarray(sliced.length);
-            }
+            } else if (sliced.length === source.length) { index++; }
             buffer ? buffer.set(sliced, offset) : (buffer = sliced);
             break;
         }

@@ -223,10 +223,11 @@ export class MapVector<T extends { [key: string]: DataType } = any> extends Arro
 
 export class DictionaryVector<T extends DataType = any> extends ArrowVector<Dictionary<T>> {
     public readonly indices: Vector<Int>;
+    // @ts-ignore
     public readonly dictionary: Vector<T>;
     constructor(data: Data<Dictionary<T>>) {
         super(data, void 0, 1);
-        this.dictionary = this.type.dictionary;
+        // this.dictionary = this.type.dictionary;
         this.indices = new ArrowVector(data.clone(this.type.indices));
     }
     public getKey(index: number) { return this.indices.get(index); }

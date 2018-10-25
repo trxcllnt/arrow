@@ -61,8 +61,8 @@ function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIt
     try {
         do {
             // If we have enough bytes, concat the chunks and emit the buffer.
-            (bytesToRead && (bytesToRead <= bufferLength)) &&
-                            (bytesToRead = yield slice());
+            (bytesToRead <= bufferLength) && (bytesToRead = yield slice());
+
             // initialize the iterator
             (it || (it = toUint8s(source)[Symbol.iterator]()));
             // read the next value
@@ -99,8 +99,8 @@ async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> 
             // If we have enough bytes, concat the chunks and emit the buffer.
             // On the first iteration, this allows the caller to inject bytesToRead
             // before creating the source Iterator.
-            (bytesToRead && (bytesToRead <= bufferLength)) &&
-                            (bytesToRead = yield slice());
+            (bytesToRead <= bufferLength) && (bytesToRead = yield slice());
+
             // initialize the iterator
             (it || (it = toUint8sAsync(source)[Symbol.asyncIterator]()));
             // read the next value
@@ -138,8 +138,8 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableStrea
             // If we have enough bytes, concat the chunks and emit the buffer.
             // On the first iteration, this allows the caller to inject bytesToRead
             // before establishing the ReadableStream lock.
-            (bytesToRead && (bytesToRead <= bufferLength)) &&
-                            (bytesToRead = yield slice());
+            (bytesToRead <= bufferLength) && (bytesToRead = yield slice());
+
             // initialize the reader and lock the stream
             (it || (it = source['getReader']()));
             // read the next value
@@ -156,8 +156,8 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableStrea
                 } while (bytesToRead < bufferLength);
             }
         } while (!done);
-    } finally {
-        try { it && source['locked'] && it['releaseLock'](); } catch (e) {}
+    } catch (e) {
+        try { it && source['locked'] && it!['releaseLock'](); } catch (e) {}
     }
 }
 
@@ -187,8 +187,7 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             // If we have enough bytes, concat the chunks and emit the buffer.
             // On the first iteration, this allows the caller to inject bytesToRead
             // before listening to the source stream's 'readable' event.
-            (bytesToRead && (bytesToRead <= bufferLength)) &&
-                            (bytesToRead = yield slice());
+            (bytesToRead <= bufferLength) && (bytesToRead = yield slice());
 
             // initialize the stream event handlers
             (events[0] || (events[0] = onEvent('end')));
@@ -201,7 +200,7 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             buffer = toUint8Array(stream.read(bytesToRead));
             // if chunk is null or empty, wait for the next readable event
             if (!buffer || !(buffer.byteLength > 0)) {
-                events[3] = onEvent('readable');
+                events[2] = onEvent('readable');
             } else {
                 // otherwise push it onto the queue
                 buffers.push(buffer);
@@ -209,10 +208,8 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             }
             // if the stream emitted an Error, rethrow it
             if (event === 'error') { throw err; }
-            // otherwise if we're not done, continue;
-            if (!(done = (event === 'end'))) { continue; }
             // if we're done, emit the rest of the chunks
-            if (done) {
+            if (done = (event === 'end')) {
                 do {
                     bytesToRead = yield slice();
                 } while (bytesToRead < bufferLength);

@@ -17,6 +17,12 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
+import { ReadableStream } from "@mattiasbuelens/web-streams-polyfill/ponyfill";
+
+(global as any).ReadableStream = ReadableStream;
+
+/* tslint:disable */
+const nodeToWebStream = require('readable-stream-node-to-web');
 
 import { MessageHeader } from '../../../src/enum';
 import { Message } from '../../../src/ipc/message';
@@ -68,5 +74,65 @@ describe('MessageReader', () => {
         expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
 
         expect(reader.next().done).toBe(true);
+    });
+});
+
+describe('AsyncMessageReader', () => {
+    it('should read all messages from a NodeJS ReadableStream', async () => {
+
+        const simple = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
+        const reader = readMessages(fs.createReadStream(simple));
+        let r: IteratorResult<Message>;
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.Schema);
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+
+        expect((await reader.next()).done).toBe(true);
+    });
+
+    it('should read all messages from a whatwg ReadableStream', async () => {
+
+        const simple = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
+        const reader = readMessages(nodeToWebStream(fs.createReadStream(simple)));
+        let r: IteratorResult<Message>;
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.Schema);
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+
+        r = await reader.next();
+        expect(r.done).toBe(false);
+        expect(r.value).toBeInstanceOf(Message);
+        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+
+        expect((await reader.next()).done).toBe(true);
     });
 });
