@@ -7,23 +7,29 @@
 
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
+import { RecordBatch } from '../recordbatch';
+import { Message, MessageReader } from './message';
+import { Schema } from '../schema';
+import { Vector } from '../interfaces';
+import { MessageHeader } from '../enum';
+import { schemaFromMessage } from './metadata-internal';
 
-export const done: any = Object.freeze({ done: true, value: void (0) });
+export const ITERATOR_DONE: any = Object.freeze({ done: true, value: void (0) });
 
 export class IteratorBase<TResult, TSource extends Iterator<any> = Iterator<any>> implements Required<IterableIterator<TResult | null | void>> {
     constructor(protected source: TSource) {}
     [Symbol.iterator]() { return this; }
-    next(value?: any) { return this.source && (this.source.next(value) as any) || done; }
-    throw(value?: any) { return this.source && this.source.throw && (this.source.throw(value) as any) || done; }
-    return(value?: any) { return this.source && this.source.return && (this.source.return(value) as any) || done; }
+    next(value?: any) { return this.source && (this.source.next(value) as any) || ITERATOR_DONE; }
+    throw(value?: any) { return this.source && this.source.throw && (this.source.throw(value) as any) || ITERATOR_DONE; }
+    return(value?: any) { return this.source && this.source.return && (this.source.return(value) as any) || ITERATOR_DONE; }
 }
 
 export class AsyncIteratorBase<TResult, TSource extends AsyncIterator<any> = AsyncIterator<any>> implements Required<AsyncIterableIterator<TResult | null | void>> {
     constructor(protected source: TSource) {}
     [Symbol.asyncIterator]() { return this; }
-    async next(value?: any) { return this.source && (await this.source.next(value) as any) || done; }
-    async throw(value?: any) { return this.source && this.source.throw && (await this.source.throw(value) as any) || done; }
-    async return(value?: any) { return this.source && this.source.return && (await this.source.return(value) as any) || done; }
+    async next(value?: any) { return this.source && (await this.source.next(value) as any) || ITERATOR_DONE; }
+    async throw(value?: any) { return this.source && this.source.throw && (await this.source.throw(value) as any) || ITERATOR_DONE; }
+    async return(value?: any) { return this.source && this.source.return && (await this.source.return(value) as any) || ITERATOR_DONE; }
 }
 
 export class BufferReader extends IteratorBase<ByteBuffer, Iterator<Uint8Array>> {
@@ -53,15 +59,22 @@ export class AsyncBufferReader extends AsyncIteratorBase<ByteBuffer, AsyncIterat
 //     async _readMessageAsync() {}
 // }
 
-// export class RecordBatchReader extends MessageReader<RecordBatchMetadata> {
-//     protected schema: Schema;
-//     protected dictionaries: Map<number, Vector>;
-//     constructor(schema: Schema,
-//                 source: AsyncIterable<Uint8Array>,
-//                 dictionaries = new Map<number, Vector>()) {
-//         super(source);
-//         this.schema = schema;
-//         this.dictionaries = dictionaries;
-//     }
-//     async *[Symbol.asyncIterator]() { return null; }
-// }
+const invalidMessageType = (type: MessageHeader) => `Expected ${MessageHeader[type]} message in stream, was null or length 0`;
+const noSchemaMessage = () => `Header-pointer of flatbuffer-encoded Message is null.`;
+
+export class RecordBatchReader extends IteratorBase<RecordBatch, MessageReader> {
+    public readonly schema: Schema;
+    protected dictionaries: Map<number, Vector>;
+    constructor(source: MessageReader,
+                dictionaries = new Map<number, Vector>()) {
+        super(source);
+        this.dictionaries = dictionaries;
+        this.schema = this._readSchema();
+    }
+    protected _readSchema() {
+        let r: IteratorResult<Message>;
+        if ((r = this.source.next()).done) { throw new Error(invalidMessageType(MessageHeader.Schema)); }
+        if (r.value.headerType !== MessageHeader.Schema) { throw new Error(noSchemaMessage()); }
+        return schemaFromMessage(r.value, new Map());
+    }
+}

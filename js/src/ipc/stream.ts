@@ -19,13 +19,39 @@ import { Readable as NodeStream } from 'stream';
 import { concat, toUint8Array } from '../util/buffer';
 import { toUint8ArrayIterator as toUint8s } from '../util/buffer';
 import { toUint8ArrayAsyncIterator as toUint8sAsync } from '../util/buffer';
-import { ReadableStream, ReadableStreamDefaultReader } from 'whatwg-streams';
 
 type TElement = ArrayBufferLike | ArrayBufferView | string;
+type ReadableStream<R = any> = import('whatwg-streams').ReadableStream<R>;
+type ReadableStreamDefaultReader<R = any> = import('whatwg-streams').ReadableStreamDefaultReader<R>;
 
-export function* fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
+export function fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
+    const pumped = _fromIterable<T>(source);
+    pumped.next();
+    return pumped;
+}
 
-    let bytesToRead = -1, bufferLength = 0;
+export function fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
+    const pumped = _fromAsyncIterable<T>(source);
+    pumped.next();
+    return pumped;
+}
+
+export function fromReadableDOMStream<T extends TElement>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
+    const pumped = _fromReadableDOMStream<T>(source);
+    pumped.next();
+    return pumped;
+}
+
+export async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
+    const pumped = _fromReadableNodeStream(stream);
+    pumped.next();
+    return pumped;
+}
+
+function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
+
+    // Allow the caller to inject bytesToRead before creating the source Iterator.
+    let bytesToRead = yield <any> null, bufferLength = 0;
     let done: boolean, it: Iterator<Uint8Array> | null = null;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
     const slice = () => ((
@@ -35,8 +61,6 @@ export function* fromIterable<T extends TElement>(source: Iterable<T> | T): Iter
     try {
         do {
             // If we have enough bytes, concat the chunks and emit the buffer.
-            // On the first iteration, this allows the caller to inject bytesToRead
-            // before creating the source Iterator.
             (bytesToRead && (bytesToRead <= bufferLength)) &&
                             (bytesToRead = yield slice());
             // initialize the iterator
@@ -49,7 +73,11 @@ export function* fromIterable<T extends TElement>(source: Iterable<T> | T): Iter
                 bufferLength += buffer.byteLength;
             }
             // if we're done, emit the rest of the chunks
-            if (done) while ((bytesToRead = yield slice()) < bufferLength);
+            if (done) {
+                do {
+                    bytesToRead = yield slice();
+                } while (bytesToRead < bufferLength);
+            }
         } while (!done);
         it && (typeof it.return === 'function') && (it.return());
     } catch (e) {
@@ -57,9 +85,9 @@ export function* fromIterable<T extends TElement>(source: Iterable<T> | T): Iter
     }
 }
 
-export async function* fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
+async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
 
-    let bytesToRead = -1, bufferLength = 0;
+    let bytesToRead = yield <any> null, bufferLength = 0;
     let done: boolean, it: AsyncIterator<Uint8Array> | null = null;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
     const slice = () => ((
@@ -83,7 +111,11 @@ export async function* fromAsyncIterable<T extends TElement>(source: AsyncIterab
                 bufferLength += buffer.byteLength;
             }
             // if we're done, emit the rest of the chunks
-            if (done) while ((bytesToRead = yield slice()) < bufferLength);
+            if (done) {
+                do {
+                    bytesToRead = yield slice();
+                } while (bytesToRead < bufferLength);
+            }
         } while (!done);
         it && (typeof it.return === 'function') && (await it.return());
     } catch (e) {
@@ -91,10 +123,10 @@ export async function* fromAsyncIterable<T extends TElement>(source: AsyncIterab
     }
 }
 
-export async function* fromReadableDOMStream<T extends TElement>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
+async function* _fromReadableDOMStream<T extends TElement>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
 
     let done = false, value: T;
-    let bytesToRead = -1, bufferLength = 0;
+    let bytesToRead = yield <any> null, bufferLength = 0;
     let it: ReadableStreamDefaultReader<T> | null = null;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
     const slice = () => ((
@@ -118,14 +150,18 @@ export async function* fromReadableDOMStream<T extends TElement>(source: Readabl
                 bufferLength += buffer.byteLength;
             }
             // if we're done, emit the rest of the chunks
-            if (done) while ((bytesToRead = yield slice()) < bufferLength);
+            if (done) {
+                do {
+                    bytesToRead = yield slice();
+                } while (bytesToRead < bufferLength);
+            }
         } while (!done);
     } finally {
         try { it && source['locked'] && it['releaseLock'](); } catch (e) {}
     }
 }
 
-export async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
+async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
 
     type EventName = 'end' | 'error' | 'readable';
     type Event = [EventName, (_: any) => void, Promise<[EventName, Error | null]>];
@@ -137,10 +173,10 @@ export async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): As
             (r) => (resolve = r) && stream.once(event, handler)
         )] as Event;
     };
-    
-    let bytesToRead = -1, bufferLength = 0;
+
     let event: EventName, events: Event[] = [];
     let done = false, err: Error | null = null;
+    let bytesToRead = yield <any> null, bufferLength = 0;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | Buffer | string;
     const slice = () => ((
         [buffer, buffers] = concat(buffers, bytesToRead)) &&
@@ -172,11 +208,15 @@ export async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): As
                 bufferLength += buffer.byteLength;
             }
             // if the stream emitted an Error, rethrow it
-            if (event === 'error') throw err;
+            if (event === 'error') { throw err; }
             // otherwise if we're not done, continue;
-            if (!(done = (event === 'end'))) continue;
+            if (!(done = (event === 'end'))) { continue; }
             // if we're done, emit the rest of the chunks
-            while ((bytesToRead = yield slice()) < bufferLength);
+            if (done) {
+                do {
+                    bytesToRead = yield slice();
+                } while (bytesToRead < bufferLength);
+            }
         } while (!done);
     } catch (e) {
         if (err == null) {
@@ -184,11 +224,17 @@ export async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): As
         }
     } finally { (err == null) && (await cleanup(events)); }
 
-    function cleanup<T extends Error | null | void>(events: (Event | null)[], err?: T) {
+    function cleanup<T extends Error | null | void>(events: Event[], err?: T) {
         return new Promise<T>((resolve, reject) => {
-            for (let ev, func; events.length > 0; ([ev, func] = events.pop()!) && stream.off(ev, func));
+            while (events.length > 0) {
+                let eventAndHandler = events.pop();
+                if (eventAndHandler) {
+                    let [ev, fn] = eventAndHandler;
+                    ev && fn && stream.off(ev, fn);
+                }
+            }
             const destroyStream = (stream as any).destroy || ((err: T, callback: any) => callback(err));
-            destroyStream.call(stream, err == null ? null : err, (e: T) => e == null ? reject(e) : resolve(err));
+            destroyStream.call(stream, err, (e: T) => e == null ? reject(e) : resolve(err));
         });
     }
 }
@@ -202,14 +248,18 @@ export function toReadableStream(source: AsyncIterable<Uint8Array>) {
             ({ done } = await it[method]!(value)) ||
         (done = true)) && (it = null as any);
 
-    return new ReadableStream<Uint8Array>({
+    const RS: typeof import('whatwg-streams').ReadableStream = <any> ReadableStream;
+
+    return new RS<Uint8Array>({
         cancel: close.bind(null, 'return'),
         async start() { it = source[Symbol.asyncIterator](); },
         async pull(c) {
             try {
                 while (!done) {
                     ({ done, value } = await it.next(c.desiredSize));
-                    if (value && value.length > 0) return c.enqueue(value);
+                    if (value && value.length > 0) {
+                        return c.enqueue(value);
+                    }
                 }
                 return (await close('return')) || c.close();
             } catch (e) { (await close('throw', e)) || c.error(e); }

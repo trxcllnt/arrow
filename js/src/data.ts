@@ -43,23 +43,23 @@ export interface Buffers<T extends DataType> {
         [BufferType.DATA]?: T['TArray'];
     [BufferType.VALIDITY]?: Uint8Array;
         [BufferType.TYPE]?: T['TArray'];
-};
+}
 
 export class Data<T extends DataType = DataType> {
 
     public type: T;
     public readonly length: number;
     public readonly offset: number;
-    
+
     // @ts-ignore
     public readonly childData: Data[];
     protected _buffers = [] as Buffers<T>;
     protected _nullCount: number | kUnknownNullCount;
 
     public get TType() { return this.type.TType; }
-    public get TArray() { return this.type.TArray; };
-    public get TValue() { return this.type.TValue; };
-    public get ArrayType() { return this.type.ArrayType; };
+    public get TArray() { return this.type.TArray; }
+    public get TValue() { return this.type.TValue; }
+    public get ArrayType() { return this.type.ArrayType; }
 
     public get values() { return this._buffers[BufferType.DATA]!; }
     public get typeIds() { return this._buffers[BufferType.TYPE]!; }

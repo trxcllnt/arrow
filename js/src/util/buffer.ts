@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { ArrayBufferViewConstructor as ABVCtor } from '../interfaces';
+import { ArrayBufferViewConstructor  } from '../interfaces';
 import { isIteratorResult, isIterable, isAsyncIterable } from './compat';
 
 /**
@@ -40,91 +40,95 @@ export function concat(chunks: Uint8Array[], size?: number | null): [Uint8Array,
     return [buffer || new Uint8Array(0), chunks.slice(index)];
 }
 
-type ABVInput = ArrayBufferLike | ArrayBufferView | string | null | undefined |
- IteratorResult<ArrayBufferLike | ArrayBufferView | string | null | undefined>;
+type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | string | null | undefined |
+             IteratorResult<ArrayBufferLike | ArrayBufferView | string | null | undefined>;
 
 /**
  * @ignore
  */
-export function toArrayBufferView<T extends ArrayBufferView>(ArrayCtor: ABVCtor<T>, input: ABVInput): T {
+export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor: ArrayBufferViewConstructor<T>, input: ArrayBufferViewInput): T {
 
     let value: any = isIteratorResult(input) ? input.value : input;
 
-    if (!value) return new ArrayCtor(0);
-    if (typeof value === 'string') value = decodeUtf8(value);
-    if (value instanceof ArrayBuffer) return new ArrayCtor(value);
-    if (value instanceof SharedArrayBuffer) return new ArrayCtor(value);
-    return !ArrayBuffer.isView(value) ? ArrayCtor.from(value) :
-        new ArrayCtor(value.buffer, value.byteOffset, value.byteLength);
+    if (!value) { return new ArrayBufferViewCtor(0); }
+    if (typeof value === 'string') { value = decodeUtf8(value); }
+    if (value instanceof ArrayBuffer) { return new ArrayBufferViewCtor(value); }
+    if (value instanceof SharedArrayBuffer) { return new ArrayBufferViewCtor(value); }
+    return !ArrayBuffer.isView(value) ? ArrayBufferViewCtor.from(value) :
+        new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength);
 }
 
-/** @ignore */ export const toInt8Array = (input: ABVInput) => toArrayBufferView(Int8Array, input);
-/** @ignore */ export const toInt16Array = (input: ABVInput) => toArrayBufferView(Int16Array, input);
-/** @ignore */ export const toInt32Array = (input: ABVInput) => toArrayBufferView(Int32Array, input);
-/** @ignore */ export const toUint8Array = (input: ABVInput) => toArrayBufferView(Uint8Array, input);
-/** @ignore */ export const toUint16Array = (input: ABVInput) => toArrayBufferView(Uint16Array, input);
-/** @ignore */ export const toUint32Array = (input: ABVInput) => toArrayBufferView(Uint32Array, input);
-/** @ignore */ export const toFloat32Array = (input: ABVInput) => toArrayBufferView(Float32Array, input);
-/** @ignore */ export const toFloat64Array = (input: ABVInput) => toArrayBufferView(Float64Array, input);
-/** @ignore */ export const toUint8ClampedArray = (input: ABVInput) => toArrayBufferView(Uint8ClampedArray, input);
+/** @ignore */ export const toInt8Array = (input: ArrayBufferViewInput) => toArrayBufferView(Int8Array, input);
+/** @ignore */ export const toInt16Array = (input: ArrayBufferViewInput) => toArrayBufferView(Int16Array, input);
+/** @ignore */ export const toInt32Array = (input: ArrayBufferViewInput) => toArrayBufferView(Int32Array, input);
+/** @ignore */ export const toUint8Array = (input: ArrayBufferViewInput) => toArrayBufferView(Uint8Array, input);
+/** @ignore */ export const toUint16Array = (input: ArrayBufferViewInput) => toArrayBufferView(Uint16Array, input);
+/** @ignore */ export const toUint32Array = (input: ArrayBufferViewInput) => toArrayBufferView(Uint32Array, input);
+/** @ignore */ export const toFloat32Array = (input: ArrayBufferViewInput) => toArrayBufferView(Float32Array, input);
+/** @ignore */ export const toFloat64Array = (input: ArrayBufferViewInput) => toArrayBufferView(Float64Array, input);
+/** @ignore */ export const toUint8ClampedArray = (input: ArrayBufferViewInput) => toArrayBufferView(Uint8ClampedArray, input);
 
-type ABVIteratorInput = Iterable<ABVInput> | ABVInput;
+type ArrayBufferViewIteratorInput = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
 
 /** @ignore */
-export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor: ABVCtor<T>, source: ABVIteratorInput) {
+export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewIteratorInput) {
 
     const wrap = function*<T>(x: T) { yield x; };
-    const buffers: Iterable<ABVInput> =
+    const buffers: Iterable<ArrayBufferViewInput> =
                    (typeof source === 'string') ? wrap(source)
                  : (ArrayBuffer.isView(source)) ? wrap(source)
               : (source instanceof ArrayBuffer) ? wrap(source)
         : (source instanceof SharedArrayBuffer) ? wrap(source)
-                : !isIterable<ABVInput>(source) ? wrap(source) : source;
+    : !isIterable<ArrayBufferViewInput>(source) ? wrap(source) : source;
 
     for (let x of buffers) {
-        if (x) yield toArrayBufferView(ArrayCtor, x);
+        if (x) {
+            yield toArrayBufferView(ArrayCtor, x);
+        }
     }
 }
 
-/** @ignore */ export const toInt8ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Int8Array, input);
-/** @ignore */ export const toInt16ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Int16Array, input);
-/** @ignore */ export const toInt32ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Int32Array, input);
-/** @ignore */ export const toUint8ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Uint8Array, input);
-/** @ignore */ export const toUint16ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Uint16Array, input);
-/** @ignore */ export const toUint32ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Uint32Array, input);
-/** @ignore */ export const toFloat32ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Float32Array, input);
-/** @ignore */ export const toFloat64ArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Float64Array, input);
-/** @ignore */ export const toUint8ClampedArrayIterator = (input: ABVIteratorInput) => toArrayBufferViewIterator(Uint8ClampedArray, input);
+/** @ignore */ export const toInt8ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Int8Array, input);
+/** @ignore */ export const toInt16ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Int16Array, input);
+/** @ignore */ export const toInt32ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Int32Array, input);
+/** @ignore */ export const toUint8ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Uint8Array, input);
+/** @ignore */ export const toUint16ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Uint16Array, input);
+/** @ignore */ export const toUint32ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Uint32Array, input);
+/** @ignore */ export const toFloat32ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Float32Array, input);
+/** @ignore */ export const toFloat64ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Float64Array, input);
+/** @ignore */ export const toUint8ClampedArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Uint8ClampedArray, input);
 
-type ABVAsyncIteratorInput = AsyncIterable<ABVInput> | Iterable<ABVInput> | PromiseLike<ABVInput> | ABVInput;
+type ArrayBufferViewAsyncIteratorInput = AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput> | ArrayBufferViewInput;
 
 /** @ignore */
-export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>(ArrayCtor: ABVCtor<T>, source: ABVAsyncIteratorInput) {
+export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewAsyncIteratorInput) {
 
     const wrap = async function*<T>(x: T) { yield await x; };
     const emit = async function*<T>(x: Iterable<T>) { yield* x; };
-    const buffers: AsyncIterable<ABVInput> = 
+    const buffers: AsyncIterable<ArrayBufferViewInput> =
                       (typeof source === 'string') ? wrap(source)
                     : (ArrayBuffer.isView(source)) ? wrap(source)
                  : (source instanceof ArrayBuffer) ? wrap(source)
            : (source instanceof SharedArrayBuffer) ? wrap(source)
-                    : isIterable<ABVInput>(source) ? emit(source)
-              : !isAsyncIterable<ABVInput>(source) ? wrap(source as ABVInput) : source;
+        : isIterable<ArrayBufferViewInput>(source) ? emit(source)
+  : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source as ArrayBufferViewInput) : source;
 
     for await (let x of buffers) {
-        if (x) yield toArrayBufferView(ArrayCtor, x);
+        if (x) {
+            yield toArrayBufferView(ArrayCtor, x);
+        }
     }
 }
 
-/** @ignore */ export const toInt8ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Int8Array, input);
-/** @ignore */ export const toInt16ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Int16Array, input);
-/** @ignore */ export const toInt32ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Int32Array, input);
-/** @ignore */ export const toUint8ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint8Array, input);
-/** @ignore */ export const toUint16ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint16Array, input);
-/** @ignore */ export const toUint32ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint32Array, input);
-/** @ignore */ export const toFloat32ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Float32Array, input);
-/** @ignore */ export const toFloat64ArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Float64Array, input);
-/** @ignore */ export const toUint8ClampedArrayAsyncIterator = (input: ABVAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint8ClampedArray, input);
+/** @ignore */ export const toInt8ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Int8Array, input);
+/** @ignore */ export const toInt16ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Int16Array, input);
+/** @ignore */ export const toInt32ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Int32Array, input);
+/** @ignore */ export const toUint8ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint8Array, input);
+/** @ignore */ export const toUint16ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint16Array, input);
+/** @ignore */ export const toUint32ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint32Array, input);
+/** @ignore */ export const toFloat32ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Float32Array, input);
+/** @ignore */ export const toFloat64ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Float64Array, input);
+/** @ignore */ export const toUint8ClampedArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint8ClampedArray, input);
 
 /**
  * @ignore

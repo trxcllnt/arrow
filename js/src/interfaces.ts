@@ -343,7 +343,6 @@ export type TypeToDataType<T extends Type = any> =
 //     [Type.FixedSizeList]: FixedSizeList<T extends FixedSizeList ? T['valueType'] : any>;
 // }
 
-
 // export type DataTypeToVectorConstructor<T extends DataType = any> =
 //       T extends Null                 ? vectorCtors.NullVector
 //     : T extends Bool                 ? vectorCtors.BoolVector

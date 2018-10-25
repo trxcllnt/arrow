@@ -16,7 +16,7 @@
 // under the License.
 
 import { Readable } from 'stream';
-import { ReadableStream } from 'whatwg-streams';
+type ReadableStream<R = any> = import('whatwg-streams').ReadableStream<R>;
 
 export interface Subscription {
     unsubscribe: () => void;
