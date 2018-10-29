@@ -44,7 +44,7 @@ export interface DataType<TType extends Type = Type> {
     readonly ArrayType: any;
 }
 
-export abstract class DataType<TType extends Type = Type, TChildren extends { [key: string]: DataType } = any> {
+export class DataType<TType extends Type = Type, TChildren extends { [key: string]: DataType } = any> {
 
     // @ts-ignore
     public [Symbol.toStringTag]: string;
@@ -68,7 +68,7 @@ export abstract class DataType<TType extends Type = Type, TChildren extends { [k
     static             isMap (x: any): x is Map_            { return x && x.TType === Type.Map;             }
     static      isDictionary (x: any): x is Dictionary      { return x && x.TType === Type.Dictionary;      }
 
-    constructor(public readonly TType: TType,
+    constructor(public readonly TType: TType = <any> Type.NONE,
                 public readonly children?: Field<TChildren[keyof TChildren]>[]
                 ) {}
 
