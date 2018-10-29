@@ -37,11 +37,11 @@ export class Schema {
     public readonly fields: Field[];
     public readonly version: MetadataVersion;
     public readonly metadata: Map<string, string>;
-    public readonly dictionaries: Map<number, Field<Dictionary>>;
+    public readonly dictionaries: Map<number, DataType>;
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
                 version: MetadataVersion = MetadataVersion.V4,
-                dictionaries: Map<number, Field<Dictionary>> = new Map()) {
+                dictionaries: Map<number, DataType> = new Map()) {
         this.fields = fields;
         this.version = version;
         this.dictionaries = dictionaries;
@@ -53,7 +53,7 @@ export class Schema {
         const names = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
         const fields = this.fields.filter((f) => names[f.name]);
         const dictionaries = (fields.filter((f) => DataType.isDictionary(f.type)) as Field<Dictionary<any>>[])
-            .reduce((d, f) =>  d.set(f.type.id, this.dictionaries.get(f.type.id)!), new Map<number, Field<Dictionary>>());
+            .reduce((d, f) =>  d.set(f.type.id, this.dictionaries.get(f.type.id)!), new Map<number, DataType>());
         return new Schema(fields, this.metadata, this.version, dictionaries);
     }
     public static [Symbol.toStringTag] = ((prototype: Schema) => {
