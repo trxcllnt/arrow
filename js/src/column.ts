@@ -90,12 +90,12 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
 
     public getChildAt<R extends DataType = any>(index: number): Column<Vector<R>> | null {
 
-        if (index < 0 || index >= this.numChildren) return null;
+        if (index < 0 || index >= this.numChildren) { return null; }
 
         let column, field: Field<R>, chunks: Vector<R>[];
         let columns = this._children || (this._children = []);
 
-        if (column = columns[index]) return column as Column<Vector<R>>;
+        if (column = columns[index]) { return column as Column<Vector<R>>; }
         if (field = ((this.type.children || [])[index] as Field<R>)) {
             chunks = this.chunks
                 .map((vector) => vector.getChildAt<R>(index))
@@ -112,19 +112,19 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
     public search<N extends SearchContinuation<this>>(index: number, then: N): ReturnType<N> | null;
     public search<N extends SearchContinuation<this>>(idx: number, then?: N) {
         // binary search to find the child vector and value indices
-        let { chunkOffsets } = this, rhs = chunkOffsets.length - 1;
+        let offsets = this.chunkOffsets, rhs = offsets.length - 1;
         // return early if out of bounds, or if there's just one child
-        if (idx < 0            ) return null;
-        if (idx >= chunkOffsets[rhs]) return null;
-        if (rhs <= 1           ) return then ? then(this, 0, idx) : [0, idx];
+        if (idx < 0                 ) { return null; }
+        if (idx >= offsets[rhs]) { return null; }
+        if (rhs <= 1                ) { return then ? then(this, 0, idx) : [0, idx]; }
         let lhs = 0, pos = 0, mid = 0;
         do {
             if (lhs + 1 === rhs) {
                 return then ? then(this, lhs, idx - pos) : [lhs, idx - pos];
             }
             mid = lhs + ((rhs - lhs) / 2) | 0;
-            idx >= chunkOffsets[mid] ? (lhs = mid) : (rhs = mid);
-        } while (idx < chunkOffsets[rhs] && idx >= (pos = chunkOffsets[lhs]));
+            idx >= offsets[mid] ? (lhs = mid) : (rhs = mid);
+        } while (idx < offsets[rhs] && idx >= (pos = offsets[lhs]));
         return null;
     }
 
@@ -136,13 +136,14 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
     }
     public indexOf(element: T['TValue'], offset?: number): number {
         let i = 0, start = 0, found = -1;
-        let vecs = this.chunks, n = vecs.length;
+        let { chunks } = this, n = chunks.length;
         (offset && typeof offset === 'number') &&
             ([i, start] = (this.search(offset) || [0, 0]));
         do {
-            if (~(found = vecs[i].indexOf(element, start)) || (start = 0)) {
+            if (~(found = chunks[i].indexOf(element, start))) {
                 return found;
             }
+            start = 0;
         } while (++i < n);
         return -1;
     }
@@ -150,8 +151,8 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
         const { chunks } = this;
         const n = chunks.length;
         const { ArrayType } = this.type;
-        if (n <= 0) return new ArrayType(0);
-        if (n <= 1) return chunks[0].toArray();
+        if (n <= 0) { return new ArrayType(0); }
+        if (n <= 1) { return chunks[0].toArray(); }
         let len = 0, src = new Array(n);
         for (let i = -1; ++i < n;) {
             len += (src[i] = chunks[i].toArray()).length;
@@ -203,7 +204,7 @@ function calculateOffsets<T extends DataType>(vectors: Vector<T>[]) {
 const typedSet = (src: TypedArray, dst: TypedArray, offset: number) => {
     dst.set(src, offset);
     return (offset + src.length);
-}
+};
 
 const arraySet = (src: any[], dst: any[], offset: number) => {
     let idx = offset - 1;
@@ -211,7 +212,7 @@ const arraySet = (src: any[], dst: any[], offset: number) => {
         dst[++idx] = src[i];
     }
     return idx;
-}
+};
 
 interface TypedArray extends ArrayBufferView {
     readonly length: number;

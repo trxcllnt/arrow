@@ -37,10 +37,10 @@ export function checkForMagicArrowString(buffer: Uint8Array, index = 0) {
 
 export function isValidArrowFile(bb: ByteBuffer) {
     let fileLength = bb.capacity(), footerLength: number, lengthOffset: number;
-    if ((fileLength < magicX2AndPadding /*                     Arrow buffer too small */) ||
+    if ((fileLength < magicX2AndPadding /*                                  Arrow buffer too small */) ||
         (!checkForMagicArrowString(bb.bytes(), 0) /*                        Missing magic start    */) ||
         (!checkForMagicArrowString(bb.bytes(), fileLength - magicLength) /* Missing magic end      */) ||
-        (/*                                                    Invalid footer length  */
+        (/*                                                                 Invalid footer length  */
         (footerLength = bb.readInt32(lengthOffset = fileLength - magicAndPadding)) < 1 &&
         (footerLength + lengthOffset > fileLength))) {
         return false;

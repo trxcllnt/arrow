@@ -53,6 +53,7 @@ export abstract class Visitor {
 function getVisitFn<T extends DataType>(visitor: Visitor, node: any, throwIfNotFound = true) {
     let fn: any = null;
     let dtype: T['TType'] = Type.NONE;
+    // tslint:disable
     if      (node instanceof Data    ) { dtype = inferDType(node.type as T); }
     else if (node instanceof Vector_ ) { dtype = inferDType(node.type as T); }
     else if (node instanceof DataType) { dtype = inferDType(node      as T); }
