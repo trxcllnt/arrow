@@ -21,15 +21,15 @@ import ByteBuffer = flatbuffers.ByteBuffer;
 import _Message = Message_.org.apache.arrow.flatbuf.Message;
 type ReadableStream<R = any> = import('whatwg-streams').ReadableStream<R>;
 
+import { Readable } from 'stream';
 import { PADDING } from './magic';
 import { Schema, Long } from '../schema';
 import { MessageHeader, MetadataVersion } from '../enum';
-import { BufferReader, AsyncBufferReader } from './reader';
-import { IteratorBase, AsyncIteratorBase, ITERATOR_DONE } from './reader';
-
-import { Readable } from 'stream';
-import { isPromise, isAsyncIterable, isReadableNodeStream, isReadableDOMStream } from '../util/compat';
-import { fromIterable, fromAsyncIterable, fromReadableDOMStream, fromReadableNodeStream } from './stream';
+import {
+    ITERATOR_DONE,
+    IteratorBase, AsyncIteratorBase,
+    ByteStream
+} from './stream';
 
 export class Message {
     public readonly body: ByteBuffer;
@@ -83,33 +83,27 @@ export class FieldMetadata {
 }
 
 type TElement = ArrayBufferLike | ArrayBufferView | string;
-
-export function readMessages<T extends TElement>(source: T | Iterable<T>): IterableIterator<Message>;
-export function readMessages<T extends TElement>(source: Readable | ReadableStream<T>): AsyncIterableIterator<Message>;
-export function readMessages<T extends TElement>(source: PromiseLike<T> | AsyncIterable<T>): AsyncIterableIterator<Message>;
-export function readMessages<T extends TElement>(source: Readable | ReadableStream<T> | AsyncIterable<T> | PromiseLike<T> | Iterable<T> | T) {
-    return (
-        (isReadableDOMStream<T>(source)) ? (new AsyncMessageReader(fromReadableDOMStream<T>(source))) as AsyncIterableIterator<Message> :
-        (  isReadableNodeStream(source)) ? (new AsyncMessageReader(  fromReadableNodeStream(source))) as AsyncIterableIterator<Message> :
-        (    isAsyncIterable<T>(source)) ? (new AsyncMessageReader(    fromAsyncIterable<T>(source))) as AsyncIterableIterator<Message> :
-        (          isPromise<T>(source)) ? (new AsyncMessageReader(    fromAsyncIterable<T>(source))) as AsyncIterableIterator<Message> :
-                                           (     new MessageReader(    fromIterable<T>(source as T))) as      IterableIterator<Message>);
-}
-
 const invalidMessageBody = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, got ${actual}`;
 const invalidMessageMetadata = (expected: number, actual: number) => `Expected to read ${expected} metadata bytes, but only read ${actual}`;
 
-export class MessageReader extends IteratorBase<Message, BufferReader> {
-    constructor(source: Iterator<Uint8Array>) {
-        super(new BufferReader(source));
+export class MessageReader extends IteratorBase<Message, Iterator<ByteBuffer>> {
+
+    static new<T extends TElement>(source: T | Iterable<T>): MessageReader;
+    static new<T extends TElement>(source: Readable | ReadableStream<T> | PromiseLike<T> | AsyncIterable<T>): AsyncMessageReader;
+    static new<T extends TElement>(source: any) {
+        const stream = ByteStream.new<T>(source);
+        return stream.isAsync()
+            ? new AsyncMessageReader(stream)
+                 : new MessageReader(stream);
     }
+
     next() {
         let r, m: _Message;
         if ((r = this.readMetadataLength()).done) { return ITERATOR_DONE; }
         if ((r = this.readMetadata(r.value)).done) { return ITERATOR_DONE; }
         if ((r = this.readBody(m = r.value)).done) { return ITERATOR_DONE; }
-        (r as IteratorResult<any>).value = r.done ? null : new Message(m, r.value);
-        return (r as any) as IteratorResult<Message>;
+        (r as IteratorResult<any>).value = new Message(m, r.value);
+        return (r as IteratorResult<any>) as IteratorResult<Message>;
     }
     readMetadataLength(): IteratorResult<number> {
         let r: IteratorResult<any> = this.source.next(PADDING);
@@ -135,17 +129,14 @@ export class MessageReader extends IteratorBase<Message, BufferReader> {
     }
 }
 
-export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncBufferReader> {
-    constructor(source: AsyncIterator<Uint8Array>) {
-        super(new AsyncBufferReader(source));
-    }
+export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncIterator<ByteBuffer>> {
     async next() {
         let r, m: _Message;
         if ((r = await this.readMetadataLength()).done) { return ITERATOR_DONE; }
         if ((r = await this.readMetadata(r.value)).done) { return ITERATOR_DONE; }
         if ((r = await this.readBody(m = r.value)).done) { return ITERATOR_DONE; }
-        (r as IteratorResult<any>).value = r.done ? null : new Message(m, r.value);
-        return (r as any) as IteratorResult<Message>;
+        (r as IteratorResult<any>).value = new Message(m, r.value);
+        return (r as IteratorResult<any>) as IteratorResult<Message>;
     }
     async readMetadataLength(): Promise<IteratorResult<number>> {
         let r: IteratorResult<any> = await this.source.next(PADDING);

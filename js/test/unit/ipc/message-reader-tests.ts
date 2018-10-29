@@ -17,7 +17,7 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import { ReadableStream } from "@mattiasbuelens/web-streams-polyfill/ponyfill";
+import { ReadableStream } from '@mattiasbuelens/web-streams-polyfill/ponyfill';
 
 (global as any).ReadableStream = ReadableStream;
 
@@ -27,22 +27,21 @@ const nodeToWebStream = require('readable-stream-node-to-web');
 import { MessageHeader } from '../../../src/enum';
 import { Message } from '../../../src/ipc/message';
 
-import { readMessages } from '../../../src/ipc/message';
 import { MessageReader } from '../../../src/ipc/message';
 import { AsyncMessageReader } from '../../../src/ipc/message';
 
 describe('readMessages', () => {
-    it('should return a MessageReader when called with a Buffer', () => {
-        expect(readMessages(new Uint8Array())).toBeInstanceOf(MessageReader);
+    it('should return a MessageReader when created with a Buffer', () => {
+        expect(MessageReader.new(new Uint8Array())).toBeInstanceOf(MessageReader);
     });
-    it('should return a MessageReader when called with an Iterable', () => {
-        expect(readMessages(function* () { yield new Uint8Array(); }())).toBeInstanceOf(MessageReader);
+    it('should return a MessageReader when created with an Iterable', () => {
+        expect(MessageReader.new(function* () { yield new Uint8Array(); }())).toBeInstanceOf(MessageReader);
     });
-    it('should return an AsyncMessageReader when called with a Promise', () => {
-        expect(readMessages(Promise.resolve(new Uint8Array()))).toBeInstanceOf(AsyncMessageReader);
+    it('should return an AsyncMessageReader when created with a Promise', () => {
+        expect(MessageReader.new(Promise.resolve(new Uint8Array()))).toBeInstanceOf(AsyncMessageReader);
     });
-    it('should return an AsyncMessageReader when called with an AsyncIterable', () => {
-        expect(readMessages(async function* () { yield new Uint8Array(); }())).toBeInstanceOf(AsyncMessageReader);
+    it('should return an AsyncMessageReader when created with an AsyncIterable', () => {
+        expect(MessageReader.new(async function* () { yield new Uint8Array(); }())).toBeInstanceOf(AsyncMessageReader);
     });
 });
 
@@ -50,7 +49,7 @@ describe('MessageReader', () => {
     it('should read all messages from an Arrow Buffer stream', () => {
 
         const simple = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
-        const reader = readMessages(fs.readFileSync(simple));
+        const reader = MessageReader.new(fs.readFileSync(simple));
         let r: IteratorResult<Message>;
 
         r = reader.next();
@@ -81,7 +80,7 @@ describe('AsyncMessageReader', () => {
     it('should read all messages from a NodeJS ReadableStream', async () => {
 
         const simple = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
-        const reader = readMessages(fs.createReadStream(simple));
+        const reader = MessageReader.new(fs.createReadStream(simple));
         let r: IteratorResult<Message>;
 
         r = await reader.next();
@@ -110,7 +109,7 @@ describe('AsyncMessageReader', () => {
     it('should read all messages from a whatwg ReadableStream', async () => {
 
         const simple = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
-        const reader = readMessages(nodeToWebStream(fs.createReadStream(simple)));
+        const reader = MessageReader.new(nodeToWebStream(fs.createReadStream(simple)));
         let r: IteratorResult<Message>;
 
         r = await reader.next();
