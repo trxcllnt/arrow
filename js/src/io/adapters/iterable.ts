@@ -15,18 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { concat } from '../util/buffer';
-import { toUint8ArrayIterator } from '../util/buffer';
-import { toUint8ArrayAsyncIterator } from '../util/buffer';
+import { joinUint8Arrays } from '../../util/buffer';
+import { toUint8ArrayIterator } from '../../util/buffer';
+import { toUint8ArrayAsyncIterator } from '../../util/buffer';
 
 type TElement = ArrayBufferLike | ArrayBufferView | string;
 
+/**
+ * @ignore
+ */
 export function fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
     const pumped = _fromIterable<T>(source);
     pumped.next();
     return pumped;
 }
 
+/**
+ * @ignore
+ */
 export function fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
     const pumped = _fromAsyncIterable<T>(source);
     pumped.next();
@@ -35,33 +41,36 @@ export function fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> |
 
 function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
 
-    // Yield so the caller can inject bytesToRead before creating the source Iterator
-    let bytesToRead = yield <any> null, bufferLength = 0;
+    let cmd: 'peek' | 'read', size: number, bufferLength = 0;
     let done: boolean, it: Iterator<Uint8Array> | null = null;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
-    const slice = () => ((
-        [buffer, buffers] = concat(buffers, bytesToRead)) &&
-        (bufferLength -= buffer.byteLength) && buffer || buffer);
+
+    function byteRange() {
+        if (cmd === 'peek') {
+            return joinUint8Arrays(buffers.slice(), size)[0];
+        }
+        [buffer, buffers] = joinUint8Arrays(buffers, size);
+        bufferLength -= buffer.byteLength;
+        return buffer;
+    }
+
+    // Yield so the caller can inject the read command before creating the source Iterator
+    ({ cmd, size } = yield <any> null);
 
     try {
         do {
-            // If we have enough bytes, concat the chunks and emit the buffer.
-            (bytesToRead <= bufferLength) && (bytesToRead = yield slice());
             // initialize the iterator
             (it || (it = toUint8ArrayIterator(source)[Symbol.iterator]()));
             // read the next value
-            ({ done, value: buffer } = it.next(bytesToRead));
+            ({ done, value: buffer } = it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
             if (buffer && (buffer.byteLength > 0)) {
                 buffers.push(buffer);
                 bufferLength += buffer.byteLength;
             }
-            // if we're done, emit the rest of the chunks
-            if (done) {
-                do {
-                    bytesToRead = yield slice();
-                } while (bytesToRead < bufferLength);
-            }
+            // If we have enough bytes in our buffer, yield chunks until we don't
+            (size <= bufferLength) && ({ cmd, size } = yield byteRange());
+            while (size < bufferLength) { ({ cmd, size } = yield byteRange()); }
         } while (!done);
         it && (typeof it.return === 'function') && (it.return());
     } catch (e) {
@@ -71,33 +80,36 @@ function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIt
 
 async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
 
-    // Yield so the caller can inject bytesToRead before creating the source AsyncIterator
-    let bytesToRead = yield <any> null, bufferLength = 0;
+    let cmd: 'peek' | 'read', size: number, bufferLength = 0;
     let done: boolean, it: AsyncIterator<Uint8Array> | null = null;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
-    const slice = () => ((
-        [buffer, buffers] = concat(buffers, bytesToRead)) &&
-        (bufferLength -= buffer.byteLength) && buffer || buffer);
+
+    function byteRange() {
+        if (cmd === 'peek') {
+            return joinUint8Arrays(buffers.slice(), size)[0];
+        }
+        [buffer, buffers] = joinUint8Arrays(buffers, size);
+        bufferLength -= buffer.byteLength;
+        return buffer;
+    }
+
+    // Yield so the caller can inject the read command before creating the source AsyncIterator
+    ({ cmd, size } = yield <any> null);
 
     try {
         do {
-            // If we have enough bytes, concat the chunks and emit the buffer.
-            (bytesToRead <= bufferLength) && (bytesToRead = yield slice());
             // initialize the iterator
             (it || (it = toUint8ArrayAsyncIterator(source)[Symbol.asyncIterator]()));
             // read the next value
-            ({ done, value: buffer } = await it.next(bytesToRead));
+            ({ done, value: buffer } = await it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
             if (buffer && (buffer.byteLength > 0)) {
                 buffers.push(buffer);
                 bufferLength += buffer.byteLength;
             }
-            // if we're done, emit the rest of the chunks
-            if (done) {
-                do {
-                    bytesToRead = yield slice();
-                } while (bytesToRead < bufferLength);
-            }
+            // If we have enough bytes in our buffer, yield chunks until we don't
+            (size <= bufferLength) && ({ cmd, size } = yield byteRange());
+            while (size < bufferLength) { ({ cmd, size } = yield byteRange()); }
         } while (!done);
         it && (typeof it.return === 'function') && (await it.return());
     } catch (e) {

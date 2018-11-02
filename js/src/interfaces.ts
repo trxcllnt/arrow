@@ -21,6 +21,17 @@ import * as type from './type';
 import * as vecs from './vector';
 import { DataType } from './type';
 
+export interface IsSync<T> {
+    isSync(): this is T;
+    isAsync(): this is Asyncify<T>;
+}
+
+export type Asyncify<T> = {
+    [P in keyof T]: T[P] extends (...args: any[]) => any
+        ? (...args: Parameters<T[P]>) => ReturnType<T[P]> | Promise<ReturnType<T[P]>>
+        : T[P];
+};
+
 export interface ArrayBufferViewConstructor<T extends ArrayBufferView> {
     readonly prototype: T;
     new(length: number): T;

@@ -15,46 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Readable } from 'stream';
-import { concat, toUint8Array } from '../util/buffer';
+import { joinUint8Arrays, toUint8Array } from '../../util/buffer';
 
+/**
+ * @ignore
+ */
 export function fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
     const pumped = _fromReadableNodeStream(stream);
     pumped.next();
     return pumped;
-}
-
-export function toReadableNodeStream(source: Iterable<Uint8Array> | AsyncIterable<Uint8Array>) {
-
-    let done = false, value: Uint8Array;
-    let it: Iterator<Uint8Array> | AsyncIterator<Uint8Array>;
-
-    const close = async (signal: 'throw' | 'return', value?: any) =>
-        (it && (typeof it[signal] === 'function') &&
-            ({ done } = await it[signal]!(value)) ||
-        (done = true)) && (it = null as any);
-
-    const read = (sink: Readable, size?: number): Promise<boolean> =>
-        done ? end(sink) : Promise.resolve(it.next(size)).then((x) =>
-            ({ done, value } = x) && !(value.byteLength > 0) ?
-                read(sink, size) : sink.push(x) && read(sink));
-
-    const end = (sink: Readable) => (sink.push(null) || true) && close('return');
-    const createIterator = () => {
-        const xs: any = source;
-        const fn = xs[Symbol.asyncIterator] || xs[Symbol.iterator];
-        return fn.call(source);
-    };
-
-    return new Readable({
-        read(size?: number) {
-            (it || (it = createIterator())) && read(this, size);
-        },
-        destroy(e: Error | null, cb: (e: Error | null) => void) {
-            const signal = e == null ? 'return' : 'throw';
-            close(signal, e).then(() => cb(null), cb);
-        }
-    });
 }
 
 async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
@@ -72,28 +41,36 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
 
     let event: EventName, events: Event[] = [];
     let done = false, err: Error | null = null;
-    // Yield so the caller can inject bytesToRead before we add the
-    // listener for the source stream's 'readable' event.
-    let bytesToRead = yield <any> null, bufferLength = 0;
+    let cmd: 'peek' | 'read', size: number, bufferLength = 0;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | Buffer | string;
-    const slice = () => ((
-        [buffer, buffers] = concat(buffers, bytesToRead)) &&
-        (bufferLength -= buffer.byteLength) && buffer || buffer);
+
+    function byteRange() {
+        if (cmd === 'peek') {
+            return joinUint8Arrays(buffers.slice(), size)[0];
+        }
+        [buffer, buffers] = joinUint8Arrays(buffers, size);
+        bufferLength -= buffer.byteLength;
+        return buffer;
+    }
+
+    // Yield so the caller can inject the read command before we
+    // add the listener for the source stream's 'readable' event.
+    ({ cmd, size } = yield <any> null);
 
     try {
         do {
-            // If we have enough bytes, concat the chunks and emit the buffer.
-            (bytesToRead <= bufferLength) && (bytesToRead = yield slice());
-
             // initialize the stream event handlers
             (events[0] || (events[0] = onEvent('end')));
             (events[1] || (events[1] = onEvent('error')));
             (events[2] || (events[2] = onEvent('readable')));
-
+            
             // wait on the first message event from the stream
             [event, err] = await Promise.race(events.map((x) => x[2]));
-
-            buffer = toUint8Array(stream.read(bytesToRead));
+            
+            // if the stream emitted an Error, rethrow it
+            if (event === 'error') { throw err; }
+            
+            buffer = toUint8Array(stream.read(size - bufferLength));
             // if chunk is null or empty, wait for the next readable event
             if (!buffer || !(buffer.byteLength > 0)) {
                 events[2] = onEvent('readable');
@@ -102,14 +79,9 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
                 buffers.push(buffer);
                 bufferLength += buffer.byteLength;
             }
-            // if the stream emitted an Error, rethrow it
-            if (event === 'error') { throw err; }
-            // if we're done, emit the rest of the chunks
-            if (done = (event === 'end')) {
-                do {
-                    bytesToRead = yield slice();
-                } while (bytesToRead < bufferLength);
-            }
+            // If we have enough bytes in our buffer, yield chunks until we don't
+            (size <= bufferLength) && ({ cmd, size } = yield byteRange());
+            while (size < bufferLength) { ({ cmd, size } = yield byteRange()); }
         } while (!done);
     } catch (e) {
         if (err == null) {
