@@ -15,20 +15,41 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { flatbuffers } from 'flatbuffers';
+import ByteBuffer = flatbuffers.ByteBuffer;
 import { ArrayBufferViewConstructor  } from '../interfaces';
 import { isIteratorResult, isIterable, isAsyncIterable } from './compat';
+
+function collapseContiguousByteRanges(chunks: Uint8Array[]) {
+    for (let x, y, i = 0; ++i < chunks.length;) {
+        x = chunks[i - 1];
+        y = chunks[i - 0];
+        // continue x and y don't share the same underlying ArrayBuffer
+        if (!x || !y || x.buffer !== y.buffer) { continue; }
+        const { byteOffset: xOffset, byteLength: xLen } = x;
+        const { byteOffset: yOffset, byteLength: yLen } = y;
+        // continue if the byte ranges of x and y aren't contiguous
+        if ((xOffset + xLen) < yOffset || (yOffset + yLen) < xOffset) { continue; }
+        chunks.splice(--i, 2, new Uint8Array(x.buffer, xOffset, yOffset - xOffset + yLen));
+    }
+    return chunks;
+}
 
 /**
  * @ignore
  */
-export function concat(chunks: Uint8Array[], size?: number | null): [Uint8Array, Uint8Array[]] {
+export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Uint8Array, Uint8Array[]] {
+    // collapse chunks that share the same underlying ArrayBuffer and whose byte ranges overlap,
+    // to avoid unnecessarily copying the bytes to do this buffer join. This is a common case during
+    // streaming, where we may be reading partial byte ranges out of the same underlying ArrayBuffer
+    chunks = collapseContiguousByteRanges(chunks);
     let offset = 0, index = -1, chunksLen = chunks.length;
     let source: Uint8Array, sliced: Uint8Array, buffer: Uint8Array | void;
     let length = typeof size === 'number' ? size : chunks.reduce((x, y) => x + y.length, 0);
     while (++index < chunksLen) {
         source = chunks[index];
         sliced = source.subarray(0, Math.min(source.length, length - offset));
-        if (length <= (offset += sliced.length)) {
+        if (length <= (offset + sliced.length)) {
             if (sliced.length < source.length) {
                 chunks[index] = source.subarray(sliced.length);
             } else if (sliced.length === source.length) { index++; }
@@ -36,12 +57,13 @@ export function concat(chunks: Uint8Array[], size?: number | null): [Uint8Array,
             break;
         }
         (buffer || (buffer = new Uint8Array(length))).set(sliced, offset);
+        offset += sliced.length;
     }
     return [buffer || new Uint8Array(0), chunks.slice(index)];
 }
 
-type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | string | null | undefined |
-             IteratorResult<ArrayBufferLike | ArrayBufferView | string | null | undefined>;
+export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | ByteBuffer | DataView | string | null | undefined |
+                    IteratorResult<ArrayBufferLike | ArrayBufferView | ByteBuffer | DataView | string | null | undefined>;
 
 /**
  * @ignore
@@ -52,10 +74,13 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
 
     if (!value) { return new ArrayBufferViewCtor(0); }
     if (typeof value === 'string') { value = decodeUtf8(value); }
+    if (value instanceof ArrayBufferViewCtor) { return value; }
     if (value instanceof ArrayBuffer) { return new ArrayBufferViewCtor(value); }
     if (value instanceof SharedArrayBuffer) { return new ArrayBufferViewCtor(value); }
-    return !ArrayBuffer.isView(value) ? ArrayBufferViewCtor.from(value) :
-        new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength);
+    if (value instanceof ByteBuffer) { return toArrayBufferView(ArrayBufferViewCtor, value.bytes()); }
+    return !ArrayBuffer.isView(value)
+        ? ArrayBufferViewCtor.from(value)
+        : new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength);
 }
 
 /** @ignore */ export const toInt8Array = (input: ArrayBufferViewInput) => toArrayBufferView(Int8Array, input);
