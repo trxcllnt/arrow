@@ -20,6 +20,11 @@
 
 (<any> global).window = (<any> global).window || global;
 
+import { ReadableStream, WritableStream } from '@mattiasbuelens/web-streams-polyfill/ponyfill';
+
+(global as any).ReadableStream = ReadableStream;
+(global as any).WritableStream = WritableStream;
+
 // Fix for Jest in node v10.x
 Object.defineProperty(ArrayBuffer, Symbol.hasInstance, {
     writable: true,
