@@ -15,28 +15,40 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// import { Data } from './data';
-// import { Schema } from './schema';
-import { DataType, /* Struct */ } from './type';
+import { Data } from './data';
+import { Schema } from './schema';
+import { Vector } from './vector';
+import { DataType, Struct } from './type';
 // import { PipeIterator } from './util/node';
-import { /* Vector, */ StructVector } from './vector';
 // import { valueToString, leftPad } from './util/pretty';
 
-export class RecordBatch<T extends { [key: string]: DataType } = any> extends StructVector<T> {
+export class RecordBatch<T extends { [key: string]: DataType } = any> {
+
 //     public static from<T extends { [key: string]: DataType } = any>(vectors: Vector[]) {
 //         const numRows = Math.max(...vectors.map((v) => v.length));
 //         return new RecordBatch<T>(Schema.from(vectors), numRows, vectors);
 //     }
-//     public readonly schema: Schema;
-//     public readonly numCols: number;
-//     constructor(schema: Schema, data: Data<Struct<T>>, cols?: Vector[]) {
-//         super(data, cols);
-//         this.schema = schema;
-//         this.numCols = schema.fields.length;
-//     }
-//     public clone<R extends Struct>(data: Data<R>, view: View<R> = this.view.clone(data)): this {
-//         return new RecordBatch(this.schema, data as any, view) as any;
-//     }
+
+    static new<T extends { [key: string]: DataType } = any>(schema: Schema, numRows: number, columns: (Data | Vector)[]) {
+        const childData = columns.map((x) => x instanceof Vector ? x.data : x);
+        const data = Data.Struct(new Struct(schema.fields), 0, numRows, 0, null, childData);
+        return new RecordBatch<T>(schema, data);
+    }
+
+    public readonly schema: Schema;
+    public readonly numCols: number;
+    public readonly data: Data<Struct<T>>;
+    protected _children: Vector[] | void;
+
+    constructor(schema: Schema, data: Data<Struct<T>>, children?: Vector[]) {
+        this.data = data;
+        this.schema = schema;
+        this._children = children;
+        this.numCols = schema.fields.length;
+    }
+    public clone<R extends { [key: string]: DataType } = any>(data: Data<Struct<R>>, children = this._children) {
+        return new RecordBatch(this.schema, data as any, children as any);
+    }
 //     public select(...columnNames: string[]) {
 //         const fields = this.schema.fields;
 //         const namesToKeep = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
