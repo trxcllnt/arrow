@@ -137,7 +137,9 @@ class RecordBatchReader extends AbstractRecordBatchReader<MessageReader>
                     return { done: true, value: this._schema };
                 case MessageHeader.RecordBatch:
                     return { done: false, value: readRecordBatch(this, schema, message) };
-                case MessageHeader.DictionaryBatch: readDictionaryBatch(this, schema, message);
+                case MessageHeader.DictionaryBatch:
+                    readDictionaryBatch(this, schema, message);
+                    continue;
             }
         }
         return ITERATOR_DONE;
@@ -173,7 +175,9 @@ class AsyncRecordBatchReader extends AbstractRecordBatchReader<AsyncMessageReade
                     return { done: true, value: this._schema };
                 case MessageHeader.RecordBatch:
                     return { done: false, value: readRecordBatch(this, schema, message) };
-                case MessageHeader.DictionaryBatch: readDictionaryBatch(this, schema, message);
+                case MessageHeader.DictionaryBatch:
+                    readDictionaryBatch(this, schema, message);
+                    continue;
             }
         }
         return ITERATOR_DONE;
