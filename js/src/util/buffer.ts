@@ -62,8 +62,8 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
     return [buffer || new Uint8Array(0), chunks.slice(index)];
 }
 
-export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | ByteBuffer | DataView | string | null | undefined |
-                    IteratorResult<ArrayBufferLike | ArrayBufferView | ByteBuffer | DataView | string | null | undefined>;
+export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined |
+                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined>;
 
 /**
  * @ignore
@@ -95,7 +95,7 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
 
 type ArrayBufferViewIteratorInput = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
 
-const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { /*iterator.next();*/ return iterator; }
+const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; }
 
 /** @ignore */
 export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewIteratorInput) {

@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { IsSync } from '../interfaces';
+import { OptionallyAsync } from '../interfaces';
 import { ITERATOR_DONE } from './interfaces';
 import { ByteStream, AsyncByteStream } from './stream';
 
@@ -24,7 +24,7 @@ type FileHandle = import('fs').promises.FileHandle;
 /**
  * @ignore
  */
-export class RandomAccessFile<T = Uint8Array, U = Uint8Array> extends ByteStream<T, U> implements IsSync<RandomAccessFile<T, U>> {
+export class RandomAccessFile<T = Uint8Array, U = Uint8Array> extends ByteStream<T, U> implements OptionallyAsync<RandomAccessFile<T, U>> {
     isSync(): this is RandomAccessFile<T, U> { return true; }
     isAsync(): this is AsyncRandomAccessFile<T, U> { return false; }
     public size: number;
@@ -72,7 +72,7 @@ export class RandomAccessFile<T = Uint8Array, U = Uint8Array> extends ByteStream
 /**
  * @ignore
  */
-export class AsyncRandomAccessFile<T = Uint8Array, U = Uint8Array> extends AsyncByteStream<T, U> implements IsSync<RandomAccessFile<T, U>> {
+export class AsyncRandomAccessFile<T = Uint8Array, U = Uint8Array> extends AsyncByteStream<T, U> implements OptionallyAsync<RandomAccessFile<T, U>> {
     isSync(): this is RandomAccessFile<T, U> { return false; }
     isAsync(): this is AsyncRandomAccessFile<T, U> { return true; }
     public size: number;

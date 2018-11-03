@@ -20,6 +20,7 @@ import { Type } from './enum';
 import { Field } from './schema';
 import { clampRange } from './util/vector';
 import { Row } from './type';
+import { Column } from './column';
 import { Vector, VectorCtorArgs } from './interfaces';
 import { instance as getVisitor } from './visitor/get';
 import { instance as indexOfVisitor } from './visitor/indexof';
@@ -28,7 +29,6 @@ import { instance as iteratorVisitor } from './visitor/iterator';
 import { instance as byteWidthVisitor } from './visitor/bytewidth';
 import { instance as getVectorConstructor } from './visitor/vectorctor';
 import {
-    IterableArrayLike,
     DataType, Dictionary,
     Utf8, Binary, Decimal, FixedSizeBinary,
     List, FixedSizeList, Map_, Struct, Union,
@@ -41,18 +41,6 @@ import {
     TimestampSecond, TimestampMillisecond, TimestampMicrosecond, TimestampNanosecond,
     Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64, Float16, Float32, Float64,
 } from './type';
-
-interface ArrowVector<T extends DataType = any> {
-
-    getByteWidth(): number;
-    isValid(index: number): boolean;
-    get(index: number): T['TValue'] | null;
-    indexOf(element: T['TValue'] | null, index?: number): number;
-
-    toJSON(): any;
-    toArray(): IterableArrayLike<T['TValue'] | null>;
-    [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
-}
 
 class ArrowVector<T extends DataType = any> {
 
@@ -101,6 +89,10 @@ class ArrowVector<T extends DataType = any> {
         return ArrowVector.new<R>(data, children, stride);
     }
 
+    public concat(...others: (Vector<T> | Column<Vector<T>>)[]): Column<Vector<T>> {
+        return Column.concat<T>(this as any, ...others);
+    }
+
     public isValid(index: number): boolean {
         if (this.nullCount > 0) {
             const idx = this.offset + index;
@@ -126,6 +118,29 @@ class ArrowVector<T extends DataType = any> {
         // clamp between 0 and length, and wrap around on negative indices, e.g.
         // slice(-1, 5) or slice(5, -1)
         return clampRange(this, begin, end, (x, y, z) => x.clone(x.data.slice(y, z))) as any;
+    }
+
+    //
+    // We provide the following method implementations for code navigability purposes only.
+    // They're overridden at runtime with the specific Visitor implementation for each type,
+    // short-circuiting the usual Visitor traversal and reducing intermediate lookups and calls.
+    // This comment is here to remind you to not set breakpoints in these fn bodies, or to inform
+    // you why the breakpoints you have already set are not being triggered. Have a great day!
+    // 
+    public get(index: number): T['TValue'] | null {
+        return getVisitor.visit(this, index);
+    }
+    public indexOf(value: T['TValue'] | null, fromIndex?: number): number {
+        return indexOfVisitor.visit(this, value, fromIndex);
+    }
+    public toArray(): T['TArray'] {
+        return toArrayVisitor.visit(this);
+    }
+    public getByteWidth(): number {
+        return byteWidthVisitor.visit(this);
+    }
+    public [Symbol.iterator](): IterableIterator<T['TValue'] | null> {
+        return iteratorVisitor.visit(this);
     }
 }
 
@@ -223,7 +238,6 @@ export class MapVector<T extends { [key: string]: DataType } = any> extends Arro
 
 export class DictionaryVector<T extends DataType = any> extends ArrowVector<Dictionary<T>> {
     public readonly indices: Vector<Int>;
-    // @ts-ignore
     public readonly dictionary: Vector<T>;
     constructor(data: Data<Dictionary<T>>, dictionary: Vector<T>) {
         super(data, void 0, 1);
@@ -272,10 +286,6 @@ function partial1<T extends DataType, V extends Vector<T>>(visit: (node: V, a: a
 function partial2<T extends DataType, V extends Vector<T>>(visit: (node: V, a: any, b: any) => any) {
     return function(this: V, a: any, b: any) { return visit(this, a, b); };
 }
-
-// function partial3<T extends DataType, V extends VTypes[T['TType']]>(visit: (node: VType[T['TType']], a: any, b: any, c: any) => any) {
-//     return function(this: V, a: any, b: any, c: any) { return visit(this, a, b, c); };
-// }
 
 const columnDescriptor = { writable: false, enumerable: true, configurable: false, get: () => {} };
 const rowIndexDescriptor = { writable: false, enumerable: true, configurable: true, value: null as any };
@@ -327,50 +337,3 @@ export class RowProxy<T extends { [key: string]: DataType }> implements Iterable
         return bound as Row<T>;
     }
 }
-
-// export namespace constructors {
-//     export type Vector                                        = (new (                                  ...args: any[]) => Vector);
-//     export type NullVector                                    = (new (data: Data<Null>,                 ...args: any[]) => NullVector);
-//     export type BoolVector                                    = (new (data: Data<Bool>,                 ...args: any[]) => BoolVector);
-//     export type IntVector                                     = (new (data: Data<Int>,                  ...args: any[]) => IntVector);
-//     export type Int8Vector                                    = (new (data: Data<Int8>,                 ...args: any[]) => Int8Vector);
-//     export type Int16Vector                                   = (new (data: Data<Int16>,                ...args: any[]) => Int16Vector);
-//     export type Int32Vector                                   = (new (data: Data<Int32>,                ...args: any[]) => Int32Vector);
-//     export type Int64Vector                                   = (new (data: Data<Int64>,                ...args: any[]) => Int64Vector);
-//     export type Uint8Vector                                   = (new (data: Data<Uint8>,                ...args: any[]) => Uint8Vector);
-//     export type Uint16Vector                                  = (new (data: Data<Uint16>,               ...args: any[]) => Uint16Vector);
-//     export type Uint32Vector                                  = (new (data: Data<Uint32>,               ...args: any[]) => Uint32Vector);
-//     export type Uint64Vector                                  = (new (data: Data<Uint64>,               ...args: any[]) => Uint64Vector);
-//     export type FloatVector                                   = (new (data: Data<Float>,                ...args: any[]) => FloatVector);
-//     export type Float16Vector                                 = (new (data: Data<Float16>,              ...args: any[]) => Float16Vector);
-//     export type Float32Vector                                 = (new (data: Data<Float32>,              ...args: any[]) => Float32Vector);
-//     export type Float64Vector                                 = (new (data: Data<Float64>,              ...args: any[]) => Float64Vector);
-//     export type Utf8Vector                                    = (new (data: Data<Utf8>,                 ...args: any[]) => Utf8Vector);
-//     export type BinaryVector                                  = (new (data: Data<Binary>,               ...args: any[]) => BinaryVector);
-//     export type FixedSizeBinaryVector                         = (new (data: Data<FixedSizeBinary>,      ...args: any[]) => FixedSizeBinaryVector);
-//     export type DateVector                                    = (new (data: Data<Date_>,                ...args: any[]) => DateVector);
-//     export type DateDayVector                                 = (new (data: Data<DateDay>,              ...args: any[]) => DateDayVector);
-//     export type DateMillisecondVector                         = (new (data: Data<DateMillisecond>,      ...args: any[]) => DateMillisecondVector);
-//     export type TimestampVector                               = (new (data: Data<Timestamp>,            ...args: any[]) => TimestampVector);
-//     export type TimestampSecondVector                         = (new (data: Data<TimestampSecond>,      ...args: any[]) => TimestampSecondVector);
-//     export type TimestampMillisecondVector                    = (new (data: Data<TimestampMillisecond>, ...args: any[]) => TimestampMillisecondVector);
-//     export type TimestampMicrosecondVector                    = (new (data: Data<TimestampMicrosecond>, ...args: any[]) => TimestampMicrosecondVector);
-//     export type TimestampNanosecondVector                     = (new (data: Data<TimestampNanosecond>,  ...args: any[]) => TimestampNanosecondVector);
-//     export type TimeVector                                    = (new (data: Data<Time>,                 ...args: any[]) => TimeVector);
-//     export type TimeSecondVector                              = (new (data: Data<TimeSecond>,           ...args: any[]) => TimeSecondVector);
-//     export type TimeMillisecondVector                         = (new (data: Data<TimeMillisecond>,      ...args: any[]) => TimeMillisecondVector);
-//     export type TimeMicrosecondVector                         = (new (data: Data<TimeMicrosecond>,      ...args: any[]) => TimeMicrosecondVector);
-//     export type TimeNanosecondVector                          = (new (data: Data<TimeNanosecond>,       ...args: any[]) => TimeNanosecondVector);
-//     export type DecimalVector                                 = (new (data: Data<Decimal>,              ...args: any[]) => DecimalVector);
-//     export type UnionVector                                   = (new (data: Data<Union>,                ...args: any[]) => UnionVector);
-//     export type DenseUnionVector                              = (new (data: Data<DenseUnion>,           ...args: any[]) => DenseUnionVector);
-//     export type SparseUnionVector                             = (new (data: Data<SparseUnion>,          ...args: any[]) => SparseUnionVector);
-//     export type IntervalVector                                = (new (data: Data<Interval>,             ...args: any[]) => IntervalVector);
-//     export type IntervalDayTimeVector                         = (new (data: Data<IntervalDayTime>,      ...args: any[]) => IntervalDayTimeVector);
-//     export type IntervalYearMonthVector                       = (new (data: Data<IntervalYearMonth>,    ...args: any[]) => IntervalYearMonthVector);
-//     export type ListVector<T extends DataType = any>          = (new (data: Data<List<T>>,              ...args: any[]) => ListVector<T>);
-//     export type StructVector<T extends DataTypes = any>       = (new (data: Data<Struct<T>>,            ...args: any[]) => StructVector<T>);
-//     export type FixedSizeListVector<T extends DataType = any> = (new (data: Data<FixedSizeList<T>>,     ...args: any[]) => FixedSizeListVector<T>);
-//     export type MapVector<T extends DataTypes = any>          = (new (data: Data<Map_<T>>,              ...args: any[]) => MapVector<T>);
-//     export type DictionaryVector<T extends DataType = any>    = (new (data: Data<Dictionary<T>>,        ...args: any[]) => DictionaryVector<T>);
-// };

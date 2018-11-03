@@ -46,6 +46,11 @@ export interface Column<V extends Vector> {
 }
 
 export class Column<V extends Vector> {
+    static concat<T extends DataType>(...vectors: (Vector<T> | Column<Vector<T>>)[]) {
+        const chunks = vectors.map((v) => v instanceof ChunkedVector ? v.chunks : v) as Vector<T>[];
+        return new Column<Vector<T>>(new Field('', chunks[0].type, chunks.some((v) => v.nullCount > 0)), chunks);
+
+    }
     constructor(field: Field<V['type']>, vectors: V[] = [], offsets?: Uint32Array) {
         return new ChunkedVector(field, vectors as any[], offsets) as any as Column<V>;
     }
@@ -147,6 +152,11 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
         } while (++i < n);
         return -1;
     }
+
+    public concat(...others: (Vector<T> | Column<Vector<T>>)[]): Column<Vector<T>> {
+        return Column.concat<T>(this as any, ...others);
+    }
+
     public toArray(): IterableArrayLike<T['TValue'] | null> {
         const { chunks } = this;
         const n = chunks.length;

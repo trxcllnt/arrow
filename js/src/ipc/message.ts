@@ -17,9 +17,9 @@
 
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
+import { OptionallyAsync } from '../interfaces';
 
 import { PADDING } from './magic';
-import { IsSync } from '../interfaces';
 import { MessageHeader } from '../enum';
 import { Message } from './metadata/message';
 import { toUint8Array } from '../util/buffer';
@@ -90,7 +90,7 @@ export class MessageReader extends IteratorBase<Message, Iterator<ByteBuffer>> {
     }
 }
 
-export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncIterator<ByteBuffer>> implements IsSync<MessageReader> {
+export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncIterator<ByteBuffer>> implements OptionallyAsync<MessageReader> {
     isSync(): this is MessageReader { return false; }
     isAsync(): this is AsyncMessageReader { return true; }
     async next() {

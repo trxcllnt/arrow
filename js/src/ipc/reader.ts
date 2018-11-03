@@ -15,13 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// import { Vector } from '../interfaces';
-// import { flatbuffers } from 'flatbuffers';
-// import { Schema, Long } from '../schema';
-// import { RecordBatch } from '../recordbatch';
-// import { isAsyncIterable } from '../util/compat';
-// import { Message, DictionaryBatch, RecordBatchMetadata } from '../ipc/metadata';
-
 import { Data } from '../data';
 import * as type from '../type';
 import { DataType } from '../type';
@@ -29,7 +22,7 @@ import { Vector } from '../vector';
 import { Visitor } from '../visitor';
 import { magicAndPadding } from './magic';
 import { RecordBatch } from '../recordbatch';
-import { IsSync, Asyncify } from '../interfaces';
+import { OptionallyAsync, Asyncified } from '../interfaces';
 import { ITERATOR_DONE } from '../io/interfaces';
 import { MessageHeader, UnionMode } from '../enum';
 import { MessageReader, AsyncMessageReader } from './message';
@@ -57,15 +50,15 @@ const RecordBatchReaderImpl = (input: AsyncArrowInput | ArrowInput | null): Reco
     return new RecordBatchStreamReader(new ArrowStream(function*(): any {}()));
 };
 
-export class ArrowDataSource implements IsSync<ArrowDataSource> {
+export class ArrowDataSource implements OptionallyAsync<ArrowDataSource> {
     private resolver: InputResolver | AsyncInputResolver;
     constructor(source: ArrowIPCInput) {
         this.resolver = resolveInputFormat(source);
     }
     isSync(): this is ArrowDataSource { return this.resolver.isSync(); }
-    isAsync(): this is Asyncify<ArrowDataSource> { return this.resolver.isAsync(); }
+    isAsync(): this is Asyncified<ArrowDataSource> { return this.resolver.isAsync(); }
     open(this: ArrowDataSource): RecordBatchReaders;
-    open(this: Asyncify<ArrowDataSource>): Promise<RecordBatchReaders>;
+    open(this: Asyncified<ArrowDataSource>): Promise<RecordBatchReaders>;
     open() {
         const resolver = this.resolver;
         return resolver.isSync()

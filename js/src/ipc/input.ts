@@ -18,7 +18,7 @@
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
 
-import { IsSync } from '../interfaces';
+import { OptionallyAsync } from '../interfaces';
 import { ReadableDOMStream } from '../io/interfaces';
 import { ByteStream, AsyncByteStream } from '../io/stream';
 import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
@@ -76,7 +76,7 @@ export interface AsyncArrowInput {
     isStream(): this is AsyncArrowStream;
 }
 
-export class ArrowFile extends RandomAccessFile<ByteBuffer> implements ArrowInput, IsSync<ArrowFile> {
+export class ArrowFile extends RandomAccessFile<ByteBuffer> implements ArrowInput, OptionallyAsync<ArrowFile> {
       isFile(): this is ArrowFile { return true; }
     isStream(): this is ArrowStream { return false; }
       isSync(): this is ArrowFile { return true; }
@@ -91,7 +91,7 @@ export class ArrowFile extends RandomAccessFile<ByteBuffer> implements ArrowInpu
     }
 }
 
-export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements AsyncArrowInput, IsSync<ArrowFile> {
+export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements AsyncArrowInput, OptionallyAsync<ArrowFile> {
       isFile(): this is AsyncArrowFile { return true; }
     isStream(): this is AsyncArrowStream { return false; }
       isSync(): this is ArrowFile { return false; }
@@ -103,7 +103,7 @@ export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements
     }
 }
 
-export class ArrowStream extends ByteStream<ByteBuffer> implements ArrowInput, IsSync<ArrowStream> {
+export class ArrowStream extends ByteStream<ByteBuffer> implements ArrowInput, OptionallyAsync<ArrowStream> {
       isFile(): this is ArrowFile { return false; }
     isStream(): this is ArrowStream { return true; }
       isSync(): this is ArrowStream { return true; }
@@ -115,7 +115,7 @@ export class ArrowStream extends ByteStream<ByteBuffer> implements ArrowInput, I
     }
 }
 
-export class AsyncArrowStream extends AsyncByteStream<ByteBuffer> implements AsyncArrowInput, IsSync<ArrowStream> {
+export class AsyncArrowStream extends AsyncByteStream<ByteBuffer> implements AsyncArrowInput, OptionallyAsync<ArrowStream> {
        isFile(): this is AsyncArrowFile { return false; }
      isStream(): this is AsyncArrowStream { return true; }
        isSync(): this is ArrowStream { return false; }
