@@ -21,22 +21,20 @@ import { toUint8ArrayAsyncIterator } from '../../util/buffer';
 
 type TElement = ArrayBufferLike | ArrayBufferView | string;
 
+const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; }
+
 /**
  * @ignore
  */
 export function fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
-    const pumped = _fromIterable<T>(source);
-    pumped.next();
-    return pumped;
+    return pump(_fromIterable<T>(source));
 }
 
 /**
  * @ignore
  */
 export function fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
-    const pumped = _fromAsyncIterable<T>(source);
-    pumped.next();
-    return pumped;
+    return pump(_fromAsyncIterable<T>(source));
 }
 
 function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
@@ -69,8 +67,9 @@ function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIt
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
-            (size <= bufferLength) && ({ cmd, size } = yield byteRange());
-            while (size < bufferLength) { ({ cmd, size } = yield byteRange()); }
+            if (done || size <= bufferLength) do {
+                ({ cmd, size } = yield byteRange());
+            } while (size < bufferLength);
         } while (!done);
         it && (typeof it.return === 'function') && (it.return());
     } catch (e) {
@@ -108,8 +107,9 @@ async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> 
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
-            (size <= bufferLength) && ({ cmd, size } = yield byteRange());
-            while (size < bufferLength) { ({ cmd, size } = yield byteRange()); }
+            if (done || size <= bufferLength) do {
+                ({ cmd, size } = yield byteRange());
+            } while (size < bufferLength);
         } while (!done);
         it && (typeof it.return === 'function') && (await it.return());
     } catch (e) {

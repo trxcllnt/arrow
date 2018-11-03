@@ -23,13 +23,13 @@ type ReadResult<T = any> = import('whatwg-streams').ReadResult<T>;
 type ReadableStreamBYOBReader<T = any> = import('whatwg-streams').ReadableStreamBYOBReader<T>;
 type ReadableStreamDefaultReader<T = any> = import('whatwg-streams').ReadableStreamDefaultReader<T>;
 
+const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; }
+
 /**
  * @ignore
  */
 export function fromReadableDOMStream<T extends TElement>(source: ReadableDOMStream<T>): AsyncIterableIterator<Uint8Array> {
-    const pumped = _fromReadableDOMStream<T>(source);
-    pumped.next();
-    return pumped;
+    return pump(_fromReadableDOMStream<T>(source));
 }
 
 // All this manual Uint8Array chunk management can be avoided if/when engines
@@ -66,8 +66,9 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMSt
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
-            (size <= bufferLength) && ({ cmd, size } = yield byteRange());
-            while (size < bufferLength) { ({ cmd, size } = yield byteRange()); }
+            if (done || size <= bufferLength) do {
+                ({ cmd, size } = yield byteRange());
+            } while (size < bufferLength);
         } while (!done);
     } catch (e) {
         try { it && source['locked'] && (await it!['cancel']()); } catch (e) {}

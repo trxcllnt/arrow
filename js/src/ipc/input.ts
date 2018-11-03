@@ -94,7 +94,7 @@ export class ArrowFile extends RandomAccessFile<ByteBuffer> implements ArrowInpu
 export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements AsyncArrowInput, IsSync<ArrowFile> {
       isFile(): this is AsyncArrowFile { return true; }
     isStream(): this is AsyncArrowStream { return false; }
-      isSync(): this is ArrowFile { return true; }
+      isSync(): this is ArrowFile { return false; }
      isAsync(): this is AsyncArrowFile { return true; }
     async next(size?: number) {
         const r = (await super.next(size)) as IteratorResult<any>;

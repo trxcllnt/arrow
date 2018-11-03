@@ -95,6 +95,8 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
 
 type ArrayBufferViewIteratorInput = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
 
+const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { /*iterator.next();*/ return iterator; }
+
 /** @ignore */
 export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewIteratorInput) {
 
@@ -106,11 +108,12 @@ export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor:
         : (source instanceof SharedArrayBuffer) ? wrap(source)
     : !isIterable<ArrayBufferViewInput>(source) ? wrap(source) : source;
 
-    for (let x of buffers) {
-        if (x) {
-            yield toArrayBufferView(ArrayCtor, x);
-        }
-    }
+    yield* pump((function* (it) {
+        let r: IteratorResult<any> = <any> null;
+        do {
+            r = it.next(yield toArrayBufferView(ArrayCtor, r));
+        } while (!r.done);
+    })(buffers[Symbol.iterator]()));
 }
 
 /** @ignore */ export const toInt8ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Int8Array, input);
@@ -131,18 +134,19 @@ export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>
     const wrap = async function*<T>(x: T) { yield await x; };
     const emit = async function*<T>(x: Iterable<T>) { yield* x; };
     const buffers: AsyncIterable<ArrayBufferViewInput> =
-                      (typeof source === 'string') ? wrap(source)
-                    : (ArrayBuffer.isView(source)) ? wrap(source)
-                 : (source instanceof ArrayBuffer) ? wrap(source)
-           : (source instanceof SharedArrayBuffer) ? wrap(source)
-        : isIterable<ArrayBufferViewInput>(source) ? emit(source)
-  : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source as ArrayBufferViewInput) : source;
+                        (typeof source === 'string') ? wrap(source)
+                      : (ArrayBuffer.isView(source)) ? wrap(source)
+                   : (source instanceof ArrayBuffer) ? wrap(source)
+             : (source instanceof SharedArrayBuffer) ? wrap(source)
+          : isIterable<ArrayBufferViewInput>(source) ? emit(source)
+    : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source as ArrayBufferViewInput) : source;
 
-    for await (let x of buffers) {
-        if (x) {
-            yield toArrayBufferView(ArrayCtor, x);
-        }
-    }
+    yield* pump((async function* (it) {
+        let r: IteratorResult<any> = <any> null;
+        do {
+            r = await it.next(yield toArrayBufferView(ArrayCtor, r));
+        } while (!r.done);
+    })(buffers[Symbol.asyncIterator]()));
 }
 
 /** @ignore */ export const toInt8ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Int8Array, input);

@@ -101,6 +101,14 @@ abstract class AbstractRecordBatchReader<TSource extends MessageReader | AsyncMe
     public   isFile(): this is RecordBatchFileReader   { return this instanceof RecordBatchFileReader;   }
     public  isAsync(): this is AsyncRecordBatchReader  { return this instanceof AsyncRecordBatchReader;  }
     public isStream(): this is RecordBatchStreamReader { return this instanceof RecordBatchStreamReader; }
+    protected _reset(schema?: Schema | null) {
+        this._schema = <any> schema;
+        this._numDictionaries = 0;
+        this._numRecordBatches = 0;
+        this._recordBatchIndex = 0;
+        this._dictionaries = new Map();
+        return this;
+    }
 
     public abstract open(): this | Promise<this>;
     public abstract read(): Message | null | Promise<Message | null>;
@@ -129,12 +137,7 @@ class RecordBatchReader extends AbstractRecordBatchReader<MessageReader>
         while (message = this.read()) {
             switch (message.headerType) {
                 case MessageHeader.Schema:
-                    this._numDictionaries = 0;
-                    this._numRecordBatches = 0;
-                    this._recordBatchIndex = 0;
-                    this._dictionaries = new Map();
-                    this._schema = message.header()! as Schema;
-                    return { done: true, value: this._schema };
+                    return { done: true, value: this._reset(message.header() as Schema)._schema };
                 case MessageHeader.RecordBatch:
                     return { done: false, value: readRecordBatch(this, schema, message) };
                 case MessageHeader.DictionaryBatch:
@@ -142,6 +145,7 @@ class RecordBatchReader extends AbstractRecordBatchReader<MessageReader>
                     continue;
             }
         }
+        this._reset();
         return ITERATOR_DONE;
     }
 }
@@ -167,12 +171,7 @@ class AsyncRecordBatchReader extends AbstractRecordBatchReader<AsyncMessageReade
         while (message = await this.read()) {
             switch (message.headerType) {
                 case MessageHeader.Schema:
-                    this._numDictionaries = 0;
-                    this._numRecordBatches = 0;
-                    this._recordBatchIndex = 0;
-                    this._dictionaries = new Map();
-                    this._schema = message.header()! as Schema;
-                    return { done: true, value: this._schema };
+                    return { done: true, value: this._reset(message.header()! as Schema)._schema };
                 case MessageHeader.RecordBatch:
                     return { done: false, value: readRecordBatch(this, schema, message) };
                 case MessageHeader.DictionaryBatch:
@@ -180,6 +179,7 @@ class AsyncRecordBatchReader extends AbstractRecordBatchReader<AsyncMessageReade
                     continue;
             }
         }
+        this._reset();
         return ITERATOR_DONE;
     }
 }
@@ -221,7 +221,8 @@ export class RecordBatchFileReader extends RecordBatchReader {
             const size = file.size;
             const offset = size - magicAndPadding;
             const length = file.readInt32(offset);
-            const footer = this._footer = Footer.decode(file.readAt(offset - length, length));
+            const buffer = file.readAt(offset - length, length);
+            const footer = this._footer = Footer.decode(buffer);
             for (const { offset } of footer.dictionaryBatches()) {
                 file.seek(offset) && this.read();
             }
@@ -258,7 +259,8 @@ export class AsyncRecordBatchFileReader extends AsyncRecordBatchReader {
             const { file } = this;
             const offset = file.size - magicAndPadding;
             const length = await file.readInt32(offset);
-            const footer = this._footer = Footer.decode(await file.readAt(offset - length, length));
+            const buffer = await file.readAt(offset - length, length);
+            const footer = this._footer = Footer.decode(buffer);
             for (const { offset } of footer.dictionaryBatches()) {
                 (await file.seek(offset)) && (await this.read());
             }

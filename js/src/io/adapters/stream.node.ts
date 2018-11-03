@@ -17,13 +17,13 @@
 
 import { joinUint8Arrays, toUint8Array } from '../../util/buffer';
 
+const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; }
+
 /**
  * @ignore
  */
 export function fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
-    const pumped = _fromReadableNodeStream(stream);
-    pumped.next();
-    return pumped;
+    return pump(_fromReadableNodeStream(stream));
 }
 
 async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
@@ -80,8 +80,9 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
-            (size <= bufferLength) && ({ cmd, size } = yield byteRange());
-            while (size < bufferLength) { ({ cmd, size } = yield byteRange()); }
+            if (done || size <= bufferLength) do {
+                ({ cmd, size } = yield byteRange());
+            } while (size < bufferLength);
         } while (!done);
     } catch (e) {
         if (err == null) {

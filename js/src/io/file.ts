@@ -37,9 +37,8 @@ export class RandomAccessFile<T = Uint8Array, U = Uint8Array> extends ByteStream
         this.size = byteLength;
     }
     readInt32(position: number) {
-        const { buffer } = this;
-        return (buffer && (position + 4) < this.size) ?
-            new Uint32Array(buffer.buffer, position, 1)[0] : 0;
+        const { buffer, byteOffset } = this.readAt(position, 4);
+        return new Int32Array(buffer, byteOffset, 1)[0];
     }
     seek(position: number) {
         this.position = Math.min(position, this.size);
@@ -86,7 +85,8 @@ export class AsyncRandomAccessFile<T = Uint8Array, U = Uint8Array> extends Async
         this.size = byteLength;
     }
     async readInt32(position: number) {
-        return new Uint32Array((await this.readAt(position, 4)).buffer, 0, 1)[0];
+        const { buffer, byteOffset } = await this.readAt(position, 4);
+        return new Int32Array(buffer, byteOffset, 1)[0];
     }
     async seek(position: number) {
         this.position = Math.min(position, this.size);
@@ -97,7 +97,7 @@ export class AsyncRandomAccessFile<T = Uint8Array, U = Uint8Array> extends Async
         const { file, size } = this;
         if (file && (position + nBytes) < size) {
             const end = Math.min(size, position + nBytes);
-            const buffer = new Uint8Array(position - end);
+            const buffer = new Uint8Array(end - position);
             return (await file.read(buffer, 0, nBytes, position)).buffer;
         }
         return new Uint8Array(nBytes);
