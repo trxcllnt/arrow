@@ -48,15 +48,11 @@ async function* asyncIterableSource(buffer: Uint8Array) {
 describe('RecordBatchStreamReader', () => {
 
     it('should read all messages from an Buffer of Arrow data in memory', () => {
-        const source = new ArrowDataSource(simpleStreamData);
-        const reader = source.open() as RecordBatchStreamReader;
-        testSimpleRecordBatchStreamReader(reader);
+        testSimpleRecordBatchStreamReader(new ArrowDataSource(simpleStreamData));
     });
 
     it('should read all messages from an Iterable that yields buffers of Arrow messages in memory', () => {
-        const source = new ArrowDataSource(iterableSource(simpleStreamData));
-        const reader = source.open() as RecordBatchStreamReader;
-        testSimpleRecordBatchStreamReader(reader);
+        testSimpleRecordBatchStreamReader(new ArrowDataSource(iterableSource(simpleStreamData)));
     });
 
     it('should read all messages from an Iterable that yields multiple tables as buffers of Arrow messages in memory', () => {
@@ -64,14 +60,15 @@ describe('RecordBatchStreamReader', () => {
             yield* iterableSource(simpleStreamData);
             yield* iterableSource(simpleStreamData);
         }());
-        const reader = source.open() as RecordBatchStreamReader;
-        testSimpleRecordBatchStreamReader(reader);
-        testSimpleRecordBatchStreamReader(reader);
+        testSimpleRecordBatchStreamReader(source);
+        testSimpleRecordBatchStreamReader(source);
     });
 
-    function testSimpleRecordBatchStreamReader(reader: RecordBatchStreamReader) {
+    function testSimpleRecordBatchStreamReader(source: ArrowDataSource) {
 
         let r: IteratorResult<Message>;
+
+        const reader = source.open() as RecordBatchStreamReader;
 
         expect(reader.readSchema()).toBeInstanceOf(Schema);
 
@@ -94,15 +91,11 @@ describe('RecordBatchStreamReader', () => {
 describe('AsyncMessageReader', () => {
 
     it('should read all messages from a NodeJS ReadableStream', async () => {
-        const source = new ArrowDataSource(fs.createReadStream(simpleStreamPath));
-        const reader = await source.open() as AsyncRecordBatchStreamReader;
-        await testSimpleAsyncRecordBatchStreamReader(reader);
+        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(fs.createReadStream(simpleStreamPath)));
     });
 
     it('should read all messages from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
-        const source = new ArrowDataSource(asyncIterableSource(simpleStreamData));
-        const reader = await source.open() as AsyncRecordBatchStreamReader;
-        testSimpleAsyncRecordBatchStreamReader(reader);
+        testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(asyncIterableSource(simpleStreamData)));
     });
 
     it('should read all messages from an AsyncIterable that yields multiple tables as buffers of Arrow messages in memory', async () => {
@@ -110,9 +103,8 @@ describe('AsyncMessageReader', () => {
             yield* asyncIterableSource(simpleStreamData);
             yield* asyncIterableSource(simpleStreamData);
         }());
-        const reader = await source.open() as AsyncRecordBatchStreamReader;
-        await testSimpleAsyncRecordBatchStreamReader(reader);
-        await testSimpleAsyncRecordBatchStreamReader(reader);
+        await testSimpleAsyncRecordBatchStreamReader(source);
+        await testSimpleAsyncRecordBatchStreamReader(source);
     });
 
     // 
@@ -128,9 +120,11 @@ describe('AsyncMessageReader', () => {
     //     await simpleAsyncRecordBatchStreamReaderTest(reader);
     // });
 
-    async function testSimpleAsyncRecordBatchStreamReader(reader: AsyncRecordBatchStreamReader) {
+    async function testSimpleAsyncRecordBatchStreamReader(source: ArrowDataSource) {
 
         let r: IteratorResult<Message>;
+
+        let reader = await source.open() as AsyncRecordBatchStreamReader;
 
         expect(await reader.readSchema()).toBeInstanceOf(Schema);
 
