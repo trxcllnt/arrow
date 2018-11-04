@@ -119,7 +119,7 @@ class AdaptiveByteReader<T extends TElement> {
         const result = !this.supportsBYOB || typeof size !== 'number'
             ? await this.getDefaultReader().read()
             : await this.readFromBYOBReader(size);
-        !result.done && (result.value = toUint8Array(result.value));
+        !result.done && (result.value = toUint8Array(result));
         return result as ReadResult<Uint8Array>;
     }
 

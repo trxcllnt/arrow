@@ -18,6 +18,7 @@
 import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
+import { nodeToDOMStream } from './util';
 
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
@@ -89,17 +90,10 @@ describe('AsyncMessageReader', () => {
         await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(asyncIterableSource(simpleFileData)));
     });
 
-    // 
-    // We can't translate node to DOM files due to the ReadableFile reference implementation
-    // redefining the `byteLength` property of the entire ArrayBuffer to be 0. Node allocates
-    // ArrayBuffers in 64k chunks and shares them between active files, so the current
-    // behavior causes just about every test to fail. See the code here for more details:
-    // https://github.com/whatwg/files/blob/3197c7e69456eda08377c18c78ffc99831b5a35f/reference-implementation/lib/helpers.js#L126
-    // 
-    // it('should read all messages from a whatwg ReadableFile', async () => {
-    //     await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(
-    //         nodeToWebFile(fs.createReadFile(simpleFilePath), { type: 'bytes' })));
-    // });
+    it('should read all messages from a whatwg ReadableFile', async () => {
+        await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(
+            nodeToDOMStream(fs.createReadStream(simpleFilePath), { type: 'bytes' })));
+    });
 
     async function testSimpleAsyncRecordBatchFileReader(source: ArrowDataSource) {
 

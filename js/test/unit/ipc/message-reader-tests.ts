@@ -18,6 +18,7 @@
 import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
+import { nodeToDOMStream } from './util';
 
 import { Message } from '../../../src/ipc/metadata/message';
 
@@ -48,6 +49,7 @@ describe('MessageReader InputResolver', () => {
 });
 
 describe('MessageReader', () => {
+
     it('should read all messages from an Arrow Buffer stream', () => {
         simpleStreamSyncMessageReaderTest(newMessageReader(fs.readFileSync(simpleStreamPath)));
     });
@@ -80,13 +82,15 @@ describe('MessageReader', () => {
 });
 
 describe('AsyncMessageReader', () => {
+
     it('should read all messages from a NodeJS ReadableStream', async () => {
         await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(fs.createReadStream(simpleStreamPath)));
     });
 
-    // it('should read all messages from a whatwg ReadableStream', async () => {
-    //     await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(nodeToWebStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
-    // });
+    it('should read all messages from a whatwg ReadableStream', async () => {
+        await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(
+            nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
+    });
 
     async function simpleStreamAsyncMessageReaderTest(reader: AsyncMessageReader) {
         let r: IteratorResult<Message>;

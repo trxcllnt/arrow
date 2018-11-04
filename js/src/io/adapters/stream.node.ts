@@ -63,10 +63,10 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             (events[0] || (events[0] = onEvent('end')));
             (events[1] || (events[1] = onEvent('error')));
             (events[2] || (events[2] = onEvent('readable')));
-            
+
             // wait on the first message event from the stream
             [event, err] = await Promise.race(events.map((x) => x[2]));
-            
+
             // if the stream emitted an Error, rethrow it
             if (event === 'error') { throw err; }
             if (!(done = event === 'end')) {
@@ -88,22 +88,17 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             } while (size < bufferLength);
         } while (!done);
     } catch (e) {
-        if (err == null) {
-            throw (err = await cleanup(events, e != null ? e : new Error()));
-        }
-    } finally { (err == null) && (await cleanup(events)); }
+        throw (err = await cleanup(events, err == null ? e : err));
+    } finally { (err == null) && (await cleanup(events, err)); }
 
     function cleanup<T extends Error | null | void>(events: Event[], err?: T) {
         return new Promise<T>((resolve, reject) => {
             while (events.length > 0) {
-                let eventAndHandler = events.pop();
-                if (eventAndHandler) {
-                    let [ev, fn] = eventAndHandler;
-                    ev && fn && stream.off(ev, fn);
-                }
+                const [ev, fn] = events.pop()!;
+                if (ev && fn) { stream.off(ev, fn); }
             }
-            const destroyStream = (stream as any).destroy || ((err: T, callback: any) => callback(err));
-            destroyStream.call(stream, err, (e: T) => e == null ? reject(e) : resolve(err));
+            const destroy = (stream as any).destroy || ((err: T, cb: any) => cb(err));
+            destroy.call(stream, err, (e: T) => e == null ? reject(e) : resolve(err));
         });
     }
 }
