@@ -21,7 +21,7 @@ import { Field } from './schema';
 import { clampRange } from './util/vector';
 import { Row } from './type';
 import { Column } from './column';
-import { Vector, VectorCtorArgs } from './interfaces';
+import { Vector, VectorCtorArgs, VectorLike } from './interfaces';
 import { instance as getVisitor } from './visitor/get';
 import { instance as indexOfVisitor } from './visitor/indexof';
 import { instance as toArrayVisitor } from './visitor/toarray';
@@ -42,7 +42,7 @@ import {
     Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64, Float16, Float32, Float64,
 } from './type';
 
-class ArrowVector<T extends DataType = any> {
+class ArrowVector<T extends DataType = any> implements VectorLike<T> {
 
     static new <T extends DataType>(data: Data<T>, ...args: VectorCtorArgs<Vector<T>>): Vector<T> {
         return new ArrowVector<T>(data, ...args) as Vector<T>;
@@ -51,7 +51,7 @@ class ArrowVector<T extends DataType = any> {
     public readonly data: Data<T>;
     public readonly stride: number;
     public readonly numChildren: number;
-    protected _children: Vector[] | void;
+    protected _children?: Vector[];
 
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
         const VectorCtor = getVectorConstructor.getVisitFn(data.type)();
@@ -89,8 +89,8 @@ class ArrowVector<T extends DataType = any> {
         return ArrowVector.new<R>(data, children, stride);
     }
 
-    public concat(...others: (Vector<T> | Column<Vector<T>>)[]): Column<Vector<T>> {
-        return Column.concat<T>(this as any, ...others);
+    public concat(this: Vector<T>, ...others: Vector<T>[]): Column<T> {
+        return Column.concat<T>(this, ...others);
     }
 
     public isValid(index: number): boolean {
@@ -113,7 +113,7 @@ class ArrowVector<T extends DataType = any> {
     // @ts-ignore
     public toJSON(): any {}
 
-    public slice(begin?: number, end?: number): this {
+    public slice(begin?: number, end?: number): VectorLike<T> {
         // Adjust args similar to Array.prototype.slice. Normalize begin/end to
         // clamp between 0 and length, and wrap around on negative indices, e.g.
         // slice(-1, 5) or slice(5, -1)
@@ -237,12 +237,12 @@ export class MapVector<T extends { [key: string]: DataType } = any> extends Arro
 }
 
 export class DictionaryVector<T extends DataType = any> extends ArrowVector<Dictionary<T>> {
-    public readonly indices: Vector<Int>;
     public readonly dictionary: Vector<T>;
+    public readonly indices: Vector<Dictionary<T>['indices']>;
     constructor(data: Data<Dictionary<T>>, dictionary: Vector<T>) {
         super(data, void 0, 1);
         this.dictionary = dictionary;
-        this.indices = new ArrowVector(data.clone(this.type.indices));
+        this.indices = ArrowVector.new(data.clone(this.type.indices));
     }
     public getKey(index: number) { return this.indices.get(index); }
     public getValue(key: number) { return this.dictionary.get(key); }

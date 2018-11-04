@@ -159,8 +159,9 @@ export namespace visitor {
 // export namespace predicate {
 //     export import col = predicate_.col;
 //     export import lit = predicate_.lit;
+//     export import and = predicate_.and;
+//     export import or = predicate_.or;
 //     export import custom = predicate_.custom;
-
 //     export import Or = predicate_.Or;
 //     export import Col = predicate_.Col;
 //     export import And = predicate_.And;
@@ -230,14 +231,24 @@ Data['Union'] = Data.Union;
 
 util_int_.Uint64['add'] = util_int_.Uint64.add;
 util_int_.Uint64['multiply'] = util_int_.Uint64.multiply;
+util_int_.Uint64['from'] = util_int_.Uint64.from;
+util_int_.Uint64['fromNumber'] = util_int_.Uint64.fromNumber;
+util_int_.Uint64['fromString'] = util_int_.Uint64.fromString;
+util_int_.Uint64['convertArray'] = util_int_.Uint64.convertArray;
 
 util_int_.Int64['add'] = util_int_.Int64.add;
 util_int_.Int64['multiply'] = util_int_.Int64.multiply;
+util_int_.Int64['from'] = util_int_.Int64.from;
+util_int_.Int64['fromNumber'] = util_int_.Int64.fromNumber;
 util_int_.Int64['fromString'] = util_int_.Int64.fromString;
+util_int_.Int64['convertArray'] = util_int_.Int64.convertArray;
 
 util_int_.Int128['add'] = util_int_.Int128.add;
 util_int_.Int128['multiply'] = util_int_.Int128.multiply;
+util_int_.Int128['from'] = util_int_.Int128.from;
+util_int_.Int128['fromNumber'] = util_int_.Int128.fromNumber;
 util_int_.Int128['fromString'] = util_int_.Int128.fromString;
+util_int_.Int128['convertArray'] = util_int_.Int128.convertArray;
 
 type_.DataType['isNull'] = type_.DataType.isNull;
 type_.DataType['isInt'] = type_.DataType.isInt;
@@ -259,6 +270,7 @@ type_.DataType['isMap'] = type_.DataType.isMap;
 type_.DataType['isDictionary'] = type_.DataType.isDictionary;
 
 // vector_.BoolVector['from'] = vector_.BoolVector.from;
+// vector_.DateVector['from'] = vector_.DateVector.from;
 // vector_.IntVector['from'] = vector_.IntVector.from;
 // vector_.FloatVector['from'] = vector_.FloatVector.from;
 

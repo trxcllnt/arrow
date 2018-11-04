@@ -14,44 +14,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-language: generic
-
 os: osx
 osx_image: xcode8.3
+language: generic
 
-sudo: required
+# don't build twice
+if: tag IS blank
 
 env:
   global:
     - PLAT=x86_64
-    - TRAVIS_TAG={{ job.branch }}
-    - BUILD_REF={{ arrow.head }}
+    - TRAVIS_TAG={{ task.tag }}
+    - MACOSX_DEPLOYMENT_TARGET="10.9"
     - PYARROW_VERSION={{ arrow.version }}
-
-matrix:
-  exclude:
-    - python: 3.5
-  include:
-    - env:
-        - MB_PYTHON_VERSION=2.7
-        - NP_BUILD_DEP="1.10.1"
-        - NP_TEST_DEP="1.10.1"
-        - PANDAS_DEP="0.20.3"
-    - env:
-        - MB_PYTHON_VERSION=3.5
-        - NP_BUILD_DEP="1.10.1"
-        - NP_TEST_DEP="1.10.1"
-        - PANDAS_DEP="0.20.3"
-    - env:
-        - MB_PYTHON_VERSION=3.6
-        - NP_BUILD_DEP="1.11.3"
-        - NP_TEST_DEP="1.11.3"
-        - PANDAS_DEP="0.20.3"
+    - PYARROW_BUILD_VERBOSE=1
+    - MB_PYTHON_VERSION={{ python_version }}
+    - BUILD_DEPENDS="wheel=={{ wheel_version }} numpy=={{ numpy_version }} cython==0.27.3 six"
+    - TEST_DEPENDS="numpy=={{ numpy_version }} pandas=={{ pandas_version }} six"
 
 before_install:
   - git clone https://github.com/matthew-brett/multibuild # TODO pin it
+  - git -C multibuild checkout 4e7a9396e9a50731bb83fc0d16bb98fb0c4032d7
+
   - git clone -b {{ arrow.branch }} {{ arrow.remote }} arrow
-  - git -C arrow checkout {{ arrow.head }}  
+  - git -C arrow checkout {{ arrow.head }}
 
   # Also remove artifacts that depend on Boost
   - brew uninstall boost cgal postgis sfcgal
@@ -66,12 +52,16 @@ before_install:
   - before_install
 
 install:
-  - BUILD_DEPENDS="numpy==$NP_BUILD_DEP six cython"
-  - TEST_DEPENDS="numpy==$NP_TEST_DEP six pandas==$PANDAS_DEP"
-
   - mkdir -p dist
-  - clean_code arrow $BUILD_REF
-  - build_wheel arrow $PLAT
+
+  # multibuild's default clean_code function
+  - clean_code arrow {{ arrow.head }}
+
+  # the following functions are defined in osx-build.sh
+  - build_wheel arrow
+  - install_run arrow
+
+  # move built wheels to a top level directory
   - mv -v arrow/python/dist/* dist/
 
 deploy:

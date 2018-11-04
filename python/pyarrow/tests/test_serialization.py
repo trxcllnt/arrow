@@ -115,7 +115,8 @@ PRIMITIVE_OBJECTS = [
     {True: "hello", False: "world"}, {"hello": "world", 1: 42, 2.5: 45},
     {"hello": set([2, 3]), "world": set([42.0]), "this": None},
     np.int8(3), np.int32(4), np.int64(5),
-    np.uint8(3), np.uint32(4), np.uint64(5), np.float16(1.9), np.float32(1.9),
+    np.uint8(3), np.uint32(4), np.uint64(5),
+    np.float16(1.9), np.float32(1.9),
     np.float64(1.9), np.zeros([8, 20]),
     np.random.normal(size=[17, 10]), np.array(["hi", 3]),
     np.array(["hi", 3], dtype=object),
@@ -288,6 +289,25 @@ def test_primitive_serialization(large_buffer):
         serialization_roundtrip(obj, large_buffer)
 
 
+def test_integer_limits(large_buffer):
+    # Check that Numpy scalars can be represented up to their limit values
+    # (except np.uint64 which is limited to 2**63 - 1)
+    for dt in [np.int8, np.int64, np.int32, np.int64,
+               np.uint8, np.uint64, np.uint32, np.uint64]:
+        scal = dt(np.iinfo(dt).min)
+        serialization_roundtrip(scal, large_buffer)
+        if dt is not np.uint64:
+            scal = dt(np.iinfo(dt).max)
+            serialization_roundtrip(scal, large_buffer)
+        else:
+            scal = dt(2**63 - 1)
+            serialization_roundtrip(scal, large_buffer)
+            for v in (2**63, 2**64 - 1):
+                scal = dt(v)
+                with pytest.raises(pa.ArrowInvalid):
+                    pa.serialize(scal)
+
+
 def test_serialize_to_buffer():
     for nthreads in [1, 4]:
         for value in COMPLEX_OBJECTS:
@@ -363,6 +383,21 @@ def test_torch_serialization(large_buffer):
         obj = torch.from_numpy(np.random.randn(1000).astype(t))
         serialization_roundtrip(obj, large_buffer,
                                 context=serialization_context)
+
+    tensor_requiring_grad = torch.randn(10, 10, requires_grad=True)
+    serialization_roundtrip(tensor_requiring_grad, large_buffer,
+                            context=serialization_context)
+
+
+@pytest.mark.skipif(not torch or not torch.cuda.is_available(),
+                    reason="requires pytorch with CUDA")
+def test_torch_cuda():
+    # ARROW-2920: This used to segfault if torch is not imported
+    # before pyarrow
+    # Note that this test will only catch the issue if it is run
+    # with a pyarrow that has been built in the manylinux1 environment
+    torch.nn.Conv2d(64, 2, kernel_size=3, stride=1,
+                    padding=1, bias=False).cuda()
 
 
 def test_numpy_immutable(large_buffer):
@@ -603,6 +638,18 @@ def test_serialize_to_components_invalid_cases():
 
     with pytest.raises(pa.ArrowInvalid):
         pa.deserialize_components(components)
+
+
+def test_serialize_read_concatenated_records():
+    # ARROW-1996 -- see stream alignment work in ARROW-2840, ARROW-3212
+    f = pa.BufferOutputStream()
+    pa.serialize_to(12, f)
+    pa.serialize_to(23, f)
+    buf = f.getvalue()
+
+    f = pa.BufferReader(buf)
+    pa.read_serialized(f).deserialize()
+    pa.read_serialized(f).deserialize()
 
 
 @pytest.mark.skipif(os.name == 'nt', reason="deserialize_regex not pickleable")

@@ -16,8 +16,7 @@
 // // under the License.
 
 // import { RecordBatch } from './recordbatch';
-// import { Vector /* , DictionaryVector */ } from './vector';
-// // import { Exception } from 'handlebars';
+// import { Vector, DictionaryVector } from './vector';
 
 // export type ValueFunc<T> = (idx: number, cols: RecordBatch) => T | null;
 // export type PredicateFunc = (idx: number, cols: RecordBatch) => boolean;
@@ -57,32 +56,30 @@
 //     public colidx: number;
 
 //     constructor(public name: string) { super(); }
-//     bind(/* batch: RecordBatch */) {
-//         throw new Error("not implemented");
-//         // if (!this.colidx) {
-//         //     // Assume column index doesn't change between calls to bind
-//         //     //this.colidx = cols.findIndex(v => v.name.indexOf(this.name) != -1);
-//         //     this.colidx = -1;
-//         //     const fields = batch.schema.fields;
-//         //     for (let idx = -1; ++idx < fields.length;) {
-//         //         if (fields[idx].name === this.name) {
-//         //             this.colidx = idx;
-//         //             break;
-//         //         }
-//         //     }
-//         //     if (this.colidx < 0) { throw new Error(`Failed to bind Col "${this.name}"`); }
-//         // }
-//         // this.vector = batch.getChildAt(this.colidx)!;
-//         // return this.vector.get.bind(this.vector);
+//     bind(batch: RecordBatch) {
+//         if (!this.colidx) {
+//             // Assume column index doesn't change between calls to bind
+//             //this.colidx = cols.findIndex(v => v.name.indexOf(this.name) != -1);
+//             this.colidx = -1;
+//             const fields = batch.schema.fields;
+//             for (let idx = -1; ++idx < fields.length;) {
+//                 if (fields[idx].name === this.name) {
+//                     this.colidx = idx;
+//                     break;
+//                 }
+//             }
+//             if (this.colidx < 0) { throw new Error(`Failed to bind Col "${this.name}"`); }
+//         }
+//         this.vector = batch.getChildAt(this.colidx)!;
+//         return this.vector.get.bind(this.vector);
 //     }
 // }
 
 // export abstract class Predicate {
 //     abstract bind(batch: RecordBatch): PredicateFunc;
-//     and(expr: Predicate): Predicate { return new And(this, expr); }
-//     or(expr: Predicate): Predicate { return new Or(this, expr); }
+//     and(...expr: Predicate[]): And { return new And(this, ...expr); }
+//     or(...expr: Predicate[]): Or { return new Or(this, ...expr); }
 //     not(): Predicate { return new Not(this); }
-//     ands(): Predicate[] { return [this]; }
 // }
 
 // export abstract class ComparisonPredicate<T= any> extends Predicate {
@@ -114,32 +111,47 @@
 // }
 
 // export abstract class CombinationPredicate extends Predicate {
-//     constructor(public readonly left: Predicate, public readonly right: Predicate) {
+//     readonly children: Predicate[]
+//     constructor(...children: Predicate[]) {
 //         super();
+//         this.children = children;
 //     }
 // }
+// // add children to protoype so it doesn't get mangled in es2015/umd
+// (<any> CombinationPredicate.prototype).children = Object.freeze([]); // freeze for safety
 
 // export class And extends CombinationPredicate {
-//     bind(batch: RecordBatch) {
-//         const left = this.left.bind(batch);
-//         const right = this.right.bind(batch);
-//         return (idx: number, batch: RecordBatch) => left(idx, batch) && right(idx, batch);
+//     constructor(...children: Predicate[]) {
+//         // Flatten any Ands
+//         children = children.reduce((accum: Predicate[], p: Predicate): Predicate[] => {
+//             return accum.concat(p instanceof And ? p.children : p)
+//         }, [])
+//         super(...children);
 //     }
-//     ands(): Predicate[] { return this.left.ands().concat(this.right.ands()); }
+//     bind(batch: RecordBatch) {
+//         const bound = this.children.map((p) => p.bind(batch));
+//         return (idx: number, batch: RecordBatch) => bound.every((p) => p(idx, batch));
+//     }
 // }
 
 // export class Or extends CombinationPredicate {
+//     constructor(...children: Predicate[]) {
+//         // Flatten any Ors
+//         children = children.reduce((accum: Predicate[], p: Predicate): Predicate[] => {
+//             return accum.concat(p instanceof Or ? p.children : p)
+//         }, [])
+//         super(...children);
+//     }
 //     bind(batch: RecordBatch) {
-//         const left = this.left.bind(batch);
-//         const right = this.right.bind(batch);
-//         return (idx: number, batch: RecordBatch) => left(idx, batch) || right(idx, batch);
+//         const bound = this.children.map((p) => p.bind(batch));
+//         return (idx: number, batch: RecordBatch) => bound.some((p) => p(idx, batch));
 //     }
 // }
 
 // export class Equals extends ComparisonPredicate {
 //     // Helpers used to cache dictionary reverse lookups between calls to bind
-//     // private lastDictionary: Vector|undefined;
-//     // private lastKey: number|undefined;
+//     private lastDictionary: Vector|undefined;
+//     private lastKey: number|undefined;
 
 //     protected _bindLitLit(_batch: RecordBatch, left: Literal, right: Literal): PredicateFunc {
 //         const rtrn: boolean = left.v == right.v;
@@ -147,41 +159,39 @@
 //     }
 
 //     protected _bindColCol(batch: RecordBatch, left: Col, right: Col): PredicateFunc {
-//         throw new Error(`not implemented ${batch} ${left} ${right}`);
-//         // const left_func = left.bind(batch);
-//         // const right_func = right.bind(batch);
-//         // return (idx: number, batch: RecordBatch) => left_func(idx, batch) == right_func(idx, batch);
+//         const left_func = left.bind(batch);
+//         const right_func = right.bind(batch);
+//         return (idx: number, batch: RecordBatch) => left_func(idx, batch) == right_func(idx, batch);
 //     }
 
 //     protected _bindColLit(batch: RecordBatch, col: Col, lit: Literal): PredicateFunc {
-//         throw new Error(`not implemented: ${batch} ${col} ${lit}`);
-//         // const col_func = col.bind(batch);
-//         // if (col.vector instanceof DictionaryVector) {
-//         //     let key: any;
-//         //     const vector = col.vector as DictionaryVector;
-//         //     if (vector.dictionary !== this.lastDictionary) {
-//         //         key = vector.reverseLookup(lit.v);
-//         //         this.lastDictionary = vector.dictionary;
-//         //         this.lastKey = key;
-//         //     } else {
-//         //         key = this.lastKey;
-//         //     }
+//         const col_func = col.bind(batch);
+//         if (col.vector instanceof DictionaryVector) {
+//             let key: any;
+//             const vector = col.vector as DictionaryVector;
+//             if (vector.dictionary !== this.lastDictionary) {
+//                 key = vector.reverseLookup(lit.v);
+//                 this.lastDictionary = vector.dictionary;
+//                 this.lastKey = key;
+//             } else {
+//                 key = this.lastKey;
+//             }
 
-//         //     if (key === -1) {
-//         //         // the value doesn't exist in the dictionary - always return
-//         //         // false
-//         //         // TODO: special-case of PredicateFunc that encapsulates this
-//         //         // "always false" behavior. That way filtering operations don't
-//         //         // have to bother checking
-//         //         return () => false;
-//         //     } else {
-//         //         return (idx: number) => {
-//         //             return vector.getKey(idx) === key;
-//         //         };
-//         //     }
-//         // } else {
-//         //     return (idx: number, cols: RecordBatch) => col_func(idx, cols) == lit.v;
-//         // }
+//             if (key === -1) {
+//                 // the value doesn't exist in the dictionary - always return
+//                 // false
+//                 // TODO: special-case of PredicateFunc that encapsulates this
+//                 // "always false" behavior. That way filtering operations don't
+//                 // have to bother checking
+//                 return () => false;
+//             } else {
+//                 return (idx: number) => {
+//                     return vector.getKey(idx) === key;
+//                 };
+//             }
+//         } else {
+//             return (idx: number, cols: RecordBatch) => col_func(idx, cols) == lit.v;
+//         }
 //     }
 
 //     protected _bindLitCol(batch: RecordBatch, lit: Literal, col: Col) {
@@ -260,6 +270,8 @@
 
 // export function lit(v: any): Value<any> { return new Literal(v); }
 // export function col(n: string): Col<any> { return new Col(n); }
+// export function and(...p: Predicate[]): And { return new And(...p); }
+// export function or(...p: Predicate[]): Or { return new Or(...p); }
 // export function custom(next: PredicateFunc, bind: (batch: RecordBatch) => void) {
 //     return new CustomPredicate(next, bind);
 // }

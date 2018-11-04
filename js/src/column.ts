@@ -16,49 +16,43 @@
 // under the License.
 
 import { Field } from './schema';
-import { Vector } from './interfaces';
 import { clampRange } from './util/vector';
+import { Vector, VectorLike } from './interfaces';
 import { DataType, IterableArrayLike } from './type';
 
-export interface Column<V extends Vector> {
+export interface Column<T extends DataType> extends VectorLike<T> {
 
     readonly name: string;
     readonly length: number;
-    readonly type: V['type'];
 
     readonly nullCount: number;
     readonly numChildren: number;
 
-    readonly chunks: V[];
-    readonly field: Field<V['type']>;
+    readonly chunks: Vector<T>[];
+    readonly field: Field<T>;
 
-    [Symbol.iterator](): IterableIterator<V['TValue'] | null>;
+    [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
 
     search(index: number): [number, number] | null;
     search<N extends SearchContinuation<this>>(index: number, then: N): ReturnType<N> | null;
-
-    isValid(index: number): boolean;
-    get(index: number): V['TValue'] | null;
-    slice(begin?: number, end?: number): this;
-    toArray(): IterableArrayLike<V['TValue'] | null>;
-    indexOf(element: V['TValue'], offset?: number): number;
-    getChildAt<R extends DataType = any>(index: number): Column<Vector<R>> | null;
 }
 
-export class Column<V extends Vector> {
-    static concat<T extends DataType>(...vectors: (Vector<T> | Column<Vector<T>>)[]) {
-        const chunks = vectors.map((v) => v instanceof ChunkedVector ? v.chunks : v) as Vector<T>[];
-        return new Column<Vector<T>>(new Field('', chunks[0].type, chunks.some((v) => v.nullCount > 0)), chunks);
+export class Column<T extends DataType> {
 
+    static concat<T extends DataType>(...vectors: Vector<T>[]): Column<T> {
+        const chunks = vectors.map((v) => v instanceof ChunkedVector ? v.chunks : v) as Vector<T>[];
+        const field = new Field<T>('', chunks[0].type as T, chunks.some((v) => v.nullCount > 0));
+        return new ChunkedVector<T>(field, chunks) as unknown as Column<T>;
     }
-    constructor(field: Field<V['type']>, vectors: V[] = [], offsets?: Uint32Array) {
-        return new ChunkedVector(field, vectors as any[], offsets) as any as Column<V>;
+
+    constructor(field: Field<T>, vectors: Vector<T>[] = [], offsets?: Uint32Array) {
+        return new ChunkedVector(field, vectors as any[], offsets) as any as Column<T>;
     }
 }
 
 type SearchContinuation<T extends Column<any>> = (column: T, chunkIndex: number, valueIndex: number) => any;
 
-class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
+class ChunkedVector<T extends DataType = any> implements Column<T> {
 
     public readonly field: Field<T>;
     public readonly chunks: Vector<T>[];
@@ -77,6 +71,7 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
         this.length = offsets[offsets.length - 1];
         this.numChildren = (this.type.children || []).length;
     }
+
     public get name() { return this.field.name; }
     public get type() { return this.field.type; }
     public get nullCount() {
@@ -93,20 +88,25 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
         }
     }
 
-    public getChildAt<R extends DataType = any>(index: number): Column<Vector<R>> | null {
+    public concat(...others: Vector<T>[]): Column<T> {
+        const combined = Column.concat<T>(this as unknown as Vector<T>, ...others);
+        return new ChunkedVector<T>(this.field, combined.chunks) as unknown as Column<T>;
+    }
+
+    public getChildAt<R extends DataType = any>(index: number): Vector<R> | null {
 
         if (index < 0 || index >= this.numChildren) { return null; }
 
-        let column, field: Field<R>, chunks: Vector<R>[];
         let columns = this._children || (this._children = []);
+        let column: unknown, field: Field<R>, chunks: Vector<R>[];
 
-        if (column = columns[index]) { return column as Column<Vector<R>>; }
+        if (column = columns[index]) { return column as Vector<R>; }
         if (field = ((this.type.children || [])[index] as Field<R>)) {
             chunks = this.chunks
                 .map((vector) => vector.getChildAt<R>(index))
                 .filter((vec): vec is Vector<R> => vec != null);
             if (chunks.length > 0) {
-                return (columns[index] = new Column<Vector<R>>(field, chunks));
+                return (columns[index] = new Column<R>(field, chunks)) as unknown as Vector<R>;
             }
         }
 
@@ -114,18 +114,19 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
     }
 
     public search(index: number): [number, number] | null;
-    public search<N extends SearchContinuation<this>>(index: number, then: N): ReturnType<N> | null;
-    public search<N extends SearchContinuation<this>>(idx: number, then?: N) {
+    public search<N extends SearchContinuation<Column<T>>>(index: number, then: N): ReturnType<N> | null;
+    public search<N extends SearchContinuation<Column<T>>>(idx: number, then?: N) {
         // binary search to find the child vector and value indices
+        let self = this as unknown as Column<T>;
         let offsets = this.chunkOffsets, rhs = offsets.length - 1;
         // return early if out of bounds, or if there's just one child
-        if (idx < 0                 ) { return null; }
+        if (idx < 0            ) { return null; }
         if (idx >= offsets[rhs]) { return null; }
-        if (rhs <= 1                ) { return then ? then(this, 0, idx) : [0, idx]; }
+        if (rhs <= 1           ) { return then ? then(self, 0, idx) : [0, idx]; }
         let lhs = 0, pos = 0, mid = 0;
         do {
             if (lhs + 1 === rhs) {
-                return then ? then(this, lhs, idx - pos) : [lhs, idx - pos];
+                return then ? then(self, lhs, idx - pos) : [lhs, idx - pos];
             }
             mid = lhs + ((rhs - lhs) / 2) | 0;
             idx >= offsets[mid] ? (lhs = mid) : (rhs = mid);
@@ -136,9 +137,11 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
     public isValid(index: number): boolean {
         return !!this.search(index, ({ chunks }, i, j) => chunks[i].isValid(j));
     }
+
     public get(index: number): T['TValue'] | null {
         return this.search(index, ({ chunks }, i, j) => chunks[i].get(j));
     }
+
     public indexOf(element: T['TValue'], offset?: number): number {
         let i = 0, start = 0, found = -1;
         let { chunks } = this, n = chunks.length;
@@ -151,10 +154,6 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
             start = 0;
         } while (++i < n);
         return -1;
-    }
-
-    public concat(...others: (Vector<T> | Column<Vector<T>>)[]): Column<Vector<T>> {
-        return Column.concat<T>(this as any, ...others);
     }
 
     public toArray(): IterableArrayLike<T['TValue'] | null> {
@@ -174,9 +173,11 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
         }
         return dst;
     }
+
     public slice(begin?: number, end?: number): this {
-        return clampRange(this, begin, end, this.sliceInternal) as this;
+        return clampRange(this, begin, end, this.sliceInternal) as unknown as this;
     }
+
     protected sliceInternal(column: this, offset: number, length: number) {
         const slices: Vector<T>[] = [];
         const { chunks, chunkOffsets } = column;
@@ -196,7 +197,7 @@ class ChunkedVector<T extends DataType = any> implements Column<Vector<T>> {
             // If the child overlaps one of the slice boundaries, include that slice
             const begin = Math.max(0, offset - vectorOffset);
             const end = begin + Math.min(vectorLength - begin, (offset + length) - vectorOffset);
-            slices.push(vector.slice(begin, end));
+            slices.push(vector.slice(begin, end) as Vector<T>);
         }
         return new Column(column.field, slices);
     }

@@ -18,6 +18,17 @@
 import { Vector } from './vector';
 import { DataType, Dictionary } from './type';
 
+function generateDictionaryMap(fields: Field[]) {
+    return fields
+        .filter((f): f is Field<Dictionary> => DataType.isDictionary(f.type))
+        .reduce((dictionaries, f) => {
+            if (dictionaries.has(f.type.id)) {
+                throw new Error(`Cannot create Schema containing two dictionaries with the same ID`);
+            }
+            return dictionaries.set((f.type as Dictionary).id, f.type.dictionary);
+        }, new Map());
+}
+
 export class Schema<T extends { [key: string]: DataType } = any> {
     public static from<T extends { [key: string]: DataType } = any>(vectors: Vector<T[keyof T]>[]) {
         return new Schema<T>(vectors.map((v, i) => new Field('' + i, v.type)));
@@ -27,10 +38,10 @@ export class Schema<T extends { [key: string]: DataType } = any> {
     public readonly dictionaries: Map<number, DataType>;
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
-                dictionaries: Map<number, DataType> = new Map()) {
+                dictionaries?: Map<number, DataType>) {
         this.fields = fields;
-        this.dictionaries = dictionaries;
         this.metadata = metadata || Schema.prototype.metadata;
+        this.dictionaries = dictionaries || generateDictionaryMap(fields);
     }
     public select<K extends keyof T>(...columnNames: K[]): Schema<{ [P in K]: T[P] }> {
         const names = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));

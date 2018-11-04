@@ -37,10 +37,10 @@ export class PipeIterator<T> implements IterableIterator<T> {
         let write = (err?: any) => {
             stream['removeListener']('error', write);
             stream['removeListener']('drain', write);
-            if (err) return this.throw(err);
+            if (err) { return this.throw(err); }
             if (stream['writable']) {
                 do {
-                    if ((res = this.next()).done) break;
+                    if ((res = this.next()).done) { break; }
                 } while (emit(stream, encoding, res.value));
             }
             return wait(stream, res && res.done, write);
@@ -72,10 +72,10 @@ export class AsyncPipeIterator<T> implements AsyncIterableIterator<T> {
         let write = async (err?: any) => {
             stream['removeListener']('error', write);
             stream['removeListener']('drain', write);
-            if (err) return this.throw(err);
+            if (err) { return this.throw(err); }
             if (stream['writable']) {
                 do {
-                    if ((res = await this.next()).done) break;
+                    if ((res = await this.next()).done) { break; }
                 } while (emit(stream, encoding, res.value));
             }
             return wait(stream, res && res.done, write);
@@ -104,6 +104,6 @@ function wait(stream: NodeJS.WritableStream, done: boolean, write: (x?: any) => 
         stream['once']('error', write);
         stream['once']('drain', write);
     } else if (!(!p || stream === p.stdout) && !(stream as any)['isTTY']) {
-        stream['end'](<any> null);
+        stream['end']();
     }
 }

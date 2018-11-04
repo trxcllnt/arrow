@@ -20,6 +20,18 @@ import { Type } from './enum';
 import * as type from './type';
 import * as vecs from './vector';
 import { DataType } from './type';
+import { Column } from './column';
+
+export interface VectorLike<T extends DataType> {
+    toArray(): T['TArray'];
+    // getByteWidth(): number;
+    isValid(index: number): boolean;
+    get(index: number): T['TValue'] | null;
+    indexOf(value: T['TValue'] | null, fromIndex?: number): number;
+    slice(begin?: number, end?: number): VectorLike<T>;
+    concat(this: Vector<T>, ...others: Vector<T>[]): Column<T>;
+    [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
+}
 
 export interface OptionallyAsync<T> {
     isSync(): this is T;
