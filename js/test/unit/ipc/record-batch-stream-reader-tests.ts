@@ -110,6 +110,11 @@ describe('AsyncMessageReader', () => {
 
     it('should read all messages from a whatwg ReadableStream', async () => {
         await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(
+            nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
+    });
+
+    it('should read all messages from a whatwg ReadableByteStream', async () => {
+        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(
             nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
     });
 

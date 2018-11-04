@@ -38,7 +38,6 @@ export function fromReadableDOMStream<T extends TElement>(source: ReadableDOMStr
 async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMStream<T>): AsyncIterableIterator<Uint8Array> {
 
     let done = false;
-    let it: AdaptiveByteReader<T> | null = null;
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
 
@@ -54,17 +53,19 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMSt
     // Yield so the caller can inject the read command before we establish the ReadableStream lock
     ({ cmd, size } = yield <any> null);
 
+    let it: AdaptiveByteReader<T> | null = null;
+
     try {
+        // initialize the reader and lock the stream
+        it = new AdaptiveByteReader(source);
         do {
-            // initialize the reader and lock the stream
-            (it || (it = new AdaptiveByteReader(source)));
             // read the next value
             ({ done, value: buffer } = isNaN(size - bufferLength)
                 ? await it['read'](undefined)
                 : await it['read'](size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
             if (buffer && buffer.byteLength > 0) {
-                buffers.push(buffer);
+                buffers.push(toUint8Array(buffer));
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
@@ -73,8 +74,8 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMSt
             } while (size < bufferLength);
         } while (!done);
     } catch (e) {
-        try { it && source['locked'] && (await it!['cancel']()); } catch (e) {}
-    }
+        source['locked'] && it && (await it!['cancel']());
+    } finally { source['locked'] && it && it.releaseLock(); }
 }
 
 class AdaptiveByteReader<T extends TElement> {

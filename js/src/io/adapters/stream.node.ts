@@ -29,6 +29,7 @@ export function fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
 async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
 
     type EventName = 'end' | 'error' | 'readable';
+    type OffArgs = [string | symbol, (...args: any[]) => void];
     type Event = [EventName, (_: any) => void, Promise<[EventName, Error | null]>];
 
     const onEvent = <T extends string>(event: T) => {
@@ -39,7 +40,8 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
         )] as Event;
     };
 
-    let event: EventName, events: Event[] = [];
+    let events: Event[] = [];
+    let event: EventName = 'error';
     let done = false, err: Error | null = null;
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
     let buffers: Uint8Array[] = [], buffer: Uint8Array | Buffer | string;
@@ -58,11 +60,12 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
     ({ cmd, size } = yield <any> null);
 
     try {
+        // initialize the stream event handlers
+        (events[0] || (events[0] = onEvent('end')));
+        (events[1] || (events[1] = onEvent('error')));
+
         do {
-            // initialize the stream event handlers
-            (events[0] || (events[0] = onEvent('end')));
-            (events[1] || (events[1] = onEvent('error')));
-            (events[2] || (events[2] = onEvent('readable')));
+            events[2] = onEvent('readable');
 
             // wait on the first message event from the stream
             [event, err] = await Promise.race(events.map((x) => x[2]));
@@ -70,14 +73,12 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             // if the stream emitted an Error, rethrow it
             if (event === 'error') { throw err; }
             if (!(done = event === 'end')) {
+                stream.off(...(<any> events.pop() as OffArgs));
                 buffer = isNaN(size - bufferLength)
                     ? toUint8Array(stream.read(undefined))
                     : toUint8Array(stream.read(size - bufferLength));
-                // if chunk is null or empty, wait for the next readable event
-                if (!buffer || !(buffer.byteLength > 0)) {
-                    events[2] = onEvent('readable');
-                } else {
-                    // otherwise push it onto the queue
+                // if chunk is not null or empty, push it onto the queue
+                if (buffer && buffer.byteLength > 0) {
                     buffers.push(buffer);
                     bufferLength += buffer.byteLength;
                 }
@@ -88,7 +89,7 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             } while (size < bufferLength);
         } while (!done);
     } catch (e) {
-        throw (err = await cleanup(events, err == null ? e : err));
+        throw (err = await cleanup(events, event === 'error' ? err : e));
     } finally { (err == null) && (await cleanup(events, err)); }
 
     function cleanup<T extends Error | null | void>(events: Event[], err?: T) {

@@ -89,6 +89,11 @@ describe('AsyncMessageReader', () => {
 
     it('should read all messages from a whatwg ReadableStream', async () => {
         await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(
+            nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
+    });
+
+    it('should read all messages from a whatwg ReadableByteStream', async () => {
+        await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(
             nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
     });
 
