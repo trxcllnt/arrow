@@ -59,7 +59,9 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMSt
             // initialize the reader and lock the stream
             (it || (it = new AdaptiveByteReader(source)));
             // read the next value
-            ({ done, value: buffer } = await it['read'](size - bufferLength));
+            ({ done, value: buffer } = isNaN(size - bufferLength)
+                ? await it['read'](undefined)
+                : await it['read'](size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
             if (buffer && buffer.byteLength > 0) {
                 buffers.push(buffer);

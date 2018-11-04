@@ -23,11 +23,11 @@ import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
 import { 
     ArrowDataSource,
-    RecordBatchStreamReader, AsyncRecordBatchStreamReader,
+    RecordBatchFileReader, AsyncRecordBatchFileReader,
 }  from '../../../src/ipc/reader';
 
-const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
-const simpleStreamData = fs.readFileSync(simpleStreamPath);
+const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
+const simpleFileData = fs.readFileSync(simpleFilePath);
 
 function* iterableSource(buffer: Uint8Array) {
     let offset = 0, size = 0;
@@ -45,30 +45,21 @@ async function* asyncIterableSource(buffer: Uint8Array) {
     }
 }
 
-describe('RecordBatchStreamReader', () => {
+describe('RecordBatchFileReader', () => {
 
     it('should read all messages from an Buffer of Arrow data in memory', () => {
-        testSimpleRecordBatchStreamReader(new ArrowDataSource(simpleStreamData));
+        testSimpleRecordBatchFileReader(new ArrowDataSource(simpleFileData));
     });
 
     it('should read all messages from an Iterable that yields buffers of Arrow messages in memory', () => {
-        testSimpleRecordBatchStreamReader(new ArrowDataSource(iterableSource(simpleStreamData)));
+        testSimpleRecordBatchFileReader(new ArrowDataSource(iterableSource(simpleFileData)));
     });
 
-    it('should read all messages from an Iterable that yields multiple tables as buffers of Arrow messages in memory', () => {
-        const source = new ArrowDataSource(function *() {
-            yield* iterableSource(simpleStreamData);
-            yield* iterableSource(simpleStreamData);
-        }());
-        testSimpleRecordBatchStreamReader(source);
-        testSimpleRecordBatchStreamReader(source);
-    });
-
-    function testSimpleRecordBatchStreamReader(source: ArrowDataSource) {
+    function testSimpleRecordBatchFileReader(source: ArrowDataSource) {
 
         let r: IteratorResult<RecordBatch>;
 
-        const reader = source.open() as RecordBatchStreamReader;
+        const reader = source.open() as RecordBatchFileReader;
 
         expect(reader.readSchema()).toBeInstanceOf(Schema);
 
@@ -90,40 +81,31 @@ describe('RecordBatchStreamReader', () => {
 
 describe('AsyncMessageReader', () => {
 
-    it('should read all messages from a NodeJS ReadableStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(fs.createReadStream(simpleStreamPath)));
+    it.only('should read all messages from a NodeJS ReadableFile', async () => {
+        await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(fs.createReadStream(simpleFilePath)));
     });
 
     it('should read all messages from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(asyncIterableSource(simpleStreamData)));
-    });
-
-    it('should read all messages from an AsyncIterable that yields multiple tables as buffers of Arrow messages in memory', async () => {
-        const source = new ArrowDataSource(async function *() {
-            yield* asyncIterableSource(simpleStreamData);
-            yield* asyncIterableSource(simpleStreamData);
-        }());
-        await testSimpleAsyncRecordBatchStreamReader(source);
-        await testSimpleAsyncRecordBatchStreamReader(source);
+        await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(asyncIterableSource(simpleFileData)));
     });
 
     // 
-    // We can't translate node to DOM streams due to the ReadableStream reference implementation
+    // We can't translate node to DOM files due to the ReadableFile reference implementation
     // redefining the `byteLength` property of the entire ArrayBuffer to be 0. Node allocates
-    // ArrayBuffers in 64k chunks and shares them between active streams, so the current
+    // ArrayBuffers in 64k chunks and shares them between active files, so the current
     // behavior causes just about every test to fail. See the code here for more details:
-    // https://github.com/whatwg/streams/blob/3197c7e69456eda08377c18c78ffc99831b5a35f/reference-implementation/lib/helpers.js#L126
+    // https://github.com/whatwg/files/blob/3197c7e69456eda08377c18c78ffc99831b5a35f/reference-implementation/lib/helpers.js#L126
     // 
-    // it('should read all messages from a whatwg ReadableStream', async () => {
-    //     await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(
-    //         nodeToWebStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
+    // it('should read all messages from a whatwg ReadableFile', async () => {
+    //     await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(
+    //         nodeToWebFile(fs.createReadFile(simpleFilePath), { type: 'bytes' })));
     // });
 
-    async function testSimpleAsyncRecordBatchStreamReader(source: ArrowDataSource) {
+    async function testSimpleAsyncRecordBatchFileReader(source: ArrowDataSource) {
 
         let r: IteratorResult<RecordBatch>;
 
-        let reader = await source.open() as AsyncRecordBatchStreamReader;
+        let reader = await source.open() as AsyncRecordBatchFileReader;
 
         expect(await reader.readSchema()).toBeInstanceOf(Schema);
 

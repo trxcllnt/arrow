@@ -60,7 +60,8 @@ function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIt
             // initialize the iterator
             (it || (it = toUint8ArrayIterator(source)[Symbol.iterator]()));
             // read the next value
-            ({ done, value: buffer } = it.next(size - bufferLength));
+            ({ done, value: buffer } = isNaN(size - bufferLength) ?
+                it.next(undefined) : it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
             if (buffer && (buffer.byteLength > 0)) {
                 buffers.push(buffer);
@@ -100,7 +101,9 @@ async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> 
             // initialize the iterator
             (it || (it = toUint8ArrayAsyncIterator(source)[Symbol.asyncIterator]()));
             // read the next value
-            ({ done, value: buffer } = await it.next(size - bufferLength));
+            ({ done, value: buffer } = isNaN(size - bufferLength)
+                ? await it.next(undefined)
+                : await it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
             if (buffer && (buffer.byteLength > 0)) {
                 buffers.push(buffer);

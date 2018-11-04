@@ -69,15 +69,18 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             
             // if the stream emitted an Error, rethrow it
             if (event === 'error') { throw err; }
-            
-            buffer = toUint8Array(stream.read(size - bufferLength));
-            // if chunk is null or empty, wait for the next readable event
-            if (!buffer || !(buffer.byteLength > 0)) {
-                events[2] = onEvent('readable');
-            } else {
-                // otherwise push it onto the queue
-                buffers.push(buffer);
-                bufferLength += buffer.byteLength;
+            if (!(done = event === 'end')) {
+                buffer = isNaN(size - bufferLength)
+                    ? toUint8Array(stream.read(undefined))
+                    : toUint8Array(stream.read(size - bufferLength));
+                // if chunk is null or empty, wait for the next readable event
+                if (!buffer || !(buffer.byteLength > 0)) {
+                    events[2] = onEvent('readable');
+                } else {
+                    // otherwise push it onto the queue
+                    buffers.push(buffer);
+                    bufferLength += buffer.byteLength;
+                }
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
             if (done || size <= bufferLength) do {
