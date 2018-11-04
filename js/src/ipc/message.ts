@@ -33,7 +33,7 @@ const invalidMessageBodyLength = (expected: number, actual: number) => `Expected
 export class MessageReader extends IteratorBase<Message, Iterator<ByteBuffer>> {
     isSync(): this is MessageReader { return true; }
     isAsync(): this is AsyncMessageReader { return false; }
-    next() {
+    next(): IteratorResult<Message> {
         let r, message: Message;
         if ((r = this.readMetadataLength()).done) {
             return ITERATOR_DONE;
@@ -93,7 +93,7 @@ export class MessageReader extends IteratorBase<Message, Iterator<ByteBuffer>> {
 export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncIterator<ByteBuffer>> implements OptionallyAsync<MessageReader> {
     isSync(): this is MessageReader { return false; }
     isAsync(): this is AsyncMessageReader { return true; }
-    async next() {
+    async next(): Promise<IteratorResult<Message>> {
         let r, message: Message;
         if ((r = await this.readMetadataLength()).done) {
             return ITERATOR_DONE;

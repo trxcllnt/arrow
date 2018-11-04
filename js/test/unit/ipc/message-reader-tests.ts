@@ -19,7 +19,6 @@ import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
 
-import { MessageHeader } from '../../../src/enum';
 import { Message } from '../../../src/ipc/metadata/message';
 
 import { MessageReader } from '../../../src/ipc/message';
@@ -59,22 +58,22 @@ describe('MessageReader', () => {
         r = reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.Schema);
+        expect(r.value.isSchema()).toBe(true);
 
         r = reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+        expect(r.value.isRecordBatch()).toBe(true);
 
         r = reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+        expect(r.value.isRecordBatch()).toBe(true);
 
         r = reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+        expect(r.value.isRecordBatch()).toBe(true);
 
         expect(reader.next().done).toBe(true);
     }
@@ -95,22 +94,22 @@ describe('AsyncMessageReader', () => {
         r = await reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.Schema);
+        expect(r.value.isSchema()).toBe(true);
 
         r = await reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+        expect(r.value.isRecordBatch()).toBe(true);
 
         r = await reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+        expect(r.value.isRecordBatch()).toBe(true);
 
         r = await reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.headerType).toBe(MessageHeader.RecordBatch);
+        expect(r.value.isRecordBatch()).toBe(true);
 
         expect((await reader.next()).done).toBe(true);
     }

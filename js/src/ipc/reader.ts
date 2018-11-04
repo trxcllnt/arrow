@@ -22,9 +22,9 @@ import { Vector } from '../vector';
 import { Visitor } from '../visitor';
 import { magicAndPadding } from './magic';
 import { RecordBatch } from '../recordbatch';
-import { OptionallyAsync, Asyncified } from '../interfaces';
 import { ITERATOR_DONE } from '../io/interfaces';
 import { MessageHeader, UnionMode } from '../enum';
+import { OptionallyAsync, Asyncified } from '../interfaces';
 import { MessageReader, AsyncMessageReader } from './message';
 
 import { Footer } from './metadata/file';
@@ -109,83 +109,79 @@ abstract class AbstractRecordBatchReader<TSource extends MessageReader | AsyncMe
     public abstract next(value?: any): IteratorResult<RecordBatch> | Promise<IteratorResult<RecordBatch>>;
 }
 
-class RecordBatchReader extends AbstractRecordBatchReader<MessageReader>
-                        implements Required<IterableIterator<RecordBatch | null | void>> {
+class RecordBatchReader<T extends { [key: string]: DataType } = any> extends AbstractRecordBatchReader<MessageReader>
+                                                                     implements IterableIterator<RecordBatch<T>> {
     public open() { this.readSchema(); return this; }
     public readSchema() {
         return this._schema || (this._schema = this.source.readSchema());
     }
-    public read() {
+    public read(): Message | null {
         const message = this.source.next().value;
-        if (message && message.headerType === MessageHeader.DictionaryBatch) {
+        if (message && message.isDictionaryBatch()) {
             this._numDictionaries++;
-        } else if (message && message.headerType === MessageHeader.RecordBatch) {
+        } else if (message && message.isRecordBatch()) {
             this._numRecordBatches++;
             this._recordBatchIndex++;
         }
         return message;
     }
-    public next() {
-        let message: Message, schema = this._schema;
+    public next(): IteratorResult<RecordBatch<T>> {
+        let message: Message | null, schema = this._schema;
         while (message = this.read()) {
-            switch (message.headerType) {
-                case MessageHeader.Schema:
-                    return { done: true, value: this._reset(message.header() as Schema)._schema };
-                case MessageHeader.RecordBatch:
-                    return { done: false, value: readRecordBatch(this, schema, message) };
-                case MessageHeader.DictionaryBatch:
-                    readDictionaryBatch(this, schema, message);
-                    continue;
+            if (message.isSchema()) {
+                this._reset(message.header()! as Schema<T>);
+                break;
+            } else if (message.isRecordBatch()) {
+                return { done: false, value: readRecordBatch<T>(this, schema, message) };
+            } else if (message.isDictionaryBatch()) {
+                readDictionaryBatch(this, schema, message);
             }
         }
-        this._reset();
         return ITERATOR_DONE;
     }
 }
 
-class AsyncRecordBatchReader extends AbstractRecordBatchReader<AsyncMessageReader>
-                             implements Required<AsyncIterableIterator<RecordBatch | null | void>> {
+class AsyncRecordBatchReader<T extends { [key: string]: DataType } = any> extends AbstractRecordBatchReader<AsyncMessageReader>
+                                                                          implements AsyncIterableIterator<RecordBatch<T>> {
     public async open() { await this.readSchema(); return this; }
     public async readSchema() {
         return this._schema || (this._schema = await this.source.readSchema());
     }
-    public async read() {
+    public async read(): Promise<Message | null> {
         const message = (await this.source.next()).value;
-        if (message && message.headerType === MessageHeader.DictionaryBatch) {
+        if (message && message.isDictionaryBatch()) {
             this._numDictionaries++;
-        } else if (message && message.headerType === MessageHeader.RecordBatch) {
+        } else if (message && message.isRecordBatch()) {
             this._recordBatchIndex++;
             this._numRecordBatches++;
         }
         return message;
     }
-    public async next() {
-        let message: Message, schema = this._schema;
+    public async next(): Promise<IteratorResult<RecordBatch<T>>> {
+        let message: Message | null, schema = this._schema;
         while (message = await this.read()) {
-            switch (message.headerType) {
-                case MessageHeader.Schema:
-                    return { done: true, value: this._reset(message.header()! as Schema)._schema };
-                case MessageHeader.RecordBatch:
-                    return { done: false, value: readRecordBatch(this, schema, message) };
-                case MessageHeader.DictionaryBatch:
-                    readDictionaryBatch(this, schema, message);
-                    continue;
+            if (message.isSchema()) {
+                this._reset(message.header()! as Schema<T>);
+                break;
+            } else if (message.isRecordBatch()) {
+                return { done: false, value: readRecordBatch(this, schema, message) };
+            } else if (message.isDictionaryBatch()) {
+                readDictionaryBatch(this, schema, message);
             }
         }
-        this._reset();
         return ITERATOR_DONE;
     }
 }
 
-export class RecordBatchStreamReader extends RecordBatchReader {
+export class RecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
     constructor(input: ArrowStream) { super(new MessageReader(input)); }
 }
 
-export class AsyncRecordBatchStreamReader extends AsyncRecordBatchReader {
+export class AsyncRecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends AsyncRecordBatchReader<T> {
     constructor(input: AsyncArrowStream) { super(new AsyncMessageReader(input)); }
 }
 
-export class RecordBatchFileReader extends RecordBatchReader {
+export class RecordBatchFileReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
     public get footer() { return this._footer; }
     public get numDictionaries() { return this._footer.numDictionaries; }
     public get numRecordBatches() { return this._footer.numRecordBatches; }
@@ -204,7 +200,9 @@ export class RecordBatchFileReader extends RecordBatchReader {
         const block = this._footer.getRecordBatch(index);
         if (block && this.file.seek(block.offset)) {
             const message = this.source.readMessage(MessageHeader.RecordBatch);
-            if (message) { return readRecordBatch(this, this._schema, message); }
+            if (message && message.isRecordBatch()) {
+                return readRecordBatch(this, this._schema, message);
+            }
         }
         return null;
     }
@@ -224,7 +222,7 @@ export class RecordBatchFileReader extends RecordBatchReader {
     }
 }
 
-export class AsyncRecordBatchFileReader extends AsyncRecordBatchReader {
+export class AsyncRecordBatchFileReader<T extends { [key: string]: DataType } = any> extends AsyncRecordBatchReader<T> {
     public get footer() { return this._footer; }
     public get numDictionaries() { return this._footer.numDictionaries; }
     public get numRecordBatches() { return this._footer.numRecordBatches; }
@@ -232,7 +230,7 @@ export class AsyncRecordBatchFileReader extends AsyncRecordBatchReader {
     public async readSchema() {
         return this._schema || (this._schema = (await this.readFooter()).schema);
     }
-    public async read() {
+    public async read(): Promise<Message | null> {
         const block = this._footer.getRecordBatch(this._recordBatchIndex);
         if (block && (await this.file.seek(block.offset))) {
             return await super.read();
@@ -243,7 +241,9 @@ export class AsyncRecordBatchFileReader extends AsyncRecordBatchReader {
         const block = this._footer.getRecordBatch(index);
         if (block && (await this.file.seek(block.offset))) {
             const message = await this.source.readMessage(MessageHeader.RecordBatch);
-            if (message) { return readRecordBatch(this, this._schema, message); }
+            if (message && message.isRecordBatch()) {
+                return readRecordBatch(this, this._schema, message);
+            }
         }
         return null;
     }
@@ -262,21 +262,28 @@ export class AsyncRecordBatchFileReader extends AsyncRecordBatchReader {
     }
 }
 
-function readRecordBatch(reader: RecordBatchReader | AsyncRecordBatchReader, schema: Schema, message: Message<MessageHeader.RecordBatch>) {
+function readRecordBatch<T extends { [key: string]: DataType } = any>(
+    reader: RecordBatchReader<T> | AsyncRecordBatchReader<T>,
+    schema: Schema,
+    message: Message<MessageHeader.RecordBatch>
+) {
     const { body } = message, { dictionaries } = reader;
     const { nodes, buffers, length } = message.header()!;
     const loader = new DataLoader(body, nodes, buffers, dictionaries);
-    return RecordBatch.new(schema, length, loader.visitMany(schema.fields));
+    return RecordBatch.new<T>(schema, length, loader.visitMany(schema.fields));
 }
 
-function readDictionaryBatch(reader: RecordBatchReader | AsyncRecordBatchReader, schema: Schema, message: Message<MessageHeader.DictionaryBatch>) {
+function readDictionaryBatch(
+    reader: RecordBatchReader | AsyncRecordBatchReader,
+    schema: Schema,
+    message: Message<MessageHeader.DictionaryBatch>
+) {
     const { body } = message, { dictionaries } = reader;
     const { id, nodes, buffers, isDelta } = message.header()!;
     const loader = new DataLoader(body, nodes, buffers, dictionaries);
-    const vector = Vector.new(loader.visit(schema.dictionaries.get(id)!));
+    let vector = Vector.new(loader.visit(schema.dictionaries.get(id)!));
     if (isDelta && dictionaries.has(id)) {
-        // todo (ptaylor): turn this back on once Vector.concat is implemented
-        // vector = _dictionaries.get(id)!.concat(vector);
+        vector = dictionaries.get(id)!.concat(vector) as any;
     }
     dictionaries.set(id, vector);
 }

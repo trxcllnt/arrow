@@ -18,9 +18,9 @@
 import { Vector } from './vector';
 import { DataType, Dictionary } from './type';
 
-export class Schema {
-    public static from(vectors: Vector[]) {
-        return new Schema(vectors.map((v, i) => new Field('' + i, v.type)));
+export class Schema<T extends { [key: string]: DataType } = any> {
+    public static from<T extends { [key: string]: DataType } = any>(vectors: Vector<T[keyof T]>[]) {
+        return new Schema<T>(vectors.map((v, i) => new Field('' + i, v.type)));
     }
     public readonly fields: Field[];
     public readonly metadata: Map<string, string>;
@@ -32,7 +32,7 @@ export class Schema {
         this.dictionaries = dictionaries;
         this.metadata = metadata || Schema.prototype.metadata;
     }
-    public select(...columnNames: string[]): Schema {
+    public select<K extends keyof T>(...columnNames: K[]): Schema<{ [P in K]: T[P] }> {
         const names = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
         const fields = this.fields.filter((f) => names[f.name]);
         const dictionaries = (fields.filter((f) => DataType.isDictionary(f.type)) as Field<Dictionary<any>>[])

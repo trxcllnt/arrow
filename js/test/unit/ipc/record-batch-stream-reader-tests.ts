@@ -21,10 +21,8 @@ import * as Path from 'path';
 
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
-import { Message } from '../../../src/ipc/metadata/message';
 import { 
     ArrowDataSource,
-    // RecordBatchFileReader, AsyncRecordBatchFileReader,
     RecordBatchStreamReader, AsyncRecordBatchStreamReader,
 }  from '../../../src/ipc/reader';
 
@@ -66,7 +64,7 @@ describe('RecordBatchStreamReader', () => {
 
     function testSimpleRecordBatchStreamReader(source: ArrowDataSource) {
 
-        let r: IteratorResult<Message>;
+        let r: IteratorResult<RecordBatch>;
 
         const reader = source.open() as RecordBatchStreamReader;
 
@@ -115,14 +113,13 @@ describe('AsyncMessageReader', () => {
     // https://github.com/whatwg/streams/blob/3197c7e69456eda08377c18c78ffc99831b5a35f/reference-implementation/lib/helpers.js#L126
     // 
     // it('should read all messages from a whatwg ReadableStream', async () => {
-    //     const source = new ArrowDataSource(nodeToWebStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' }));
-    //     const reader = await source.open() as AsyncRecordBatchStreamReader;
-    //     await simpleAsyncRecordBatchStreamReaderTest(reader);
+    //     await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(
+    //         nodeToWebStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
     // });
 
     async function testSimpleAsyncRecordBatchStreamReader(source: ArrowDataSource) {
 
-        let r: IteratorResult<Message>;
+        let r: IteratorResult<RecordBatch>;
 
         let reader = await source.open() as AsyncRecordBatchStreamReader;
 

@@ -66,6 +66,15 @@ export class Message<T extends MessageHeader = any> {
     public header() {
         return this._createHeader ? this._createHeader<T>() : null;
     }
+    public isSchema(): this is Message<MessageHeader.Schema> {
+        return this.headerType === MessageHeader.Schema;
+    }
+    public isRecordBatch(): this is Message<MessageHeader.RecordBatch> {
+        return this.headerType === MessageHeader.RecordBatch;
+    }
+    public isDictionaryBatch(): this is Message<MessageHeader.DictionaryBatch> {
+        return this.headerType === MessageHeader.DictionaryBatch;
+    }
 
     constructor(bodyLength: Long | number, version: MetadataVersion, headerType: T) {
         this.version = version;
