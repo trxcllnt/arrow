@@ -48,10 +48,8 @@ export class Message<T extends MessageHeader = any> {
         const headerType: MessageHeader = _message.headerType();
         const message = new Message(bodyLength, version, headerType);
         message._createHeader = decodeMessageHeader(_message, headerType);
-        message._metadataLength = buf.capacity();
         return message;
     }
-
 
     // @ts-ignore
     public body: Uint8Array;
@@ -59,22 +57,12 @@ export class Message<T extends MessageHeader = any> {
     public readonly bodyLength: number;
     public readonly version: MetadataVersion;
     public get type() { return this.headerType; }
-    public get metadataLength() { return this._metadataLength; }
-    protected _metadataLength = 0;
     // @ts-ignore
     protected _createHeader: MessageHeaderDecoder;
-    public header() {
-        return this._createHeader ? this._createHeader<T>() : null;
-    }
-    public isSchema(): this is Message<MessageHeader.Schema> {
-        return this.headerType === MessageHeader.Schema;
-    }
-    public isRecordBatch(): this is Message<MessageHeader.RecordBatch> {
-        return this.headerType === MessageHeader.RecordBatch;
-    }
-    public isDictionaryBatch(): this is Message<MessageHeader.DictionaryBatch> {
-        return this.headerType === MessageHeader.DictionaryBatch;
-    }
+    public header() { return this._createHeader ? this._createHeader<T>() : null; }
+    public isSchema(): this is Message<MessageHeader.Schema> { return this.headerType === MessageHeader.Schema; }
+    public isRecordBatch(): this is Message<MessageHeader.RecordBatch> { return this.headerType === MessageHeader.RecordBatch; }
+    public isDictionaryBatch(): this is Message<MessageHeader.DictionaryBatch> { return this.headerType === MessageHeader.DictionaryBatch; }
 
     constructor(bodyLength: Long | number, version: MetadataVersion, headerType: T) {
         this.version = version;
@@ -167,14 +155,14 @@ function decodeFieldNodes(batch: _RecordBatch) {
     return Array.from(
         { length: batch.nodesLength() },
         (_, i) => batch.nodes(i)!
-    ).filter(Boolean).map(FieldNode.decode);
+    ).map(FieldNode.decode);
 }
 
 function decodeBuffers(batch: _RecordBatch, version: MetadataVersion) {
     return Array.from(
         { length: batch.buffersLength() },
         (_, i) => batch.buffers(i)!
-    ).filter(Boolean).map(v3Compat(version, BufferRegion.decode));
+    ).map(v3Compat(version, BufferRegion.decode));
 }
 
 function v3Compat(version: MetadataVersion, decode: (buffer: _Buffer) => BufferRegion) {

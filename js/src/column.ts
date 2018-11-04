@@ -39,7 +39,7 @@ export interface Column<T extends DataType> extends VectorLike<T> {
 
 export class Column<T extends DataType> {
 
-    static concat<T extends DataType>(...vectors: Vector<T>[]): Column<T> {
+    static concat<T extends DataType>(...vectors: VectorLike<T>[]): Column<T> {
         const chunks = vectors.map((v) => v instanceof ChunkedVector ? v.chunks : v) as Vector<T>[];
         const field = new Field<T>('', chunks[0].type as T, chunks.some((v) => v.nullCount > 0));
         return new ChunkedVector<T>(field, chunks) as unknown as Column<T>;
@@ -52,7 +52,7 @@ export class Column<T extends DataType> {
 
 type SearchContinuation<T extends Column<any>> = (column: T, chunkIndex: number, valueIndex: number) => any;
 
-class ChunkedVector<T extends DataType = any> implements Column<T> {
+class ChunkedVector<T extends DataType = any> implements Column<T>, VectorLike<T> {
 
     public readonly field: Field<T>;
     public readonly chunks: Vector<T>[];
@@ -88,9 +88,9 @@ class ChunkedVector<T extends DataType = any> implements Column<T> {
         }
     }
 
-    public concat(...others: Vector<T>[]): Column<T> {
-        const combined = Column.concat<T>(this as unknown as Vector<T>, ...others);
-        return new ChunkedVector<T>(this.field, combined.chunks) as unknown as Column<T>;
+    public concat(...others: VectorLike<T>[]): VectorLike<T> {
+        const combined = Column.concat<T>(this, ...others);
+        return new ChunkedVector<T>(this.field, combined.chunks);
     }
 
     public getChildAt<R extends DataType = any>(index: number): Vector<R> | null {

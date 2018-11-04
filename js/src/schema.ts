@@ -43,12 +43,12 @@ export class Schema<T extends { [key: string]: DataType } = any> {
         this.metadata = metadata || Schema.prototype.metadata;
         this.dictionaries = dictionaries || generateDictionaryMap(fields);
     }
-    public select<K extends keyof T>(...columnNames: K[]): Schema<{ [P in K]: T[P] }> {
+    public select<K extends keyof T = any>(...columnNames: K[]) {
         const names = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
         const fields = this.fields.filter((f) => names[f.name]);
         const dictionaries = (fields.filter((f) => DataType.isDictionary(f.type)) as Field<Dictionary<any>>[])
             .reduce((d, f) =>  d.set(f.type.id, this.dictionaries.get(f.type.id)!), new Map<number, DataType>());
-        return new Schema(fields, this.metadata, dictionaries);
+        return new Schema<{ [P in K]: T[P] }>(fields, this.metadata, dictionaries);
     }
     public static [Symbol.toStringTag] = ((prototype: Schema) => {
         (prototype as any).metadata = Object.freeze(new Map());

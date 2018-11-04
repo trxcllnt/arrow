@@ -20,16 +20,17 @@ import { Type } from './enum';
 import * as type from './type';
 import * as vecs from './vector';
 import { DataType } from './type';
-import { Column } from './column';
 
 export interface VectorLike<T extends DataType> {
+    length: number;
     toArray(): T['TArray'];
     // getByteWidth(): number;
     isValid(index: number): boolean;
     get(index: number): T['TValue'] | null;
     indexOf(value: T['TValue'] | null, fromIndex?: number): number;
     slice(begin?: number, end?: number): VectorLike<T>;
-    concat(this: Vector<T>, ...others: Vector<T>[]): Column<T>;
+    concat(this: VectorLike<T>, ...others: VectorLike<T>[]): VectorLike<T>;
+    getChildAt<R extends DataType = any>(index: number): Vector<R> | null;
     [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
 }
 

@@ -56,7 +56,7 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
         const VectorCtor = getVectorConstructor.getVisitFn(data.type)();
         // Return the correct Vector subclass based on the Arrow Type
-        if (!(this instanceof VectorCtor)) {
+        if (VectorCtor && !(this instanceof VectorCtor)) {
             return Reflect.construct(ArrowVector, arguments, VectorCtor);
         }
         this._children = children;
@@ -89,7 +89,7 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
         return ArrowVector.new<R>(data, children, stride);
     }
 
-    public concat(this: Vector<T>, ...others: Vector<T>[]): Column<T> {
+    public concat(...others: VectorLike<T>[]): VectorLike<T> {
         return Column.concat<T>(this, ...others);
     }
 

@@ -15,21 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Data } from '../data';
-import * as type from '../type';
 import { DataType } from '../type';
 import { Vector } from '../vector';
-import { Visitor } from '../visitor';
+import { Schema } from '../schema';
+import { MessageHeader } from '../enum';
+import { Footer } from './metadata/file';
 import { magicAndPadding } from './magic';
+import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
 import { ITERATOR_DONE } from '../io/interfaces';
-import { MessageHeader, UnionMode } from '../enum';
 import { OptionallyAsync, Asyncified } from '../interfaces';
 import { MessageReader, AsyncMessageReader } from './message';
-
-import { Footer } from './metadata/file';
-import { Schema, Field } from '../schema';
-import { Message, BufferRegion, FieldNode } from './metadata/message';
+import { VectorLoader } from '../visitor/vectordataloader';
 
 import {
     ArrowFile, AsyncArrowFile,
@@ -109,8 +106,10 @@ abstract class AbstractRecordBatchReader<TSource extends MessageReader | AsyncMe
     public abstract next(value?: any): IteratorResult<RecordBatch> | Promise<IteratorResult<RecordBatch>>;
 }
 
-class RecordBatchReader<T extends { [key: string]: DataType } = any> extends AbstractRecordBatchReader<MessageReader>
-                                                                     implements IterableIterator<RecordBatch<T>> {
+export abstract class RecordBatchReader<T extends { [key: string]: DataType } = any>
+       extends AbstractRecordBatchReader<MessageReader>
+       implements IterableIterator<RecordBatch<T>> {
+
     public open() { this.readSchema(); return this; }
     public readSchema() {
         return this._schema || (this._schema = this.source.readSchema());
@@ -141,8 +140,10 @@ class RecordBatchReader<T extends { [key: string]: DataType } = any> extends Abs
     }
 }
 
-class AsyncRecordBatchReader<T extends { [key: string]: DataType } = any> extends AbstractRecordBatchReader<AsyncMessageReader>
-                                                                          implements AsyncIterableIterator<RecordBatch<T>> {
+export abstract class AsyncRecordBatchReader<T extends { [key: string]: DataType } = any>
+       extends AbstractRecordBatchReader<AsyncMessageReader>
+       implements AsyncIterableIterator<RecordBatch<T>> {
+
     public async open() { await this.readSchema(); return this; }
     public async readSchema() {
         return this._schema || (this._schema = await this.source.readSchema());
@@ -269,7 +270,7 @@ function readRecordBatch<T extends { [key: string]: DataType } = any>(
 ) {
     const { body } = message, { dictionaries } = reader;
     const { nodes, buffers, length } = message.header()!;
-    const loader = new DataLoader(body, nodes, buffers, dictionaries);
+    const loader = new VectorLoader(body, nodes, buffers, dictionaries);
     return RecordBatch.new<T>(schema, length, loader.visitMany(schema.fields));
 }
 
@@ -280,66 +281,10 @@ function readDictionaryBatch(
 ) {
     const { body } = message, { dictionaries } = reader;
     const { id, nodes, buffers, isDelta } = message.header()!;
-    const loader = new DataLoader(body, nodes, buffers, dictionaries);
+    const loader = new VectorLoader(body, nodes, buffers, dictionaries);
     let vector = Vector.new(loader.visit(schema.dictionaries.get(id)!));
     if (isDelta && dictionaries.has(id)) {
         vector = dictionaries.get(id)!.concat(vector) as any;
     }
     dictionaries.set(id, vector);
-}
-
-interface DataLoader extends Visitor {
-    visitMany <T extends DataType>(fields: Field[]): Data<T>[];
-    visit     <T extends DataType>(node: T,       ): Data<T>;
-}
-
-class DataLoader extends Visitor {
-    private bytes: Uint8Array;
-    private nodes: Iterator<FieldNode>;
-    private buffers: Iterator<BufferRegion>;
-    private dictionaries: Map<number, Vector>;
-    constructor(bytes: Uint8Array,
-                nodes: FieldNode[],
-                buffers: BufferRegion[],
-                dictionaries: Map<number, Vector>) {
-        super();
-        this.bytes = bytes;
-        this.dictionaries = dictionaries;
-        this.nodes = nodes[Symbol.iterator]();
-        this.buffers = buffers[Symbol.iterator]();
-    }
-
-    public visitMany(fields: Field[]) { return fields.map((field) => this.visit(field.type)); }
-
-    public visitNull                 <T extends type.Null>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.Null(type, 0, length, nullCount, this.readNullBitmap(type, nullCount));                                                                                }
-    public visitBool                 <T extends type.Bool>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.Bool(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitInt                  <T extends type.Int>                 (type: T, { length, nullCount } = this.nextFieldNode()) { return             Data.Int(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitFloat                <T extends type.Float>               (type: T, { length, nullCount } = this.nextFieldNode()) { return           Data.Float(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitUtf8                 <T extends type.Utf8>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.Utf8(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readData(type));                                   }
-    public visitBinary               <T extends type.Binary>              (type: T, { length, nullCount } = this.nextFieldNode()) { return          Data.Binary(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readData(type));                                   }
-    public visitFixedSizeBinary      <T extends type.FixedSizeBinary>     (type: T, { length, nullCount } = this.nextFieldNode()) { return Data.FixedSizeBinary(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitDate                 <T extends type.Date_>               (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.Date(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitTimestamp            <T extends type.Timestamp>           (type: T, { length, nullCount } = this.nextFieldNode()) { return       Data.Timestamp(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitTime                 <T extends type.Time>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.Time(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitDecimal              <T extends type.Decimal>             (type: T, { length, nullCount } = this.nextFieldNode()) { return         Data.Decimal(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitList                 <T extends type.List>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.List(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.visitMany(type.children));                         }
-    public visitStruct               <T extends type.Struct>              (type: T, { length, nullCount } = this.nextFieldNode()) { return          Data.Struct(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitMany(type.children));                                                 }
-    public visitUnion                <T extends type.Union>               (type: T                                              ) { return type.mode === UnionMode.Sparse ? this.visitSparseUnion(type as type.SparseUnion) : this.visitDenseUnion(type as type.DenseUnion);                                      }
-    public visitDenseUnion           <T extends type.DenseUnion>          (type: T, { length, nullCount } = this.nextFieldNode()) { return           Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readTypeIds(type), this.visitMany(type.children)); }
-    public visitSparseUnion          <T extends type.SparseUnion>         (type: T, { length, nullCount } = this.nextFieldNode()) { return           Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), null!, this.readTypeIds(type), this.visitMany(type.children));                  }
-    public visitDictionary           <T extends type.Dictionary>          (type: T, { length, nullCount } = this.nextFieldNode()) { return      Data.Dictionary(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)), this.dictionaries.get(type.id!);                          }
-    public visitInterval             <T extends type.Interval>            (type: T, { length, nullCount } = this.nextFieldNode()) { return        Data.Interval(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
-    public visitFixedSizeList        <T extends type.FixedSizeList>       (type: T, { length, nullCount } = this.nextFieldNode()) { return   Data.FixedSizeList(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitMany(type.children));                                                 }
-    public visitMap                  <T extends type.Map_>                (type: T, { length, nullCount } = this.nextFieldNode()) { return             Data.Map(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitMany(type.children));                                                 }
-
-    protected nextFieldNode() { return this.nodes.next().value; }
-    protected nextBufferRange() { return this.buffers.next().value; }
-    protected readNullBitmap<T extends DataType>(type: T, nullCount: number, buffer = this.nextBufferRange()) {
-        return nullCount > 0 && this.readData(type, buffer) || new Uint8Array(0);
-    }
-    protected readOffsets<T extends DataType>(type: T, buffer?: BufferRegion) { return this.readData(type, buffer); }
-    protected readTypeIds<T extends DataType>(type: T, buffer?: BufferRegion) { return this.readData(type, buffer); }
-    protected readData<T extends DataType>(_type: T, { length, offset } = this.nextBufferRange()) {
-        return new Uint8Array(this.bytes.buffer, this.bytes.byteOffset + offset, length);
-    }
 }

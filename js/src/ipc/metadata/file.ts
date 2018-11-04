@@ -25,9 +25,9 @@ import _Footer = File_.org.apache.arrow.flatbuf.Footer;
 
 import './schema';
 import { Schema } from '../../schema';
+import { MetadataVersion } from '../../enum';
 import { toUint8Array } from '../../util/buffer';
 import { ArrayBufferViewInput } from '../../util/buffer';
-import { MetadataVersion } from '../../enum';
 
 export class Footer {
 
