@@ -174,7 +174,7 @@ const getDecimal = <T extends Decimal>({ values }: Vector<T>, index: number): T[
 
 const getList = <T extends List>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { valueOffsets, stride } = vector;
-    return child.slice(valueOffsets[index * stride], valueOffsets[(index * stride) + 1]);
+    return child.slice(valueOffsets[index * stride], valueOffsets[(index * stride) + 1]) as T['TValue'];
 }
 
 const getNested = <
@@ -227,5 +227,5 @@ const getIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>
 
 const getFixedSizeList = <T extends FixedSizeList>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { stride } = vector;
-    return child.slice(index * stride, (index + 1) * stride);
+    return child.slice(index * stride, (index + 1) * stride) as T['TValue'];
 }

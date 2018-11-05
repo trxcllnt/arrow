@@ -16,8 +16,8 @@
 // under the License.
 
 import { Field } from './schema';
-import { Vector } from './interfaces';
 import { flatbuffers } from 'flatbuffers';
+import { Vector, ArrayBufferViewConstructor, VectorLike } from './interfaces';
 
 import Long = flatbuffers.Long;
 import {
@@ -349,7 +349,7 @@ export class SparseUnion extends Union<Type.SparseUnion> {
     }
 }
 
-export interface FixedSizeBinary extends DataType<Type.FixedSizeBinary> { TArray: Uint8Array; TValue: Uint8Array; }
+export interface FixedSizeBinary extends DataType<Type.FixedSizeBinary> { TArray: Uint8Array; TValue: Uint8Array; ArrayType: typeof Uint8Array; }
 export class FixedSizeBinary extends DataType<Type.FixedSizeBinary> {
     constructor(public readonly byteWidth: number) {
         super(Type.FixedSizeBinary);
@@ -397,6 +397,8 @@ export class Dictionary<T extends DataType = any, TKey extends Int = Int32> exte
     public readonly indices: TKey;
     public readonly dictionary: T;
     public readonly isOrdered: boolean;
+    // @ts-ignore;
+    public dictionaryVector: VectorLike<T>;
     constructor(dictionary: T, indices: TKey, id?: Long | number | null, isOrdered?: boolean | null) {
         super(Type.Dictionary);
         this.indices = indices;
@@ -416,8 +418,3 @@ export class Dictionary<T extends DataType = any, TKey extends Int = Int32> exte
 export interface IterableArrayLike<T = any> extends ArrayLike<T>, Iterable<T> {}
 export type FloatArray = Uint16Array | Float32Array | Float64Array;
 export type IntArray = Int8Array | Int16Array | Int32Array | Uint8Array | Uint16Array | Uint32Array;
-export type ArrayBufferViewConstructor<T> = {
-    new (...args: any[]): T;
-    readonly BYTES_PER_ELEMENT: number;
-    from(arrayLike: ArrayLike<number> | Iterable<number>, mapfn?: (v: number, k: number) => number, thisArg?: any): T;
-};

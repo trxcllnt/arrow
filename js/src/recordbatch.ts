@@ -36,9 +36,7 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> implements
 //     }
 
     static new<T extends { [key: string]: DataType } = any>(schema: Schema, numRows: number, columns: (Data | Vector)[]) {
-        const childData = columns.map((x) => x instanceof ArrowVector ? x.data : x);
-        const data = Data.Struct(new Struct(schema.fields), 0, numRows, 0, null, childData);
-        return new RecordBatch<T>(schema, data);
+        return new RecordBatch<T>(schema, Data.Struct(new Struct(schema.fields), 0, numRows, 0, null, columns));
     }
 
     public readonly schema: Schema;

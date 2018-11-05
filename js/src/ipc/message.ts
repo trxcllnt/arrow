@@ -31,29 +31,49 @@ const invalidMessageMetadata = (expected: number, actual: number) => `Expected t
 const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
 
 export class MessageReader extends IteratorBase<Message, Iterator<ByteBuffer>> {
-    isSync(): this is MessageReader { return true; }
-    isAsync(): this is AsyncMessageReader { return false; }
-    next(): IteratorResult<Message> {
-        let r, message: Message;
+    public isSync(): this is MessageReader { return true; }
+    public isAsync(): this is AsyncMessageReader { return false; }
+    public next(): IteratorResult<Message> {
+        let r;
         if ((r = this.readMetadataLength()).done) {
             return ITERATOR_DONE;
         }
         if ((r = this.readMetadata(r.value)).done) {
             return ITERATOR_DONE;
         }
-        if ((r = this.readBody((message = r.value).bodyLength)).done) {
-            return ITERATOR_DONE;
-        }
-        message.body = toUint8Array(r.value);
-        (r as IteratorResult<any>).value = message;
+        (r as IteratorResult<any>).value = r.value;
         return (<any> r) as IteratorResult<Message>;
     }
-    readMetadataLength(): IteratorResult<number> {
+    public readMessageBody(bodyLength: number): Uint8Array {
+        let r: IteratorResult<any> = super.next(bodyLength);
+        if (!r.done && (r.value.capacity() < bodyLength)) {
+            throw new Error(invalidMessageBodyLength(bodyLength, r.value.capacity()));
+        }
+        return toUint8Array(r.value);
+    }
+    public readMessage<T extends MessageHeader>(type?: T | null) {
+        let r: IteratorResult<Message<T>>;
+        if ((r = this.next()).done) { return null; }
+        if ((type != null) && r.value.headerType !== type) {
+            throw new Error(invalidMessageType(type));
+        }
+        return r.value;
+    }
+    public readSchema() {
+        const type = MessageHeader.Schema;
+        const message = this.readMessage(type);
+        const schema = message && message.header();
+        if (!message || !schema) {
+            throw new Error(nullMessage(type));
+        }
+        return schema;
+    }
+    protected readMetadataLength(): IteratorResult<number> {
         let r: IteratorResult<any> = super.next(PADDING);
         r.done || (r.done = !(r.value = r.value.readInt32(0)));
         return r;
     }
-    readMetadata(metadataLength: number): IteratorResult<Message> {
+    protected readMetadata(metadataLength: number): IteratorResult<Message> {
         let r: IteratorResult<any>;
         if ((r = super.next(metadataLength)).done) {
             return ITERATOR_DONE;
@@ -64,56 +84,52 @@ export class MessageReader extends IteratorBase<Message, Iterator<ByteBuffer>> {
         r.done = !(r.value = Message.decode(r.value));
         return r;
     }
-    readBody(bodyLength: number): IteratorResult<ByteBuffer> {
-        let r: IteratorResult<any> = super.next(bodyLength);
-        if (!r.done && (r.value.capacity() < bodyLength)) {
-            throw new Error(invalidMessageBodyLength(bodyLength, r.value.capacity()));
-        }
-        return r;
-    }
-    readMessage<T extends MessageHeader>(type: T) {
-        let r: IteratorResult<Message<T>>;
-        if ((r = this.next()).done) { return null; }
-        if (r.value.headerType !== type) {
-            throw new Error(invalidMessageType(type));
-        }
-        return r.value;
-    }
-    readSchema() {
-        const type = MessageHeader.Schema;
-        const message = this.readMessage(type);
-        const schema = message && message.header();
-        if (!message || !schema) {
-            throw new Error(nullMessage(type));
-        }
-        return schema;
-    }
 }
 
 export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncIterator<ByteBuffer>> implements OptionallyAsync<MessageReader> {
-    isSync(): this is MessageReader { return false; }
-    isAsync(): this is AsyncMessageReader { return true; }
-    async next(): Promise<IteratorResult<Message>> {
-        let r, message: Message;
+    public isSync(): this is MessageReader { return false; }
+    public isAsync(): this is AsyncMessageReader { return true; }
+    public async next(): Promise<IteratorResult<Message>> {
+        let r;
         if ((r = await this.readMetadataLength()).done) {
             return ITERATOR_DONE;
         }
         if ((r = await this.readMetadata(r.value)).done) {
             return ITERATOR_DONE;
         }
-        if ((r = await this.readBody((message = r.value).bodyLength)).done) {
-            return ITERATOR_DONE;
-        }
-        message.body = toUint8Array(r.value);
-        (r as IteratorResult<any>).value = message;
+        (r as IteratorResult<any>).value = r.value;
         return (<any> r) as IteratorResult<Message>;
     }
-    async readMetadataLength(): Promise<IteratorResult<number>> {
+    public async readMessageBody(bodyLength: number): Promise<Uint8Array> {
+        let r: IteratorResult<any> = await super.next(bodyLength);
+        if (!r.done && (r.value.capacity() < bodyLength)) {
+            throw new Error(invalidMessageBodyLength(bodyLength, r.value.capacity()));
+        }
+        return toUint8Array(r.value);
+    }
+    public async readMessage<T extends MessageHeader>(type?: T | null) {
+        let r: IteratorResult<Message<T>>;
+        if ((r = await this.next()).done) { return null; }
+        if ((type != null) && r.value.headerType !== type) {
+            throw new Error(invalidMessageType(type));
+        }
+        return r.value;
+    }
+    public async readSchema() {
+        const type = MessageHeader.Schema;
+        const message = await this.readMessage(type);
+        const schema = message && message.header();
+        if (!message || !schema) {
+            throw new Error(nullMessage(type));
+        }
+        return schema;
+    }
+    protected async readMetadataLength(): Promise<IteratorResult<number>> {
         let r: IteratorResult<any> = await super.next(PADDING);
         r.done || (r.done = !(r.value = r.value.readInt32(0)));
         return r;
     }
-    async readMetadata(metadataLength: number): Promise<IteratorResult<Message>> {
+    protected async readMetadata(metadataLength: number): Promise<IteratorResult<Message>> {
         let r: IteratorResult<any>;
         if ((r = await super.next(metadataLength)).done) {
             return ITERATOR_DONE;
@@ -123,29 +139,5 @@ export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncIterator
         }
         r.done = !(r.value = Message.decode(r.value));
         return r as IteratorResult<Message>;
-    }
-    async readBody(bodyLength: number): Promise<IteratorResult<ByteBuffer>> {
-        let r: IteratorResult<any> = await super.next(bodyLength);
-        if (!r.done && (r.value.capacity() < bodyLength)) {
-            throw new Error(invalidMessageBodyLength(bodyLength, r.value.capacity()));
-        }
-        return r;
-    }
-    async readMessage<T extends MessageHeader>(type: T) {
-        let r: IteratorResult<Message<T>>;
-        if ((r = await this.next()).done) { return null; }
-        if (r.value.headerType !== type) {
-            throw new Error(invalidMessageType(type));
-        }
-        return r.value;
-    }
-    async readSchema() {
-        const type = MessageHeader.Schema;
-        const message = await this.readMessage(type);
-        const schema = message && message.header();
-        if (!message || !schema) {
-            throw new Error(nullMessage(type));
-        }
-        return schema;
     }
 }

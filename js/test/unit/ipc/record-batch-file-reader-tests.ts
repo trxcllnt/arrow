@@ -82,7 +82,7 @@ describe('RecordBatchFileReader', () => {
 
 describe('AsyncMessageReader', () => {
 
-    it.only('should read all messages from a NodeJS ReadableFile', async () => {
+    it('should read all messages from a NodeJS ReadableFile', async () => {
         await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(fs.createReadStream(simpleFilePath)));
     });
 

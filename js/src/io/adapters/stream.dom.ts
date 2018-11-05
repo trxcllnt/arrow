@@ -94,7 +94,7 @@ class AdaptiveByteReader<T extends TElement> {
     }
 
     get closed(): Promise<void> {
-        return this.reader ? this.reader.closed : Promise.resolve();
+        return this.reader ? this.reader.closed.catch(() => {}) : Promise.resolve();
     }
 
     releaseLock(): void {
@@ -128,6 +128,12 @@ class AdaptiveByteReader<T extends TElement> {
         if (this.byobReader) { this.releaseLock(); }
         if (!this.defaultReader) {
             this.defaultReader = this.source.getReader();
+            // We have to catch and swallow errors here to avoid uncaught promise rejection exceptions
+            // that seem to be raised when we call `releaseLock()` on this reader. I'm still mystified
+            // about why these errors are raised, but I'm sure there's some important spec reason that
+            // I haven't considered. I hate to employ such an anti-pattern here, but it seems like the
+            // only solution in this case :/
+            this.defaultReader.closed.catch(() => {});
         }
         return (this.reader = this.defaultReader);
     }
@@ -136,6 +142,12 @@ class AdaptiveByteReader<T extends TElement> {
         if (this.defaultReader) { this.releaseLock(); }
         if (!this.byobReader) {
             this.byobReader = this.source.getReader({ mode: 'byob' });
+            // We have to catch and swallow errors here to avoid uncaught promise rejection exceptions
+            // that seem to be raised when we call `releaseLock()` on this reader. I'm still mystified
+            // about why these errors are raised, but I'm sure there's some important spec reason that
+            // I haven't considered. I hate to employ such an anti-pattern here, but it seems like the
+            // only solution in this case :/
+            this.byobReader.closed.catch(() => {});
         }
         return (this.reader = this.byobReader);
     }

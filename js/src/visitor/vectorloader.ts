@@ -18,7 +18,6 @@
 import { Data } from '../data';
 import * as type from '../type';
 import { Field } from '../schema';
-import { Vector } from '../vector';
 import { DataType } from '../type';
 import { UnionMode } from '../enum';
 import { Visitor } from '../visitor';
@@ -31,18 +30,15 @@ export interface VectorLoader extends Visitor {
 
 export class VectorLoader extends Visitor {
     private bytes: Uint8Array;
-    private nodes: Iterator<FieldNode>;
-    private buffers: Iterator<BufferRegion>;
-    private dictionaries: Map<number, Vector>;
-    constructor(bytes: Uint8Array,
-                nodes: FieldNode[],
-                buffers: BufferRegion[],
-                dictionaries: Map<number, Vector>) {
+    private nodes: FieldNode[];
+    private nodesIndex: number = -1;
+    private buffers: BufferRegion[];
+    private buffersIndex: number = -1;
+    constructor(bytes: Uint8Array, nodes: FieldNode[], buffers: BufferRegion[]) {
         super();
         this.bytes = bytes;
-        this.dictionaries = dictionaries;
-        this.nodes = nodes[Symbol.iterator]();
-        this.buffers = buffers[Symbol.iterator]();
+        this.nodes = nodes;
+        this.buffers = buffers;
     }
 
     public visitMany(fields: Field[]) { return fields.map((field) => this.visit(field.type)); }
@@ -61,15 +57,15 @@ export class VectorLoader extends Visitor {
     public visitList                 <T extends type.List>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.List(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.visitMany(type.children));                         }
     public visitStruct               <T extends type.Struct>              (type: T, { length, nullCount } = this.nextFieldNode()) { return          Data.Struct(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitMany(type.children));                                                 }
     public visitUnion                <T extends type.Union>               (type: T                                              ) { return type.mode === UnionMode.Sparse ? this.visitSparseUnion(type as type.SparseUnion) : this.visitDenseUnion(type as type.DenseUnion);                                      }
-    public visitDenseUnion           <T extends type.DenseUnion>          (type: T, { length, nullCount } = this.nextFieldNode()) { return           Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readOffsets(type), this.readTypeIds(type), this.visitMany(type.children)); }
-    public visitSparseUnion          <T extends type.SparseUnion>         (type: T, { length, nullCount } = this.nextFieldNode()) { return           Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), null!, this.readTypeIds(type), this.visitMany(type.children));                  }
-    public visitDictionary           <T extends type.Dictionary>          (type: T, { length, nullCount } = this.nextFieldNode()) { return      Data.Dictionary(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type)), this.dictionaries.get(type.id!);                          }
+    public visitDenseUnion           <T extends type.DenseUnion>          (type: T, { length, nullCount } = this.nextFieldNode()) { return           Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readTypeIds(type), this.visitMany(type.children), this.readOffsets(type)); }
+    public visitSparseUnion          <T extends type.SparseUnion>         (type: T, { length, nullCount } = this.nextFieldNode()) { return           Data.Union(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readTypeIds(type), this.visitMany(type.children));                         }
+    public visitDictionary           <T extends type.Dictionary>          (type: T, { length, nullCount } = this.nextFieldNode()) { return      Data.Dictionary(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
     public visitInterval             <T extends type.Interval>            (type: T, { length, nullCount } = this.nextFieldNode()) { return        Data.Interval(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }
     public visitFixedSizeList        <T extends type.FixedSizeList>       (type: T, { length, nullCount } = this.nextFieldNode()) { return   Data.FixedSizeList(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitMany(type.children));                                                 }
     public visitMap                  <T extends type.Map_>                (type: T, { length, nullCount } = this.nextFieldNode()) { return             Data.Map(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.visitMany(type.children));                                                 }
 
-    protected nextFieldNode() { return this.nodes.next().value; }
-    protected nextBufferRange() { return this.buffers.next().value; }
+    protected nextFieldNode() { return this.nodes[++this.nodesIndex]; }
+    protected nextBufferRange() { return this.buffers[++this.buffersIndex]; }
     protected readNullBitmap<T extends DataType>(type: T, nullCount: number, buffer = this.nextBufferRange()) {
         return nullCount > 0 && this.readData(type, buffer) || new Uint8Array(0);
     }

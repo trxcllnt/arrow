@@ -61,21 +61,25 @@ describe('MessageReader', () => {
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isSchema()).toBe(true);
+        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         r = reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isRecordBatch()).toBe(true);
+        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         r = reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isRecordBatch()).toBe(true);
+        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         r = reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isRecordBatch()).toBe(true);
+        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         expect(reader.next().done).toBe(true);
     }
@@ -104,21 +108,25 @@ describe('AsyncMessageReader', () => {
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isSchema()).toBe(true);
+        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         r = await reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isRecordBatch()).toBe(true);
+        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         r = await reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isRecordBatch()).toBe(true);
+        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         r = await reader.next();
         expect(r.done).toBe(false);
         expect(r.value).toBeInstanceOf(Message);
         expect(r.value.isRecordBatch()).toBe(true);
+        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         expect((await reader.next()).done).toBe(true);
     }

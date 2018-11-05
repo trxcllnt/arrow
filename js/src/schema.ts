@@ -35,7 +35,7 @@ export class Schema<T extends { [key: string]: DataType } = any> {
     }
     public readonly fields: Field[];
     public readonly metadata: Map<string, string>;
-    public readonly dictionaries: Map<number, DataType>;
+    public readonly dictionaries: Map<number, Dictionary>;
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
                 dictionaries?: Map<number, DataType>) {

@@ -78,9 +78,8 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
     if (value instanceof ArrayBuffer) { return new ArrayBufferViewCtor(value); }
     if (value instanceof SharedArrayBuffer) { return new ArrayBufferViewCtor(value); }
     if (value instanceof ByteBuffer) { return toArrayBufferView(ArrayBufferViewCtor, value.bytes()); }
-    return !ArrayBuffer.isView(value)
-        ? ArrayBufferViewCtor.from(value)
-        : new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength);
+    return !ArrayBuffer.isView(value) ? ArrayBufferViewCtor.from(value) : value.byteLength <= 0 ? new ArrayBufferViewCtor(0)
+        : new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength / ArrayBufferViewCtor.BYTES_PER_ELEMENT);
 }
 
 /** @ignore */ export const toInt8Array = (input: ArrayBufferViewInput) => toArrayBufferView(Int8Array, input);

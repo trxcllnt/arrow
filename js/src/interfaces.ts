@@ -21,7 +21,7 @@ import * as type from './type';
 import * as vecs from './vector';
 import { DataType } from './type';
 
-export interface VectorLike<T extends DataType> {
+export interface VectorLike<T extends DataType = any> {
     length: number;
     toArray(): T['TArray'];
     // getByteWidth(): number;
