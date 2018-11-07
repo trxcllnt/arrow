@@ -71,14 +71,13 @@ abstract class AbstractRecordBatchReader<TSource extends MessageReader | AsyncMe
     protected _schema: Schema;
     // @ts-ignore
     protected _footer: Footer;
-    protected _numDictionaries = 0;
-    protected _numRecordBatches = 0;
+    protected _dictionaryIndex = 0;
     protected _recordBatchIndex = 0;
     protected _dictionaries: Map<number, Vector>;
     public get schema() { return this._schema; }
     public get dictionaries() { return this._dictionaries; }
-    public get numDictionaries() { return this._numDictionaries; }
-    public get numRecordBatches() { return this._numRecordBatches; }
+    public get numDictionaries() { return this._dictionaryIndex; }
+    public get numRecordBatches() { return this._recordBatchIndex; }
 
     constructor(protected source: TSource, dictionaries = new Map<number, Vector>()) {
         this._dictionaries = dictionaries;
@@ -101,8 +100,7 @@ abstract class AbstractRecordBatchReader<TSource extends MessageReader | AsyncMe
     
     protected _reset(schema?: Schema | null) {
         this._schema = <any> schema;
-        this._numDictionaries = 0;
-        this._numRecordBatches = 0;
+        this._dictionaryIndex = 0;
         this._recordBatchIndex = 0;
         this._dictionaries = new Map();
         return this;
@@ -120,9 +118,8 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
     public readMessage<T extends MessageHeader>(type?: T | null): Message<T> | null {
         const message = this.source.readMessage(type);
         if (message && message.isDictionaryBatch()) {
-            this._numDictionaries++;
+            this._dictionaryIndex++;
         } else if (message && message.isRecordBatch()) {
-            this._numRecordBatches++;
             this._recordBatchIndex++;
         }
         return message;
@@ -177,10 +174,9 @@ export abstract class AsyncRecordBatchReader<T extends { [key: string]: DataType
     public async readMessage<T extends MessageHeader>(type?: T | null): Promise<Message<T> | null> {
         const message = await this.source.readMessage(type);
         if (message && message.isDictionaryBatch()) {
-            this._numDictionaries++;
+            this._dictionaryIndex++;
         } else if (message && message.isRecordBatch()) {
             this._recordBatchIndex++;
-            this._numRecordBatches++;
         }
         return message;
     }
@@ -241,7 +237,7 @@ export class RecordBatchFileReader<T extends { [key: string]: DataType } = any> 
     }
     public readMessage<T extends MessageHeader>(type?: T | null): Message<T> | null {
         const block =
-              (this._numDictionaries < this.numDictionaries) ? this._footer.getDictionaryBatch(this._numDictionaries)
+              (this._dictionaryIndex < this.numDictionaries) ? this._footer.getDictionaryBatch(this._dictionaryIndex)
             : (this._recordBatchIndex < this.numRecordBatches) ? this._footer.getRecordBatch(this._recordBatchIndex)
             : null;
         return !(block && this.file.seek(block.offset)) ? null : super.readMessage(type);
@@ -275,7 +271,7 @@ export class RecordBatchFileReader<T extends { [key: string]: DataType } = any> 
             const buffer = file.readAt(offset - length, length);
             const footer = this._footer = Footer.decode(buffer);
             for (const block of footer.dictionaryBatches()) {
-                block && this.readDictionaryBatch(this._numDictionaries);
+                block && this.readDictionaryBatch(this._dictionaryIndex);
             }
         }
         return this._footer;
@@ -292,7 +288,7 @@ export class AsyncRecordBatchFileReader<T extends { [key: string]: DataType } = 
     }
     public async readMessage<T extends MessageHeader>(type?: T | null): Promise<Message<T> | null> {
         const block =
-              (this._numDictionaries < this.numDictionaries) ? this._footer.getDictionaryBatch(this._numDictionaries)
+              (this._dictionaryIndex < this.numDictionaries) ? this._footer.getDictionaryBatch(this._dictionaryIndex)
             : (this._recordBatchIndex < this.numRecordBatches) ? this._footer.getRecordBatch(this._recordBatchIndex)
             : null;
         return !(block && (await this.file.seek(block.offset))) ? null : await super.readMessage(type);
@@ -325,7 +321,7 @@ export class AsyncRecordBatchFileReader<T extends { [key: string]: DataType } = 
             const buffer = await file.readAt(offset - length, length);
             const footer = this._footer = Footer.decode(buffer);
             for (const block of footer.dictionaryBatches()) {
-                block && (await this.readDictionaryBatch(this._numDictionaries));
+                block && (await this.readDictionaryBatch(this._dictionaryIndex));
             }
         }
         return this._footer;
