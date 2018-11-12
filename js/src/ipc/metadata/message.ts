@@ -96,7 +96,7 @@ export class DictionaryBatch {
     static decode(batch: _DictionaryBatch, version = MetadataVersion.V4) {
         return new DictionaryBatch(RecordBatch.decode(batch.data()!, version), batch.id(), batch.isDelta());
     }
-    
+
     public readonly id: number;
     public readonly isDelta: boolean;
     public readonly data: RecordBatch;
@@ -130,7 +130,7 @@ export class FieldNode {
     static decode(f: _FieldNode) {
         return new FieldNode(f.length(), f.nullCount());
     }
-    
+
     public length: number;
     public nullCount: number;
     constructor(length: Long | number, nullCount: Long | number) {
@@ -174,5 +174,5 @@ function v3Compat(version: MetadataVersion, decode: (buffer: _Buffer) => BufferR
             buffer.bb_pos += (8 * (i + 1));
         }
         return decode(buffer);
-    }
+    };
 }

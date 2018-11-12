@@ -126,9 +126,9 @@ export class Data<T extends DataType = DataType> {
         return valueOffsets.subarray(offset, offset + length + 1);
     }
 
-    // 
+    //
     // Convenience methods for creating Data instances for each of the Arrow Vector types
-    // 
+    //
 
     public static Null<T extends Null>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer) {
         return new Data(type, offset, length, nullCount, {

@@ -37,7 +37,7 @@ declare module '../../schema' {
     namespace Field { export { decodeField as decode }; }
     namespace Schema { export { decodeSchema as decode }; }
 }
-  
+
 function decodeSchema(_schema: _Schema, dictionaryTypes: Map<number, DataType>) {
     const fields = decodeSchemaFields(_schema, dictionaryTypes);
     return new Schema(fields, decodeCustomMetadata(_schema), dictionaryTypes);

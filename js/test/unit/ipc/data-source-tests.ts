@@ -19,7 +19,7 @@ import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
 
-import { 
+import {
     ArrowDataSource,
     RecordBatchFileReader, AsyncRecordBatchFileReader,
     RecordBatchStreamReader, AsyncRecordBatchStreamReader,

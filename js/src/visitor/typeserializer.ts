@@ -47,7 +47,7 @@ export interface TypeSerializer extends Visitor {
 }
 
 export class TypeSerializer extends Visitor {
-    public visit<T extends type.DataType>(node:T, builder: Builder): number | undefined {
+    public visit<T extends type.DataType>(node: T, builder: Builder): number | undefined {
         return (node == null || builder == null) ? undefined : super.visit(node, builder);
     }
     public visitNull<T extends type.Null>(_node: T, b: Builder) {
@@ -63,7 +63,7 @@ export class TypeSerializer extends Visitor {
     public visitFloat<T extends type.Float>(node: T, b: Builder) {
         FloatingPoint.startFloatingPoint(b);
         FloatingPoint.addPrecision(b, node.precision);
-        return FloatingPoint.endFloatingPoint(b)
+        return FloatingPoint.endFloatingPoint(b);
     }
     public visitBinary<T extends type.Binary>(_node: T, b: Builder) {
         Binary.startBinary(b);

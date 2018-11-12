@@ -39,7 +39,7 @@ export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = Cl
     // slice(-1, 5) or slice(5, -1)
     let { length = 0, stride = 1 } = source;
     let tmp, len = length, max = length * stride;
-    let lhs = (typeof begin !== 'number' ? 0: begin) * stride;
+    let lhs = (typeof begin !== 'number' ? 0 : begin) * stride;
     let rhs = (typeof end !== 'number' ? length : end) * stride;
 
     (rhs < 0) && (rhs = (len - (rhs * -1)) % length);
@@ -47,4 +47,4 @@ export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = Cl
     (rhs < lhs) && (tmp = lhs, lhs = rhs, rhs = tmp);
     len = Math.min(max, !isFinite(len = (rhs - lhs)) || len < 0 ? 0 : len);
     return then ? then(source, lhs, len) : [lhs, len];
-};
+}

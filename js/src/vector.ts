@@ -131,7 +131,7 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
     // short-circuiting the usual Visitor traversal and reducing intermediate lookups and calls.
     // This comment is here to remind you to not set breakpoints in these fn bodies, or to inform
     // you why the breakpoints you have already set are not being triggered. Have a great day!
-    // 
+    //
     public get(index: number): T['TValue'] | null {
         return getVisitor.visit(this, index);
     }

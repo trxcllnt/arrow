@@ -91,13 +91,13 @@ abstract class AbstractRecordBatchReader<TSource extends MessageReader | AsyncMe
     public   isFile(): this is RecordBatchFileReader   { return this instanceof RecordBatchFileReader;   }
     public  isAsync(): this is AsyncRecordBatchReader  { return this instanceof AsyncRecordBatchReader;  }
     public isStream(): this is RecordBatchStreamReader { return this instanceof RecordBatchStreamReader; }
-    
+
     public abstract next(value?: any): IteratorResult<RecordBatch> | Promise<IteratorResult<RecordBatch>>;
 
     public abstract open(): this | Promise<this>;
     public abstract readSchema(): Schema | null | Promise<Schema | null>;
     public abstract readMessage<T extends MessageHeader>(type?: T | null): Message | null | Promise<Message | null>;
-    
+
     protected _reset(schema?: Schema | null) {
         this._schema = <any> schema;
         this._dictionaryIndex = 0;

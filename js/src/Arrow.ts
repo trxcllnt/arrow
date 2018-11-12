@@ -119,7 +119,7 @@ export namespace vector {
     export import Uint64Vector = vector_.Uint64Vector;
     export import FloatVector = vector_.FloatVector;
     export import Float16Vector = vector_.Float16Vector;
-    
+
     export import Float32Vector = vector_.Float32Vector;
     export import Float64Vector = vector_.Float64Vector;
     export import DateVector = vector_.DateVector;

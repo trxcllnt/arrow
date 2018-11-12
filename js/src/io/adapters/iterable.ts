@@ -24,7 +24,7 @@ import {
 
 type TElement = ArrayBufferLike | ArrayBufferView | string;
 
-const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; }
+const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; };
 
 /**
  * @ignore
@@ -71,9 +71,11 @@ function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIt
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
-            if (done || size <= bufferLength) do {
-                ({ cmd, size } = yield byteRange());
-            } while (size < bufferLength);
+            if (done || size <= bufferLength) {
+                do {
+                    ({ cmd, size } = yield byteRange());
+                } while (size < bufferLength);
+            }
         } while (!done);
         it && (typeof it.return === 'function') && (it.return());
     } catch (e) {
@@ -113,9 +115,11 @@ async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> 
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
-            if (done || size <= bufferLength) do {
-                ({ cmd, size } = yield byteRange());
-            } while (size < bufferLength);
+            if (done || size <= bufferLength) {
+                do {
+                    ({ cmd, size } = yield byteRange());
+                } while (size < bufferLength);
+            }
         } while (!done);
         it && (typeof it.return === 'function') && (await it.return());
     } catch (e) {

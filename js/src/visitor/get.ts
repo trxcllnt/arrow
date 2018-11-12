@@ -29,7 +29,7 @@ import {
     Interval, IntervalDayTime, IntervalYearMonth,
     Time, TimeSecond, TimeMillisecond, TimeMicrosecond, TimeNanosecond,
     Timestamp, TimestampSecond, TimestampMillisecond, TimestampMicrosecond, TimestampNanosecond,
-    Union, DenseUnion, SparseUnion, 
+    Union, DenseUnion, SparseUnion,
 } from '../type';
 
 export const decodeUtf8 = ((decoder) =>
@@ -111,7 +111,7 @@ const getBool = <T extends Bool>({ offset, values }: Vector<T>, index: number): 
     const idx = offset + index;
     const byte = values[idx >> 3];
     return (byte & 1 << (idx % 8)) !== 0;
-}
+};
 
 type Numeric1X = Int8 | Int16 | Int32 | Uint8 | Uint16 | Uint32 | Float32 | Float64;
 type Numeric2X = Int64 | Uint64;
@@ -155,7 +155,7 @@ const getTimestamp            = <T extends Timestamp>(vector: Vector<T>, index: 
         case TimeUnit.MICROSECOND: return getTimestampMicrosecond(vector as Vector<TimestampMicrosecond>, index);
         case TimeUnit.NANOSECOND:  return  getTimestampNanosecond(vector as Vector<TimestampNanosecond>, index);
     }
-}
+};
 
 const getTimeSecond      = <T extends TimeSecond>     ({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
 const getTimeMillisecond = <T extends TimeMillisecond>({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
@@ -168,21 +168,21 @@ const getTime            = <T extends Time>(vector: Vector<T>, index: number): T
         case TimeUnit.MICROSECOND: return getTimeMicrosecond(vector as Vector<TimeMicrosecond>, index);
         case TimeUnit.NANOSECOND:  return  getTimeNanosecond(vector as Vector<TimeNanosecond>, index);
     }
-}
+};
 
 const getDecimal = <T extends Decimal>({ values }: Vector<T>, index: number): T['TValue'] => values.subarray(4 * index, 4 * (index + 1));
 
 const getList = <T extends List>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { valueOffsets, stride } = vector;
     return child.slice(valueOffsets[index * stride], valueOffsets[(index * stride) + 1]) as T['TValue'];
-}
+};
 
 const getNested = <
     S extends { [key: string]: DataType },
     V extends Vector<Map_<S>> | Vector<Struct<S>>
 >(vector: V, index: number): V['TValue'] => {
     return vector.rowProxy.bind(vector, index);
-}
+};
 
 const getUnion = <
     V extends Vector<Union> | Vector<DenseUnion> | Vector<SparseUnion>
@@ -190,25 +190,25 @@ const getUnion = <
     return vector.type.mode === UnionMode.Dense ?
         getDenseUnion(vector as Vector<DenseUnion>, index) :
         getSparseUnion(vector as Vector<SparseUnion>, index);
-}
+};
 
 const getDenseUnion = <T extends DenseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
     const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
     return child ? child.get(vector.valueOffsets[index]) : null;
-}
+};
 
 const getSparseUnion = <T extends SparseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
     const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
     return child ? child.get(index) : null;
-}
+};
 
 const getDictionary = <T extends Dictionary>(vector: Vector<T>, index: number): T['TValue'] => {
     const key = vector.indices.get(index) as number;
     const val = vector.type.dictionary.get(key);
     return val;
-}
+};
 
 const getInterval = <T extends Interval>(vector: Vector<T>, index: number): T['TValue'] =>
     (vector.type.unit === IntervalUnit.DAY_TIME)
@@ -223,9 +223,9 @@ const getIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>
     int32s[0] = interval / 12 | 0; /* years */
     int32s[1] = interval % 12 | 0; /* months */
     return int32s;
-}
+};
 
 const getFixedSizeList = <T extends FixedSizeList>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { stride } = vector;
     return child.slice(index * stride, (index + 1) * stride) as T['TValue'];
-}
+};

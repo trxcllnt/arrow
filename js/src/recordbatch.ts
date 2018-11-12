@@ -43,7 +43,7 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> implements
     public readonly numCols: number;
     public readonly data: Data<Struct<T>>;
     protected _children: Vector[] | void;
-    
+
     constructor(schema: Schema, data: Data<Struct<T>>, children?: Vector[]) {
         this.data = data;
         this.schema = schema;

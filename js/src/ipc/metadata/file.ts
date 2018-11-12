@@ -67,13 +67,13 @@ export class Footer {
     public getRecordBatch(index: number) {
         return index >= 0
             && index < this.numRecordBatches
-            && this._recordBatches[index] || null; 
+            && this._recordBatches[index] || null;
     }
 
     public getDictionaryBatch(index: number) {
         return index >= 0
             && index < this.numDictionaries
-            && this._dictionaryBatches[index] || null; 
+            && this._dictionaryBatches[index] || null;
     }
 }
 
@@ -91,7 +91,7 @@ class OffHeapFooter extends Footer {
             const fileBlock = this._footer.recordBatches(index);
             if (fileBlock) { return FileBlock.decode(fileBlock); }
         }
-        return null; 
+        return null;
     }
 
     public getDictionaryBatch(index: number) {
@@ -99,7 +99,7 @@ class OffHeapFooter extends Footer {
             const fileBlock = this._footer.dictionaries(index);
             if (fileBlock) { return FileBlock.decode(fileBlock); }
         }
-        return null; 
+        return null;
     }
 }
 
@@ -108,7 +108,7 @@ export class FileBlock {
     static decode(block: _Block) {
         return new FileBlock(block.metaDataLength(), block.bodyLength(), block.offset());
     }
-    
+
     public offset: number;
     public bodyLength: number;
     public metaDataLength: number;

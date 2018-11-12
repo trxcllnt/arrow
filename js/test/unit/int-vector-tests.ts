@@ -16,7 +16,7 @@
 // under the License.
 
 import { Data } from '../../src/data';
-import { IntVector } from "../../src/vector";
+import { IntVector } from '../../src/vector';
 
 import { Int8,       Int16,       Int32,       Int64 } from '../../src/type';
 import { Int8Vector, Int16Vector, Int32Vector, Int64Vector } from '../../src/vector';
@@ -35,7 +35,7 @@ describe('Int8Vector', () => {
         for (let i = 0; i < length; i++) {
             expect(intVector.get(i)).toEqual(i);
         }
-    })
+    });
 
     test('can create an Int16Vector from Data instance', () => {
         const intType = new Int16();
@@ -45,5 +45,5 @@ describe('Int8Vector', () => {
             expect(intVector.get(i)).toEqual(i);
         }
 
-    })
-})
+    });
+});

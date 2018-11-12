@@ -22,7 +22,7 @@ import { nodeToDOMStream } from './util';
 
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
-import { 
+import {
     ArrowDataSource,
     RecordBatchFileReader, AsyncRecordBatchFileReader,
 }  from '../../../src/ipc/reader';

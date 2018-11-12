@@ -50,5 +50,5 @@ export function nodeToDOMStream(stream: NodeJS.ReadableStream, opts: any = {}) {
                 return (stream as any).destroy(reason);
             }
         }
-    })
+    });
 }
