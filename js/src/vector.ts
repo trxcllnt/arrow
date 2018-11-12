@@ -66,7 +66,12 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
     }
 
     // @ts-ignore
-    protected bindDataAccessors(data: Data<T>) {}
+    protected bindDataAccessors(data: Data<T>) {
+        if (this.nullCount > 0) {
+            this.get = wrapNullable1(this.get);
+            this.indexOf = wrapNullable2(this.indexOf);
+        }
+    }
 
     public get type() { return this.data.type; }
     public get length() { return this.data.length; }
@@ -284,6 +289,14 @@ function partial1<T extends DataType, V extends Vector<T>>(visit: (node: V, a: a
 
 function partial2<T extends DataType, V extends Vector<T>>(visit: (node: V, a: any, b: any) => any) {
     return function(this: V, a: any, b: any) { return visit(this, a, b); };
+}
+
+function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: number) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
+    return function(this: V, i: number) { return this.isValid(i) ? fn.call(this, i) : null; };
+}
+
+function wrapNullable2<T extends DataType, V extends Vector<T>, F extends (i: number, a: any) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
+    return function(this: V, i: number, a: any) { return this.isValid(i) ? fn.call(this, i, a) : null; };
 }
 
 const columnDescriptor = { writable: false, enumerable: true, configurable: false, get: () => {} };
