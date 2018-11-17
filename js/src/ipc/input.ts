@@ -24,7 +24,7 @@ import { ByteStream, AsyncByteStream } from '../io/stream';
 import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
 import { RandomAccessFile, AsyncRandomAccessFile } from '../io/file';
 
-import { isFileHandle } from '../util/compat';
+import { isArrowJSON, isFileHandle } from '../util/compat';
 import { isPromise, isAsyncIterable } from '../util/compat';
 import { isReadableNodeStream, isReadableDOMStream } from '../util/compat';
 
@@ -35,7 +35,8 @@ import { checkForMagicArrowString, magicLength, magicX2AndPadding } from './magi
 
 type FileHandle = import('fs').promises.FileHandle;
 
-export type ArrowIPCInput = FileHandle                         |
+export type ArrowIPCInput = object                             |
+                            FileHandle                         |
                             ArrayBufferView                    |
                             NodeJS.ReadableStream              |
                             PromiseLike<FileHandle>            |
@@ -45,7 +46,9 @@ export type ArrowIPCInput = FileHandle                         |
                             ReadableDOMStream<ArrayBufferView> ;
 
 export function resolveInputFormat(source: ArrowIPCInput): InputResolver | AsyncInputResolver {
+    if (                         isArrowJSON(source)) { return new JSONResolver(source)                                                         as      InputResolver; }
     if (                        isFileHandle(source)) { return new FileHandleResolver(source)                                                   as AsyncInputResolver; }
+    if (                   isPromise<object>(source)) { return new PromiseResolver(source)                                                      as AsyncInputResolver; }
     if (               isPromise<FileHandle>(source)) { return new PromiseResolver(source)                                                      as AsyncInputResolver; }
     if (          isPromise<ArrayBufferView>(source)) { return new PromiseResolver(source)                                                      as AsyncInputResolver; }
     if (isReadableDOMStream<ArrayBufferView>(source)) { return new AsyncByteStreamResolver(new AsyncByteStream( fromReadableDOMStream(source))) as AsyncInputResolver; }
@@ -67,7 +70,8 @@ export interface AsyncInputResolver {
 }
 
 export interface ArrowInput {
-     isFile(): this is ArrowFile;
+      isFile(): this is ArrowFile;
+      isJSON(): this is ArrowJSON;
     isStream(): this is ArrowStream;
 }
 
@@ -77,21 +81,30 @@ export interface AsyncArrowInput {
 }
 
 export class ArrowFile extends RandomAccessFile<ByteBuffer> implements ArrowInput, OptionallyAsync<ArrowFile> {
-      isFile(): this is ArrowFile { return true; }
+    isJSON(): this is ArrowJSON { return false; }
+    isFile(): this is ArrowFile { return true; }
+  isStream(): this is ArrowStream { return false; }
+    isSync(): this is ArrowFile { return true; }
+   isAsync(): this is AsyncArrowFile { return false; }
+  constructor(source: ArrayBufferViewInput) {
+      super(toUint8Array(source));
+  }
+  next(size?: number) {
+      const r = super.next(size) as IteratorResult<any>;
+      !r.done && (r.value = new ByteBuffer(toUint8Array(r.value)));
+      return r as IteratorResult<ByteBuffer>;
+  }
+}
+
+export class ArrowJSON implements ArrowInput {
+      isJSON(): this is ArrowJSON { return true; }
+      isFile(): this is ArrowFile { return false; }
     isStream(): this is ArrowStream { return false; }
-      isSync(): this is ArrowFile { return true; }
-     isAsync(): this is AsyncArrowFile { return false; }
-    constructor(source: ArrayBufferViewInput) {
-        super(toUint8Array(source));
-    }
-    next(size?: number) {
-        const r = super.next(size) as IteratorResult<any>;
-        !r.done && (r.value = new ByteBuffer(toUint8Array(r.value)));
-        return r as IteratorResult<ByteBuffer>;
-    }
+    constructor(public json: object) {}
 }
 
 export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements AsyncArrowInput, OptionallyAsync<ArrowFile> {
+      isJSON(): this is ArrowJSON { return false; }
       isFile(): this is AsyncArrowFile { return true; }
     isStream(): this is AsyncArrowStream { return false; }
       isSync(): this is ArrowFile { return false; }
@@ -104,6 +117,7 @@ export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements
 }
 
 export class ArrowStream extends ByteStream<ByteBuffer> implements ArrowInput, OptionallyAsync<ArrowStream> {
+      isJSON(): this is ArrowJSON { return false; }
       isFile(): this is ArrowFile { return false; }
     isStream(): this is ArrowStream { return true; }
       isSync(): this is ArrowStream { return true; }
@@ -116,6 +130,7 @@ export class ArrowStream extends ByteStream<ByteBuffer> implements ArrowInput, O
 }
 
 export class AsyncArrowStream extends AsyncByteStream<ByteBuffer> implements AsyncArrowInput, OptionallyAsync<ArrowStream> {
+       isJSON(): this is ArrowJSON { return false; }
        isFile(): this is AsyncArrowFile { return false; }
      isStream(): this is AsyncArrowStream { return true; }
        isSync(): this is ArrowStream { return false; }
@@ -125,6 +140,13 @@ export class AsyncArrowStream extends AsyncByteStream<ByteBuffer> implements Asy
         !r.done && (r.value = new ByteBuffer(toUint8Array(r.value)));
         return r as IteratorResult<ByteBuffer>;
     }
+}
+
+class JSONResolver implements InputResolver {
+     isSync(): this is InputResolver { return true; }
+    isAsync(): this is AsyncInputResolver { return false; }
+    constructor(private source: object) {}
+    resolve() { return new ArrowJSON(this.source); }
 }
 
 class ByteStreamResolver implements InputResolver {
