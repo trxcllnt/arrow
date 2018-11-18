@@ -25,24 +25,27 @@ import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
 import * as metadata from './metadata/message';
 import { ITERATOR_DONE } from '../io/interfaces';
-import { VectorLoader } from '../visitor/vectorloader';
 import { OptionallyAsync, Asyncified } from '../interfaces';
-import { MessageReader, AsyncMessageReader } from './message';
+import { VectorLoader, JSONVectorLoader } from '../visitor/vectorloader';
+import { MessageReader, AsyncMessageReader, JSONMessageReader } from './message';
 
 import {
     ArrowFile, AsyncArrowFile,
     ArrowInput, AsyncArrowInput,
     ArrowStream, AsyncArrowStream,
     ArrowIPCInput, resolveInputFormat,
-    InputResolver, AsyncInputResolver,
+    InputResolver, AsyncInputResolver, ArrowJSON,
 } from './input';
 
-type RecordBatchReaders = RecordBatchFileReader   | AsyncRecordBatchFileReader   |
+type RecordBatchReaders = RecordBatchJSONReader   |
+                          RecordBatchFileReader   | AsyncRecordBatchFileReader   |
                           RecordBatchStreamReader | AsyncRecordBatchStreamReader ;
 
+const JSONReaderImpl = (input: ArrowJSON) => new RecordBatchJSONReader(input);
 const FileReaderImpl = (input: ArrowFile | AsyncArrowFile) => input.isSync() ? new RecordBatchFileReader(input) : new AsyncRecordBatchFileReader(input);
 const StreamReaderImpl = (input: ArrowStream | AsyncArrowStream) => input.isSync() ? new RecordBatchStreamReader(input) : new AsyncRecordBatchStreamReader(input);
 const RecordBatchReaderImpl = (input: AsyncArrowInput | ArrowInput | null): RecordBatchReaders | Promise<RecordBatchReaders> => {
+    if (input && input.isJSON()) { return JSONReaderImpl(input).open(); }
     if (input && input.isFile()) { return FileReaderImpl(input).open(); }
     if (input && input.isStream()) { return StreamReaderImpl(input).open(); }
     return new RecordBatchStreamReader(new ArrowStream(function*(): any {}()));
@@ -216,6 +219,15 @@ export abstract class AsyncRecordBatchReader<T extends { [key: string]: DataType
     }
     protected async _vectorLoader(bodyLength: number, metadata: metadata.RecordBatch | metadata.DictionaryBatch) {
         return new VectorLoader(await this.source.readMessageBody(bodyLength), metadata.nodes, metadata.buffers);
+    }
+}
+
+export class RecordBatchJSONReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
+    // @ts-ignore
+    protected source: JSONMessageReader;
+    constructor(json: ArrowJSON) { super(new JSONMessageReader(json)); }
+    protected _vectorLoader(bodyLength: number, metadata: metadata.RecordBatch | metadata.DictionaryBatch) {
+        return new JSONVectorLoader(this.source.readMessageBody(bodyLength), metadata.nodes, metadata.buffers);
     }
 }
 

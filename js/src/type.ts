@@ -406,6 +406,7 @@ export class Dictionary<T extends DataType = any, TKey extends Int = Int32> exte
         this.isOrdered = isOrdered || false;
         this.id = id == null ? getId() : typeof id === 'number' ? id : id.low;
     }
+    public set children(_: T['children']) {}
     public get children() { return this.dictionary.children; }
     public get valueType(): T { return this.dictionary as T; }
     public get ArrayType(): T['ArrayType'] { return this.dictionary.ArrayType; }

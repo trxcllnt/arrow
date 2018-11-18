@@ -18,9 +18,9 @@
 import { Schema } from './schema';
 import { Vector } from './vector';
 import { Column } from './column';
-import { VectorLike } from './interfaces';
+import { VectorLike, Asyncified } from './interfaces';
 import { RecordBatch } from './recordbatch';
-import { ArrowIPCInput } from './ipc/input';
+import { ArrowIPCInput, ArrowIPCSyncInput, ArrowIPCAsyncInput } from './ipc/input';
 import { DataType, Row, Struct } from './type';
 import { ArrowDataSource, RecordBatchReader, AsyncRecordBatchReader } from './ipc/reader';
 // import { Col, Predicate } from './predicate';
@@ -42,27 +42,27 @@ export interface DataFrame<T extends { [key: string]: DataType; } = any> {
 }
 
 export class Table<T extends { [key: string]: DataType; } = any> implements DataFrame<T> {
-    static empty() { return new Table<{}>(new Schema([]), []); }
-    static from<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCInput): Table<R> | Promise<Table<R>> {
-        const source = new ArrowDataSource(sources);
+    static empty<R extends { [key: string]: DataType; } = any>() { return new Table<R>(new Schema([]), []); }
+    static from<R extends { [key: string]: DataType; } = any>(sources?: ArrowIPCSyncInput): Table<R>;
+    static from<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCAsyncInput): Promise<Table<R>>;
+    static from<R extends { [key: string]: DataType; } = any>(sources?: ArrowIPCInput): Table<R> | Promise<Table<R>> {
+        if (sources == null) return Table.empty<R>();
+        const source = new ArrowDataSource(sources) as ArrowDataSource | Asyncified<ArrowDataSource>;
         if (source.isSync()) {
             const reader = source.open() as RecordBatchReader<R>;
-            return new Table<R>(reader.readSchema(), [...reader]);
+            return new Table<R>(reader.schema, [...reader]);
         }
-        return Table.fromAsync<R>(sources);
-    }
-    static async fromAsync<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCInput): Promise<Table<R>> {
-        const source = new ArrowDataSource(sources);
-        if (source.isAsync()) {
+        return (async () => {
             const reader = await source.open() as AsyncRecordBatchReader<R>;
-            const schema = await reader.readSchema();
             const recordBatches: RecordBatch[] = [];
             for await (let recordBatch of reader) {
                 recordBatches.push(recordBatch);
             }
-            return new Table<R>(schema, recordBatches);
-        }
-        return await Table.from<R>(sources);
+            return new Table<R>(reader.schema, recordBatches);
+        })();
+    }
+    static async fromAsync<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCInput): Promise<Table<R>> {
+        return await Table.from<R>(sources as any);
     }
     // static fromStruct<R extends { [key: string]: DataType; } = any>(struct: StructVector<R>) {
     //     const schema = new Schema(struct.type.children);

@@ -48,7 +48,7 @@ async function* asyncIterableSource(buffer: Uint8Array) {
 
 describe('RecordBatchStreamReader', () => {
 
-    it('should read all messages from an Buffer of Arrow data in memory', () => {
+    it('should read all messages from a Buffer of Arrow data in memory', () => {
         testSimpleRecordBatchStreamReader(new ArrowDataSource(simpleStreamData));
     });
 
@@ -89,7 +89,7 @@ describe('RecordBatchStreamReader', () => {
     }
 });
 
-describe('AsyncMessageReader', () => {
+describe('AsyncRecordBatchStreamReader', () => {
 
     it('should read all messages from a NodeJS ReadableStream', async () => {
         await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(fs.createReadStream(simpleStreamPath)));

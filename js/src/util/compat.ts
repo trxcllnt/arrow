@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { ArrowJSONInput } from '../ipc/input';
+
 type ReadableNodeStream = NodeJS.ReadableStream;
 type ReadStream = import('fs').ReadStream;
 type FileHandle = import('fs').promises.FileHandle;
@@ -43,7 +45,7 @@ const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.
 /** @ignore */ export const isObservable         = <T = any>(x: any): x is Observable<T>        => hasFuncs(x, 'subscribe');
 /** @ignore */ export const isIterable           = <T = any>(x: any): x is Iterable<T>          => hasFuncs(x, Symbol.iterator);
 /** @ignore */ export const isAsyncIterable      = <T = any>(x: any): x is AsyncIterable<T>     => hasFuncs(x, Symbol.asyncIterator);
-/** @ignore */ export const isArrowJSON          =          (x: any): x is object               => hasProps(x, ['schema', 'object']);
+/** @ignore */ export const isArrowJSON          =          (x: any): x is ArrowJSONInput       => hasProps(x, ['schema', 'object']);
 /** @ignore */ export const isArrayLike          = <T = any>(x: any): x is ArrayLike<T>         => hasProps(x, ['length', 'number']);
 /** @ignore */ export const isIteratorResult     = <T = any>(x: any): x is IteratorResult<T>    => hasProps(x, ['done'], ['value']);
 /** @ignore */ export const isReadableDOMStream  = <T = any>(x: any): x is ReadableDOMStream<T> => hasFuncs(x, 'getReader', 'pipeTo', 'cancel', 'tee');

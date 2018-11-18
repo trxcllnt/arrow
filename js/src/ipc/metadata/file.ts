@@ -23,7 +23,6 @@ import ByteBuffer = flatbuffers.ByteBuffer;
 import _Block = File_.org.apache.arrow.flatbuf.Block;
 import _Footer = File_.org.apache.arrow.flatbuf.Footer;
 
-import './schema';
 import { Schema } from '../../schema';
 import { MetadataVersion } from '../../enum';
 import { toUint8Array } from '../../util/buffer';

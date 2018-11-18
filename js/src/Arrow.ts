@@ -29,11 +29,13 @@ import { Type } from './enum';
 import { Vector } from './vector';
 import { Schema, Field } from './schema';
 import { RecordBatch } from './recordbatch';
+import { Table, DataFrame } from './table';
 // import { Table, DataFrame, NextFunc, BindFunc, CountByResult } from './table';
 
 export import IntBitWidth = type_.IntBitWidth;
 export import TimeBitWidth = type_.TimeBitWidth;
 
+export { Table, DataFrame };
 // export { Table, DataFrame, NextFunc, BindFunc, CountByResult };
 export { Field, Schema, RecordBatch, Vector, Type, Data };
 

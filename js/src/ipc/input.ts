@@ -34,16 +34,16 @@ import { fromIterable, fromAsyncIterable } from '../io/adapters/iterable';
 import { checkForMagicArrowString, magicLength, magicX2AndPadding } from './magic';
 
 type FileHandle = import('fs').promises.FileHandle;
+export type ArrowJSONInput = { schema: any; batches?: any[]; dictionaries?: any[]; };
+export type ArrowIPCSyncInput = ArrowJSONInput | ArrayBufferView | Iterable<ArrayBufferView>;
+export type ArrowIPCAsyncInput = FileHandle                         |
+                                 NodeJS.ReadableStream              |
+                                 PromiseLike<FileHandle>            |
+                                 PromiseLike<ArrayBufferView>       |
+                                 AsyncIterable<ArrayBufferView>     |
+                                 ReadableDOMStream<ArrayBufferView> ;
 
-export type ArrowIPCInput = object                             |
-                            FileHandle                         |
-                            ArrayBufferView                    |
-                            NodeJS.ReadableStream              |
-                            PromiseLike<FileHandle>            |
-                            Iterable<ArrayBufferView>          |
-                            PromiseLike<ArrayBufferView>       |
-                            AsyncIterable<ArrayBufferView>     |
-                            ReadableDOMStream<ArrayBufferView> ;
+export type ArrowIPCInput = ArrowIPCSyncInput | ArrowIPCAsyncInput;
 
 export function resolveInputFormat(source: ArrowIPCInput): InputResolver | AsyncInputResolver {
     if (                         isArrowJSON(source)) { return new JSONResolver(source)                                                         as      InputResolver; }
@@ -76,6 +76,7 @@ export interface ArrowInput {
 }
 
 export interface AsyncArrowInput {
+      isJSON(): this is ArrowJSON;
       isFile(): this is AsyncArrowFile;
     isStream(): this is AsyncArrowStream;
 }
@@ -100,7 +101,10 @@ export class ArrowJSON implements ArrowInput {
       isJSON(): this is ArrowJSON { return true; }
       isFile(): this is ArrowFile { return false; }
     isStream(): this is ArrowStream { return false; }
-    constructor(public json: object) {}
+    constructor(private _json: ArrowJSONInput) {}
+    public get schema(): any { return this._json['schema']; }
+    public get batches(): any[] { return (this._json['batches'] || []) as any[]; }
+    public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
 }
 
 export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements AsyncArrowInput, OptionallyAsync<ArrowFile> {
@@ -145,7 +149,7 @@ export class AsyncArrowStream extends AsyncByteStream<ByteBuffer> implements Asy
 class JSONResolver implements InputResolver {
      isSync(): this is InputResolver { return true; }
     isAsync(): this is AsyncInputResolver { return false; }
-    constructor(private source: object) {}
+    constructor(private source: ArrowJSONInput) {}
     resolve() { return new ArrowJSON(this.source); }
 }
 
