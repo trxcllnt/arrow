@@ -15,13 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Schema } from './schema';
 import { Vector } from './vector';
-import { Column } from './column';
-import { VectorLike, Asyncified } from './interfaces';
+import { Schema, Field } from './schema';
 import { RecordBatch } from './recordbatch';
-import { ArrowIPCInput, ArrowIPCSyncInput, ArrowIPCAsyncInput } from './ipc/input';
 import { DataType, Row, Struct } from './type';
+import { ChunkedVector, Column } from './column';
+import { Asyncified, Vector as TVector } from './interfaces';
+import { ArrowIPCInput, ArrowIPCSyncInput, ArrowIPCAsyncInput } from './ipc/input';
 import { ArrowDataSource, RecordBatchReader, AsyncRecordBatchReader } from './ipc/reader';
 // import { Col, Predicate } from './predicate';
 // import { read, readAsync } from './ipc/reader/arrow';
@@ -64,13 +64,11 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     static async fromAsync<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCInput): Promise<Table<R>> {
         return await Table.from<R>(sources as any);
     }
-    // static fromStruct<R extends { [key: string]: DataType; } = any>(struct: StructVector<R>) {
-    //     const schema = new Schema(struct.type.children);
-    //     const chunks = struct.view instanceof ChunkedView ?
-    //                         (struct.view.chunkVectors as StructVector<R>[]) :
-    //                         [struct];
-    //     return new Table<R>(chunks.map((chunk) => new RecordBatch(schema, chunk.length, chunk.view.childData)));
-    // }
+    static fromStruct<R extends { [key: string]: DataType; } = any>(struct: Vector<Struct<R>>) {
+        const schema = new Schema(struct.type.children);
+        const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as TVector<Struct<R>>[];
+        return new Table<R>(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
+    }
 
     public readonly schema: Schema;
     public readonly length: number;
@@ -84,7 +82,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     // If the Table has multiple inner RecordBatches, then this is a Chunked view
     // over the list of RecordBatches. This allows us to delegate the responsibility
     // of indexing, iterating, slicing, and visiting to the Nested/Chunked Data/Views.
-    public readonly batchesUnion: VectorLike<Struct<T>>;
+    public readonly batchesUnion: Vector<Struct<T>>;
 
     constructor(batches: RecordBatch<T>[]);
     constructor(...batches: RecordBatch<T>[]);
@@ -109,9 +107,9 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         this.schema = schema;
         this.batches = batches;
         this.batchesUnion = batches.length == 0
-            ? RecordBatch.new<T>(schema, 0, [])
+            ? new RecordBatch<T>(schema, 0, [])
             : batches.length === 1 ? batches[0]
-            : batches.slice(1).reduce<VectorLike<Struct<T>>>((union, batch) => union.concat(batch), batches[0]);
+            : ChunkedVector.concat<Struct<T>>(...batches) as Vector<Struct<T>>;
 
         this.length = this.batchesUnion.length;
         this.numCols = this.schema.fields.length;
@@ -120,17 +118,19 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public get(index: number): Struct<T>['TValue'] {
         return this.batchesUnion.get(index)!;
     }
-    public getColumn<R extends keyof T>(name: R): VectorLike<T[R]> | null {
+    public getColumn<R extends keyof T>(name: R): Vector<T[R]> | null {
         return this.getColumnAt<T[R]>(this.getColumnIndex(name));
     }
-    public getColumnAt<T extends DataType = any>(index: number): VectorLike<T> | null {
+    public getColumnAt<T extends DataType = any>(index: number): Vector<T> | null {
         if (index < 0 || index >= this.numCols) {
             return null;
         }
         if (this.batches.length === 1) {
-            return this.batches[0].getChildAt<T>(index) as VectorLike<T> | null;
+            return this.batches[0].getChildAt<T>(index) as Vector<T> | null;
         }
-        return Column.concat<T>(...this.batches.map((b) => b.getChildAt<T>(index)! as VectorLike<T>));
+        return new Column<T>(
+            this.schema.fields[index] as Field<T>,
+            this.batches.map((b) => b.getChildAt<T>(index)! as Vector<T>));
     }
     public getColumnIndex<R extends keyof T>(name: R) {
         return this.schema.fields.findIndex((f) => f.name === name);

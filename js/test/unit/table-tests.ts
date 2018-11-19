@@ -18,6 +18,7 @@
 import '../jest-extensions';
 
 import { Table } from '../../src/Arrow';
+import { Struct, Float32, Int32, Dictionary, Utf8, Int8 } from '../../src/type';
 
 // const { predicate, Table } = Arrow;
 
@@ -52,19 +53,19 @@ const test_data = [
             [Math.fround(0.2), 1, 'b'],
             [Math.fround(0.1), -1, 'c'],
         ]
-    // }, {
-    //     name: `struct`,
-    //     table: () => Table.fromStruct(getStructTable().getColumn('struct') as vector.StructVector),
-    //     // Use Math.fround to coerce to float32
-    //     values: () => [
-    //         [Math.fround(-0.3), -1, 'a'],
-    //         [Math.fround(-0.2), 1, 'b'],
-    //         [Math.fround(-0.1), -1, 'c'],
-    //         [Math.fround(0), 1, 'a'],
-    //         [Math.fround(0.1), -1, 'b'],
-    //         [Math.fround(0.2), 1, 'c'],
-    //         [Math.fround(0.3), -1, 'a']
-    //     ]
+    }, {
+        name: `struct`,
+        table: () => Table.fromStruct(getStructTable().getColumn('struct')!),
+        // Use Math.fround to coerce to float32
+        values: () => [
+            [Math.fround(-0.3), -1, 'a'],
+            [Math.fround(-0.2), 1, 'b'],
+            [Math.fround(-0.1), -1, 'c'],
+            [Math.fround(0), 1, 'a'],
+            [Math.fround(0.1), -1, 'b'],
+            [Math.fround(0.2), 1, 'c'],
+            [Math.fround(0.3), -1, 'a']
+        ]
     },
 ];
 
@@ -336,8 +337,10 @@ function leftPad(str: string, fill: string, n: number) {
     return (new Array(n + 1).join(fill) + str).slice(-1 * n);
 }
 
+type TestDataSchema = { f32: Float32; i32: Int32; dictionary: Dictionary<Utf8, Int8>; };
+
 export function getSingleRecordBatchTable() {
-    return Table.from({
+    return Table.from<TestDataSchema>({
         'schema': {
             'fields': [
                 {
@@ -429,7 +432,7 @@ export function getSingleRecordBatchTable() {
 }
 
 function getMultipleRecordBatchesTable() {
-    return Table.from({
+    return Table.from<TestDataSchema>({
         'schema': {
             'fields': [
                 {
@@ -565,7 +568,7 @@ function getMultipleRecordBatchesTable() {
 }
 
 function getStructTable() {
-    return Table.from({
+    return Table.from<{ struct: Struct<TestDataSchema> }>({
         'schema': {
             'fields': [
                 {

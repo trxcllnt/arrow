@@ -17,12 +17,9 @@
 
 import { Data } from './data';
 import { Type } from './enum';
-import { Field } from './schema';
 import { clampRange } from './util/vector';
-import { Row } from './type';
-import { Column } from './column';
-import { Vector, VectorCtorArgs, VectorLike } from './interfaces';
 import { instance as getVisitor } from './visitor/get';
+import { Vector as V, VectorCtorArgs } from './interfaces';
 import { instance as indexOfVisitor } from './visitor/indexof';
 import { instance as toArrayVisitor } from './visitor/toarray';
 import { instance as iteratorVisitor } from './visitor/iterator';
@@ -42,11 +39,46 @@ import {
     Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64, Float16, Float32, Float64,
 } from './type';
 
-class ArrowVector<T extends DataType = any> implements VectorLike<T> {
+export abstract class Vector<T extends DataType = any> {
 
-    static new <T extends DataType>(data: Data<T>, ...args: VectorCtorArgs<Vector<T>>): Vector<T> {
-        return new ArrowVector<T>(data, ...args) as Vector<T>;
+    static new <T extends DataType>(data: Data<T>, ...args: VectorCtorArgs<V<T>>): V<T> {
+        return new (getVectorConstructor.getVisitFn(data.type)())(data, ...args) as V<T>;
     }
+
+    // @ts-ignore
+    protected bindDataAccessors(data: Data<T>) {
+        if (this.nullCount > 0) {
+            this['get'] && (this['get'] = wrapNullable1(this['get']));
+            this['indexOf'] && (this['indexOf'] = wrapNullable2(this['indexOf']));
+        }
+    }
+
+    public abstract readonly type: T;
+    public abstract readonly data: Data<T>;
+    public abstract readonly length: number;
+    public abstract readonly nullCount: number;
+    public abstract readonly numChildren: number;
+
+    public abstract readonly TType: T['TType'];
+    public abstract readonly TArray: T['TArray'];
+    public abstract readonly TValue: T['TValue'];
+    public abstract readonly ArrayType: T['ArrayType'];
+
+    public abstract isValid(index: number): boolean;
+    public abstract get(index: number): T['TValue'] | null;
+    public abstract indexOf(value: T['TValue'] | null, fromIndex?: number): number;
+    
+    public abstract toArray(): T['TArray'];
+    public abstract [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
+    public abstract slice(begin?: number, end?: number): Vector<T>;
+    public abstract concat(this: Vector<T>, ...others: Vector<T>[]): Vector<T>;
+
+    public abstract getChildAt<R extends DataType = any>(index: number): Vector<R> | null;
+}
+
+import { Row, ChunkedVector } from './column';
+
+export class BaseVector<T extends DataType = any> extends Vector<T> {
 
     public readonly data: Data<T>;
     public readonly stride: number;
@@ -54,10 +86,11 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
     protected _children?: Vector[];
 
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
+        super();
         const VectorCtor = getVectorConstructor.getVisitFn(data.type)();
         // Return the correct Vector subclass based on the Arrow Type
         if (VectorCtor && !(this instanceof VectorCtor)) {
-            return Reflect.construct(ArrowVector, arguments, VectorCtor);
+            return Reflect.construct(BaseVector, arguments, VectorCtor);
         }
         this._children = children;
         this.bindDataAccessors(this.data = data);
@@ -67,10 +100,12 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
 
     // @ts-ignore
     protected bindDataAccessors(data: Data<T>) {
-        if (this.nullCount > 0) {
-            this.get = wrapNullable1(this.get);
-            this.indexOf = wrapNullable2(this.indexOf);
-        }
+        const TType = this.TType;
+        this['get'] = getVisitor.getVisitFn(TType).bind(this, this);
+        this['indexOf'] = indexOfVisitor.getVisitFn(TType).bind(this, this);
+        this['toArray'] = toArrayVisitor.getVisitFn(TType).bind(this, this);
+        this[Symbol.iterator] = iteratorVisitor.getVisitFn(TType).bind(this, this);
+        super.bindDataAccessors(data);
     }
 
     public get type() { return this.data.type; }
@@ -91,11 +126,11 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
     public get [Symbol.toStringTag]() { return `${this.VectorName}<${this.type[Symbol.toStringTag]}>`; }
 
     public clone<R extends DataType = T>(data: Data<R>, children = this._children, stride = this.stride) {
-        return ArrowVector.new<R>(data, children, stride);
+        return Vector.new<R>(data, children, stride);
     }
 
-    public concat(...others: VectorLike<T>[]): VectorLike<T> {
-        return Column.concat<T>(this, ...others);
+    public concat(...others: Vector<T>[]): Vector<T> {
+        return ChunkedVector.concat<T>(this, ...others) as Vector<T>;
     }
 
     public isValid(index: number): boolean {
@@ -111,14 +146,14 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
     public getChildAt<R extends DataType = any>(index: number): Vector<R> | null {
         return index < 0 || index >= this.numChildren ? null : (
             (this._children || (this._children = []))[index] ||
-            (this._children[index] = ArrowVector.new<R>(this.data.childData[index] as Data<R>))
+            (this._children[index] = Vector.new<R>(this.data.childData[index] as Data<R>))
         ) as Vector<R>;
     }
 
     // @ts-ignore
     public toJSON(): any {}
 
-    public slice(begin?: number, end?: number): VectorLike<T> {
+    public slice(begin?: number, end?: number): Vector<T> {
         // Adjust args similar to Array.prototype.slice. Normalize begin/end to
         // clamp between 0 and length, and wrap around on negative indices, e.g.
         // slice(-1, 5) or slice(5, -1)
@@ -149,11 +184,11 @@ class ArrowVector<T extends DataType = any> implements VectorLike<T> {
     }
 }
 
-export { ArrowVector as Vector };
+// export { VectorBase as Vector };
 
-export class NullVector                                       extends ArrowVector<Null> {}
+export class NullVector                                       extends BaseVector<Null> {}
 
-export class IntVector<T extends Int = any>                   extends ArrowVector<T> {}
+export class IntVector<T extends Int = any>                   extends BaseVector<T> {}
 export class Int8Vector                                       extends IntVector<Int8> {}
 export class Int16Vector                                      extends IntVector<Int16> {}
 export class Int32Vector                                      extends IntVector<Int32> {}
@@ -163,56 +198,56 @@ export class Uint16Vector                                     extends IntVector<
 export class Uint32Vector                                     extends IntVector<Uint32> {}
 export class Uint64Vector                                     extends IntVector<Uint64> {}
 
-export class FloatVector<T extends Float = any>               extends ArrowVector<T> {}
+export class FloatVector<T extends Float = any>               extends BaseVector<T> {}
 export class Float16Vector                                    extends FloatVector<Float16> {}
 export class Float32Vector                                    extends FloatVector<Float32> {}
 export class Float64Vector                                    extends FloatVector<Float64> {}
 
-export class BoolVector                                       extends ArrowVector<Bool> {}
-export class DecimalVector                                    extends ArrowVector<Decimal> {}
+export class BoolVector                                       extends BaseVector<Bool> {}
+export class DecimalVector                                    extends BaseVector<Decimal> {}
 
-export class DateVector<T extends Date_ = Date_>              extends ArrowVector<T> {}
+export class DateVector<T extends Date_ = Date_>              extends BaseVector<T> {}
 export class DateDayVector                                    extends DateVector<DateDay> {}
 export class DateMillisecondVector                            extends DateVector<DateMillisecond> {}
 
-export class TimeVector<T extends Time = Time>                extends ArrowVector<T> {}
+export class TimeVector<T extends Time = Time>                extends BaseVector<T> {}
 export class TimeSecondVector                                 extends TimeVector<TimeSecond> {}
 export class TimeMillisecondVector                            extends TimeVector<TimeMillisecond> {}
 export class TimeMicrosecondVector                            extends TimeVector<TimeMicrosecond> {}
 export class TimeNanosecondVector                             extends TimeVector<TimeNanosecond> {}
 
-export class TimestampVector<T extends Timestamp = Timestamp> extends ArrowVector<T> {}
+export class TimestampVector<T extends Timestamp = Timestamp> extends BaseVector<T> {}
 export class TimestampSecondVector                            extends TimestampVector<TimestampSecond> {}
 export class TimestampMillisecondVector                       extends TimestampVector<TimestampMillisecond> {}
 export class TimestampMicrosecondVector                       extends TimestampVector<TimestampMicrosecond> {}
 export class TimestampNanosecondVector                        extends TimestampVector<TimestampNanosecond> {}
 
-export class IntervalVector<T extends Interval = Interval>    extends ArrowVector<T> {}
+export class IntervalVector<T extends Interval = Interval>    extends BaseVector<T> {}
 export class IntervalDayTimeVector                            extends IntervalVector<IntervalDayTime> {}
 export class IntervalYearMonthVector                          extends IntervalVector<IntervalYearMonth> {}
 
-export class BinaryVector extends ArrowVector<Binary> {
+export class BinaryVector extends BaseVector<Binary> {
     public asUtf8() {
-        return ArrowVector.new(this.data.clone(new Utf8()));
+        return Vector.new(this.data.clone(new Utf8()));
     }
 }
 
-export class Utf8Vector extends ArrowVector<Utf8> {
+export class Utf8Vector extends BaseVector<Utf8> {
     public asBinary() {
-        return ArrowVector.new(this.data.clone(new Binary()));
+        return Vector.new(this.data.clone(new Binary()));
     }
 }
 
-export class ListVector<T extends DataType = any> extends ArrowVector<List<T>> {}
+export class ListVector<T extends DataType = any> extends BaseVector<List<T>> {}
 
-export class StructVector<T extends { [key: string]: DataType } = any> extends ArrowVector<Struct<T>> {
-    public rowProxy: RowProxy<T> = RowProxy.new<T>(this.type.children || []);
+export class StructVector<T extends { [key: string]: DataType } = any> extends BaseVector<Struct<T>> {
+    public rowProxy: Row<T> = Row.new<T>(this.type.children || [], false);
     public asMap(keysSorted: boolean = false) {
-        return ArrowVector.new(this.data.clone(new Map_(this.type.children, keysSorted)));
+        return Vector.new(this.data.clone(new Map_(this.type.children, keysSorted)));
     }
 }
 
-export class UnionVector<T extends Union = Union> extends ArrowVector<T> {
+export class UnionVector<T extends Union = Union> extends BaseVector<T> {
     public get typeIdToChildIndex() { return this.type.typeIdToChildIndex; }
 }
 
@@ -222,30 +257,30 @@ export class DenseUnionVector extends UnionVector<DenseUnion> {
 
 export class SparseUnionVector extends UnionVector<SparseUnion> {}
 
-export class FixedSizeBinaryVector extends ArrowVector<FixedSizeBinary> {
+export class FixedSizeBinaryVector extends BaseVector<FixedSizeBinary> {
     constructor(data: Data<FixedSizeBinary>) {
         super(data, void 0, data.type.byteWidth);
     }
 }
 
-export class FixedSizeListVector<T extends DataType = any> extends ArrowVector<FixedSizeList<T>> {
+export class FixedSizeListVector<T extends DataType = any> extends BaseVector<FixedSizeList<T>> {
     constructor(data: Data<FixedSizeList<T>>) {
         super(data, void 0, data.type.listSize);
     }
 }
 
-export class MapVector<T extends { [key: string]: DataType } = any> extends ArrowVector<Map_<T>> {
-    public rowProxy: RowProxy<T> = RowProxy.new<T>(this.type.children || []);
+export class MapVector<T extends { [key: string]: DataType } = any> extends BaseVector<Map_<T>> {
+    public rowProxy: Row<T> = Row.new<T>(this.type.children || [], true);
     public asStruct() {
-        return ArrowVector.new(this.data.clone(new Struct(this.type.children)));
+        return Vector.new(this.data.clone(new Struct(this.type.children)));
     }
 }
 
-export class DictionaryVector<T extends DataType = any> extends ArrowVector<Dictionary<T>> {
+export class DictionaryVector<T extends DataType = any> extends BaseVector<Dictionary<T>> {
     public readonly indices: Vector<Dictionary<T>['indices']>;
     constructor(data: Data<Dictionary<T>>) {
         super(data, void 0, 1);
-        this.indices = ArrowVector.new(data.clone(this.type.indices));
+        this.indices = Vector.new(data.clone(this.type.indices));
     }
     public get dictionary() { return this.type.dictionaryVector; }
     public getKey(index: number) { return this.indices.get(index); }
@@ -271,24 +306,24 @@ export class DictionaryVector<T extends DataType = any> extends ArrowVector<Dict
         }
         typeIds.forEach((TType) => {
             const VectorCtor = getVectorConstructor.visit(TType);
-            VectorCtor.prototype['get'] = partial1(getVisitor.getVisitFn(<any> TType));
-            VectorCtor.prototype['indexOf'] = partial2(indexOfVisitor.getVisitFn(<any> TType));
-            VectorCtor.prototype['toArray'] = partial0(toArrayVisitor.getVisitFn(<any> TType));
-            VectorCtor.prototype['getByteWidth'] = partial0(byteWidthVisitor.getVisitFn(<any> TType));
-            VectorCtor.prototype[Symbol.iterator] = partial0(iteratorVisitor.getVisitFn(<any> TType));
+            VectorCtor.prototype['get'] = partial1(getVisitor.getVisitFn(TType));
+            VectorCtor.prototype['indexOf'] = partial2(indexOfVisitor.getVisitFn(TType));
+            VectorCtor.prototype['toArray'] = partial0(toArrayVisitor.getVisitFn(TType));
+            VectorCtor.prototype['getByteWidth'] = partial0(byteWidthVisitor.getVisitFn(TType));
+            VectorCtor.prototype[Symbol.iterator] = partial0(iteratorVisitor.getVisitFn(TType));
         });
     });
 
-function partial0<T extends DataType, V extends Vector<T>>(visit: (node: V) => any) {
-    return function(this: V) { return visit(this); };
+function partial0<T>(visit: (node: T) => any) {
+    return function(this: T) { return visit(this); };
 }
 
-function partial1<T extends DataType, V extends Vector<T>>(visit: (node: V, a: any) => any) {
-    return function(this: V, a: any) { return visit(this, a); };
+function partial1<T>(visit: (node: T, a: any) => any) {
+    return function(this: T, a: any) { return visit(this, a); };
 }
 
-function partial2<T extends DataType, V extends Vector<T>>(visit: (node: V, a: any, b: any) => any) {
-    return function(this: V, a: any, b: any) { return visit(this, a, b); };
+function partial2<T>(visit: (node: T, a: any, b: any) => any) {
+    return function(this: T, a: any, b: any) { return visit(this, a, b); };
 }
 
 function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: number) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
@@ -297,55 +332,4 @@ function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: nu
 
 function wrapNullable2<T extends DataType, V extends Vector<T>, F extends (i: number, a: any) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
     return function(this: V, i: number, a: any) { return this.isValid(i) ? fn.call(this, i, a) : null; };
-}
-
-const columnDescriptor = { writable: false, enumerable: true, configurable: false, get: () => {} };
-const rowIndexDescriptor = { writable: false, enumerable: true, configurable: true, value: null as any };
-const rowParentDescriptor = { writable: false, enumerable: true, configurable: false, value: null as any };
-const row = { parent: rowParentDescriptor, rowIndex: rowIndexDescriptor };
-
-export class RowProxy<T extends { [key: string]: DataType }> implements Iterable<T[keyof T]['TValue']> {
-    static new<T extends { [key: string]: DataType }>(schemaOrFields: T | Field[]): Row<T> & RowProxy<T> {
-        let schema: T, fields: Field[];
-        if (Array.isArray(schemaOrFields)) {
-            fields = schemaOrFields;
-        } else {
-            schema = schemaOrFields;
-            fields = Object.keys(schema).map((x) => new Field(x, schema[x]));
-        }
-        return new RowProxy<T>(fields) as Row<T> & RowProxy<T>;
-    }
-    // @ts-ignore
-    private parent: TParent;
-    // @ts-ignore
-    private rowIndex: number;
-    public readonly length: number;
-    private constructor(fields: Field[]) {
-        this.length = fields.length;
-        fields.forEach((field, columnIndex) => {
-            columnDescriptor.get = this._bindGetter(columnIndex);
-            Object.defineProperty(this, field.name, columnDescriptor);
-            Object.defineProperty(this, columnIndex, columnDescriptor);
-        });
-    }
-    *[Symbol.iterator](this: Row<T>) {
-        for (let i = -1, n = this.length; ++i < n;) {
-            yield this[i];
-        }
-    }
-    private _bindGetter(colIndex: number) {
-        return function (this: RowProxy<T>) {
-            let child = this.parent.getChildAt(colIndex);
-            return child ? child.get(this.rowIndex) : null;
-        };
-    }
-    public get<K extends keyof T>(key: K) { return (this as any)[key] as T[K]['TValue']; }
-    public bind<TParent extends MapVector<T> | StructVector<T>>(parent: TParent, rowIndex: number) {
-        rowIndexDescriptor.value = rowIndex;
-        rowParentDescriptor.value = parent;
-        const bound = Object.create(this, row);
-        rowIndexDescriptor.value = null;
-        rowParentDescriptor.value = null;
-        return bound as Row<T>;
-    }
 }

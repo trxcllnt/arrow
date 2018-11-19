@@ -16,8 +16,10 @@
 // under the License.
 
 import { Field } from './schema';
+import { Vector } from './vector';
 import { flatbuffers } from 'flatbuffers';
-import { Vector, ArrayBufferViewConstructor, VectorLike } from './interfaces';
+import { Vector as VType } from './interfaces';
+import { ArrayBufferViewConstructor } from './interfaces';
 
 import Long = flatbuffers.Long;
 import {
@@ -291,7 +293,7 @@ export class Interval<T extends Intervals = Intervals> extends DataType<T> {
 export class IntervalDayTime extends Interval<Type.IntervalDayTime> { constructor() { super(IntervalUnit.DAY_TIME); } }
 export class IntervalYearMonth extends Interval<Type.IntervalYearMonth> { constructor() { super(IntervalUnit.YEAR_MONTH); } }
 
-export interface List<T extends DataType = any> extends DataType<Type.List>  { TArray: IterableArrayLike<T>; TValue: Vector<T>; }
+export interface List<T extends DataType = any> extends DataType<Type.List>  { TArray: IterableArrayLike<T>; TValue: VType<T>; }
 export class List<T extends DataType = any> extends DataType<Type.List, { [0]: T }> {
     constructor(public children: Field<T>[]) {
         super(Type.List, children);
@@ -361,7 +363,7 @@ export class FixedSizeBinary extends DataType<Type.FixedSizeBinary> {
     })(FixedSizeBinary.prototype);
 }
 
-export interface FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList> { TArray: IterableArrayLike<T['TArray']>; TValue: Vector<T>; }
+export interface FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList> { TArray: IterableArrayLike<T['TArray']>; TValue: VType<T>; }
 export class FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList, { [0]: T }> {
     constructor(public readonly listSize: number,
                 public readonly children: Field<T>[]) {
@@ -398,7 +400,7 @@ export class Dictionary<T extends DataType = any, TKey extends Int = Int32> exte
     public readonly dictionary: T;
     public readonly isOrdered: boolean;
     // @ts-ignore;
-    public dictionaryVector: VectorLike<T>;
+    public dictionaryVector: Vector<T>;
     constructor(dictionary: T, indices: TKey, id?: Long | number | null, isOrdered?: boolean | null) {
         super(Type.Dictionary);
         this.indices = indices;
