@@ -28,7 +28,7 @@ import Type = Schema_.org.apache.arrow.flatbuf.Type;
 import { DictionaryBatch, RecordBatch, FieldNode, BufferRegion } from './message';
 import { TimeUnit, Precision, IntervalUnit, UnionMode, DateUnit } from '../../enum';
     
-export function schemaFromJSON(_schema: any, dictionaryTypes: Map<number, DataType> = new Map()) {
+export function schemaFromJSON(_schema: any, dictionaryTypes: Map<number, Dictionary> = new Map()) {
     return new Schema(
         schemaFieldsFromJSON(_schema, dictionaryTypes),
         customMetadataFromJSON(_schema['customMetadata']),
@@ -51,11 +51,11 @@ export function dictionaryBatchFromJSON(b: any) {
     );
 }
 
-function schemaFieldsFromJSON(_schema: any, dictionaryTypes: Map<number, DataType> | null) {
+function schemaFieldsFromJSON(_schema: any, dictionaryTypes: Map<number, Dictionary> | null) {
     return (_schema['fields'] || []).filter(Boolean).map((f: any) => Field.fromJSON(f, dictionaryTypes));
 }
 
-function fieldChildrenFromJSON(_field: any, dictionaryTypes: Map<number, DataType> | null): Field[] {
+function fieldChildrenFromJSON(_field: any, dictionaryTypes: Map<number, Dictionary> | null): Field[] {
     return (_field['children'] || []).filter(Boolean).map((f: any) => Field.fromJSON(f, dictionaryTypes));
 }
 
@@ -86,7 +86,7 @@ function nullCountFromJSON(validity: number[]) {
     return (validity || []).reduce((sum, val) => sum + +(val === 0), 0);
 }
 
-export function fieldFromJSON(_field: any, dictionaryTypes: Map<number, DataType> | null) {
+export function fieldFromJSON(_field: any, dictionaryTypes: Map<number, Dictionary> | null) {
 
     let id: number;
     let field: Field | void;
@@ -108,15 +108,14 @@ export function fieldFromJSON(_field: any, dictionaryTypes: Map<number, DataType
         keys = (keys = dict['indexType']) ? intTypeFromJSON(keys) : new Int(true, 32);
         type = new Dictionary(typeFromJSON(_field, fieldChildrenFromJSON(_field, null)), keys, id, dict['isOrdered']);
         field = new Field(_field['name'], type, _field['nullable'], customMetadataFromJSON(_field['customMetadata']));
-        dictionaryTypes.set(id, (type as Dictionary).dictionary);
+        dictionaryTypes.set(id, type as Dictionary);
     }
     // If dictionary encoded, and have already seen this dictionary Id in the schema, then reuse the
     // data type and wrap in a new Dictionary type and field.
     else {
         // a dictionary index defaults to signed 32 bit int if unspecified
         keys = (keys = dict['indexType']) ? intTypeFromJSON(keys) : new Int(true, 32);
-        type = new Dictionary(dictionaryTypes.get(id)!, keys, id, dict['isOrdered']);
-        field = new Field(_field['name'], type, _field['nullable'], customMetadataFromJSON(_field['customMetadata']));
+        field = new Field(_field['name'], dictionaryTypes.get(id)!, _field['nullable'], customMetadataFromJSON(_field['customMetadata']));
     }
     return field || null;
 }

@@ -145,8 +145,7 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
         return ITERATOR_DONE;
     }
     protected _loadRecordBatch(schema: Schema<T>, bodyLength: number, header: metadata.RecordBatch) {
-        const loader = this._vectorLoader(bodyLength, header);
-        return RecordBatch.new<T>(schema, header.length, loader.visitMany(schema.fields));
+        return new RecordBatch<T>(schema, header.length, this._vectorLoader(bodyLength, header).visitMany(schema.fields));
     }
     protected _loadDictionaryBatch(schema: Schema<T>, bodyLength: number, header: metadata.DictionaryBatch): Vector {
         const { dictionaries } = this;
@@ -154,9 +153,9 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
         if (isDelta || !dictionaries.get(id)) {
             const type = schema.dictionaries.get(id)!;
             const loader = this._vectorLoader(bodyLength, header);
-            const vector = isDelta ? dictionaries.get(id)!.concat(
-                Vector.new(loader.visit(type))) as any :
-                Vector.new(loader.visit(type)) ;
+            const vector = (isDelta ? dictionaries.get(id)!.concat(
+                Vector.new(loader.visit(type.dictionary))) :
+                Vector.new(loader.visit(type.dictionary))) as Vector;
             return (type.dictionaryVector = vector);
         }
         return dictionaries.get(id)!;
@@ -201,8 +200,7 @@ export abstract class AsyncRecordBatchReader<T extends { [key: string]: DataType
         return ITERATOR_DONE;
     }
     protected async _loadRecordBatch(schema: Schema<T>, bodyLength: number, header: metadata.RecordBatch) {
-        const loader = await this._vectorLoader(bodyLength, header);
-        return RecordBatch.new<T>(schema, header.length, loader.visitMany(schema.fields));
+        return new RecordBatch<T>(schema, header.length, (await this._vectorLoader(bodyLength, header)).visitMany(schema.fields));
     }
     protected async _loadDictionaryBatch(schema: Schema<T>, bodyLength: number, header: metadata.DictionaryBatch): Promise<Vector> {
         const { dictionaries } = this;

@@ -196,7 +196,7 @@ declare module './message' {
     namespace BufferRegion { export { decodeBufferRegion as decode }; }
 }
 
-function decodeSchema(_schema: _Schema, dictionaryTypes: Map<number, DataType>) {
+function decodeSchema(_schema: _Schema, dictionaryTypes: Map<number, Dictionary>) {
     const fields = decodeSchemaFields(_schema, dictionaryTypes);
     return new Schema(fields, decodeCustomMetadata(_schema), dictionaryTypes);
 }
@@ -243,21 +243,21 @@ function v3Compat(version: MetadataVersion, decode: (buffer: _Buffer) => BufferR
     };
 }
 
-function decodeSchemaFields(schema: _Schema, dictionaryTypes: Map<number, DataType> | null) {
+function decodeSchemaFields(schema: _Schema, dictionaryTypes: Map<number, Dictionary> | null) {
     return Array.from(
         { length: schema.fieldsLength() },
         (_, i) => schema.fields(i)!
     ).filter(Boolean).map((f) => Field.decode(f, dictionaryTypes));
 }
 
-function decodeFieldChildren(field: _Field, dictionaryTypes: Map<number, DataType> | null): Field[] {
+function decodeFieldChildren(field: _Field, dictionaryTypes: Map<number, Dictionary> | null): Field[] {
     return Array.from(
         { length: field.childrenLength() },
         (_, i) => field.children(i)!
     ).filter(Boolean).map((f) => Field.decode(f, dictionaryTypes));
 }
 
-function decodeField(f: _Field, dictionaryTypes: Map<number, DataType> | null) {
+function decodeField(f: _Field, dictionaryTypes: Map<number, Dictionary> | null) {
 
     let id: number;
     let field: Field | void;
@@ -279,15 +279,14 @@ function decodeField(f: _Field, dictionaryTypes: Map<number, DataType> | null) {
         keys = (keys = dict.indexType()) ? decodeIntType(keys) : new Int(true, 32);
         type = new Dictionary(decodeFieldType(f, decodeFieldChildren(f, null)), keys, id, dict.isOrdered());
         field = new Field(f.name()!, type, f.nullable(), decodeCustomMetadata(f));
-        dictionaryTypes.set(id, (type as Dictionary).dictionary);
+        dictionaryTypes.set(id, type as Dictionary);
     }
     // If dictionary encoded, and have already seen this dictionary Id in the schema, then reuse the
     // data type and wrap in a new Dictionary type and field.
     else {
         // a dictionary index defaults to signed 32 bit int if unspecified
         keys = (keys = dict.indexType()) ? decodeIntType(keys) : new Int(true, 32);
-        type = new Dictionary(dictionaryTypes.get(id)!, keys, id, dict.isOrdered());
-        field = new Field(f.name()!, type, f.nullable(), decodeCustomMetadata(f));
+        field = new Field(f.name()!, dictionaryTypes.get(id)!, f.nullable(), decodeCustomMetadata(f));
     }
     return field || null;
 }
