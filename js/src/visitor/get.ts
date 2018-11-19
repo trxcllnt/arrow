@@ -106,7 +106,11 @@ export class GetVisitor extends Visitor {
 export const instance = new GetVisitor();
 
 const getNull = <T extends Null>(_vector: Vector<T>, _index: number): T['TValue'] => null;
-const getVariableWidthBytes = (values: Uint8Array, valueOffsets: Int32Array, index: number) => (values.subarray(valueOffsets[index], valueOffsets[index + 1]));
+const getVariableWidthBytes = (values: Uint8Array, valueOffsets: Int32Array, index: number) => {
+    const { [index]: x, [index + 1]: y } = valueOffsets;
+    return x != null && y != null ? values.subarray(x, y) : null;
+};
+
 const getBool = <T extends Bool>({ offset, values }: Vector<T>, index: number): T['TValue'] => {
     const idx = offset + index;
     const byte = values[idx >> 3];
@@ -123,8 +127,11 @@ const getFloat16         = <T extends Float16>        ({ stride, values }: Vecto
 const getNumericX2       = <T extends Numeric2X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * index + 1));
 const getFixedSizeBinary = <T extends FixedSizeBinary>({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * (index + 1)));
 
-const getBinary = <T extends Binary>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] => getVariableWidthBytes(values, valueOffsets, index);
-const getUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] => decodeUtf8(getVariableWidthBytes(values, valueOffsets, index));
+const getBinary = <T extends Binary>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] | null => getVariableWidthBytes(values, valueOffsets, index);
+const getUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] | null => {
+    const bytes = getVariableWidthBytes(values, valueOffsets, index);
+    return bytes !== null ? decodeUtf8(bytes) : null;
+}
 
 const getInt = <T extends Int>(vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.bitWidth < 64
