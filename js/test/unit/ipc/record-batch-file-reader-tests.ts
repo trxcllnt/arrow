@@ -77,13 +77,23 @@ describe('RecordBatchFileReader', () => {
         expect(r.value).toBeInstanceOf(RecordBatch);
 
         expect(reader.next().done).toBe(true);
+
+        reader.return();
     }
 });
 
 describe('AsyncRecordBatchFileReader', () => {
-
-    it('should read all messages from a NodeJS ReadableFile', async () => {
+    
+    it('should read all messages from a NodeJS ReadableStream', async () => {
         await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(fs.createReadStream(simpleFilePath)));
+    });
+
+    it('should read all messages from a NodeJS Promise<FileHandle>', async () => {
+        await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(fs.promises.open(simpleFilePath, 'r')));
+    });
+
+    it('should read all messages from a NodeJS FileHandle', async () => {
+        await testSimpleAsyncRecordBatchFileReader(new ArrowDataSource(await fs.promises.open(simpleFilePath, 'r')));
     });
 
     it('should read all messages from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
@@ -121,5 +131,7 @@ describe('AsyncRecordBatchFileReader', () => {
         expect(r.value).toBeInstanceOf(RecordBatch);
 
         expect((await reader.next()).done).toBe(true);
+
+        await reader.return();
     }
 });

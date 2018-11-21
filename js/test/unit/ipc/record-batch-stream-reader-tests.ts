@@ -86,6 +86,8 @@ describe('RecordBatchStreamReader', () => {
         expect(r.value).toBeInstanceOf(RecordBatch);
 
         expect(reader.next().done).toBe(true);
+
+        reader.return();
     }
 });
 
@@ -139,5 +141,7 @@ describe('AsyncRecordBatchStreamReader', () => {
         expect(r.value).toBeInstanceOf(RecordBatch);
 
         expect((await reader.next()).done).toBe(true);
+
+        await reader.return();
     }
 });

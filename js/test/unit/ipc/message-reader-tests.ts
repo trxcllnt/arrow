@@ -82,6 +82,8 @@ describe('MessageReader', () => {
         expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         expect(reader.next().done).toBe(true);
+
+        reader.return();
     }
 });
 
@@ -129,5 +131,7 @@ describe('AsyncMessageReader', () => {
         expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
 
         expect((await reader.next()).done).toBe(true);
+
+        await reader.return();
     }
 });

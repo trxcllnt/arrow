@@ -59,5 +59,7 @@ describe('RecordBatchJSONReader', () => {
         expect(r.value).toBeInstanceOf(RecordBatch);
 
         expect(reader.next().done).toBe(true);
+
+        reader.return();
     }
 });
