@@ -18,6 +18,7 @@
 import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
+import { readableDOMStreamToAsyncIterator } from './util';
 
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
@@ -36,6 +37,24 @@ describe('RecordBatchJSONReader', () => {
 
     it('should read all messages from Arrow JSON data', () => {
         testSimpleRecordBatchJSONReader(new ArrowDataSource(simpleJSONData));
+    });
+
+    describe('asReadableDOMStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(simpleJSONData);
+            const reader = source.open() as RecordBatchJSONReader;
+            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+    });
+
+    describe('asReadableNodeStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(simpleJSONData);
+            const reader = source.open() as RecordBatchJSONReader;
+            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
     });
 
     function testSimpleRecordBatchJSONReader(source: ArrowDataSource) {
@@ -63,3 +82,24 @@ describe('RecordBatchJSONReader', () => {
         reader.return();
     }
 });
+
+async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<RecordBatch>, close = true) {
+
+    let r: IteratorResult<RecordBatch>;
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    expect((await iterator.next()).done).toBe(true);
+
+    close && (await iterator.return!());
+}

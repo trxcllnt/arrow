@@ -18,7 +18,7 @@
 import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
-import { nodeToDOMStream } from './util';
+import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
 
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
@@ -54,6 +54,24 @@ describe('RecordBatchFileReader', () => {
 
     it('should read all messages from an Iterable that yields buffers of Arrow messages in memory', () => {
         testSimpleRecordBatchFileReader(new ArrowDataSource(iterableSource(simpleFileData)));
+    });
+
+    describe('asReadableDOMStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(simpleFileData);
+            const reader = source.open() as RecordBatchFileReader;
+            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+    });
+
+    describe('asReadableNodeStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(simpleFileData);
+            const reader = source.open() as RecordBatchFileReader;
+            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
     });
 
     function testSimpleRecordBatchFileReader(source: ArrowDataSource) {
@@ -110,28 +128,48 @@ describe('AsyncRecordBatchFileReader', () => {
             nodeToDOMStream(fs.createReadStream(simpleFilePath), { type: 'bytes' })));
     });
 
+    describe('asReadableDOMStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(fs.createReadStream(simpleFilePath));
+            const reader = await source.open() as AsyncRecordBatchFileReader;
+            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+    });
+
+    describe('asReadableNodeStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(fs.createReadStream(simpleFilePath));
+            const reader = await source.open() as AsyncRecordBatchFileReader;
+            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+    });
+
     async function testSimpleAsyncRecordBatchFileReader(source: ArrowDataSource) {
-
-        let r: IteratorResult<RecordBatch>;
-
         let reader = await source.open() as AsyncRecordBatchFileReader;
-
         expect(await reader.readSchema()).toBeInstanceOf(Schema);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(RecordBatch);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(RecordBatch);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(RecordBatch);
-
-        expect((await reader.next()).done).toBe(true);
-
-        await reader.return();
+        await testSimpleAsyncRecordBatchIterator(reader);
     }
 });
+
+async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<RecordBatch>) {
+
+    let r: IteratorResult<RecordBatch>;
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    expect((await iterator.next()).done).toBe(true);
+
+    await iterator.return!();
+}

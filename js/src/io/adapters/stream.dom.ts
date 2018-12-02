@@ -76,8 +76,12 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMSt
             }
         } while (!done);
     } catch (e) {
+        buffer = buffers = <any> null;
         source['locked'] && it && (await it!['cancel']());
-    } finally { source['locked'] && it && it.releaseLock(); }
+    } finally {
+        buffer = buffers = <any> null;
+        source['locked'] && it && it.releaseLock();
+    }
 }
 
 class AdaptiveByteReader<T extends TElement> {

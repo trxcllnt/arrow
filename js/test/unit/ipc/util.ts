@@ -19,6 +19,25 @@ import { Readable } from 'stream';
 import { toUint8Array } from '../../../src/util/buffer';
 import { ReadableDOMStream } from '../../../src/io/interfaces';
 
+export async function* readableDOMStreamToAsyncIterator(stream: ReadableDOMStream) {
+    // Get a lock on the stream
+    const reader = stream.getReader();
+    try {
+        while (true) {
+            // Read from the stream
+            const { done, value } = await reader.read();
+            // Exit if we're done
+            if (done) break;
+            // Else yield the chunk
+            yield value;
+        }
+    } catch (e) {
+        throw e;
+    } finally {
+        try { stream.locked && reader.releaseLock(); } catch (e) {}
+    }
+}
+
 export function nodeToDOMStream(stream: NodeJS.ReadableStream, opts: any = {}) {
     stream = new Readable().wrap(stream);
     return new ReadableDOMStream({

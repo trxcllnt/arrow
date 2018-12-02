@@ -17,7 +17,16 @@
 
 import { joinUint8Arrays, toUint8Array } from '../../util/buffer';
 
+type EventName = 'end' | 'error' | 'readable';
+type Event = [EventName, (_: any) => void, Promise<[EventName, Error | null]>];
 const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; };
+const onEvent = <T extends string>(stream: NodeJS.ReadableStream, event: T) => {
+    let handler = (_: any) => resolve([event, _]);
+    let resolve: (value?: [T, any] | PromiseLike<[T, any]>) => void;
+    return [event, handler, new Promise<[T, any]>(
+        (r) => (resolve = r) && stream.once(event, handler)
+    )] as Event;
+};
 
 /**
  * @ignore
@@ -27,18 +36,6 @@ export function fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
 }
 
 async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
-
-    type EventName = 'end' | 'error' | 'readable';
-    type OffArgs = [string | symbol, (...args: any[]) => void];
-    type Event = [EventName, (_: any) => void, Promise<[EventName, Error | null]>];
-
-    const onEvent = <T extends string>(event: T) => {
-        let handler = (_: any) => resolve([event, _]);
-        let resolve: (value?: [T, any] | PromiseLike<[T, any]>) => void;
-        return [event, handler, new Promise<[T, any]>(
-            (r) => (resolve = r) && stream.once(event, handler)
-        )] as Event;
-    };
 
     let events: Event[] = [];
     let event: EventName = 'error';
@@ -52,7 +49,20 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
         }
         [buffer, buffers] = joinUint8Arrays(buffers, size);
         bufferLength -= buffer.byteLength;
-        return buffer;
+        // 
+        // Node's internal Buffer pooling can lead to an unfortunate scenario
+        // where the byteOffset of the Uint8Array is correct as far as Arrow
+        // is concerned, but the fs.read() call wasn't passed a multiple-of-8
+        // byteOffset [1]. In this case, it's impossible to reliably create
+        // TypedArray views over the underlying pooled ArrayBuffer later,
+        // because the byteOffset for the view is required to align with
+        // BYTES_PER_ELEMENT. The only way around this is to copy the bytes
+        // from the current byteOffset into a new ArrayBuffer, ensuring
+        // the byteOffset of the yielded buffer starts at 0 :<
+        // 
+        // 1. https://github.com/nodejs/node/blob/3fb627bead14e68d989b0f141226c1703fa062ca/lib/internal/fs/streams.js#L175
+        // 
+        return buffer.byteOffset % 8 === 0 ? buffer : buffer.slice();
     }
 
     // Yield so the caller can inject the read command before we
@@ -61,11 +71,11 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
 
     try {
         // initialize the stream event handlers
-        (events[0] || (events[0] = onEvent('end')));
-        (events[1] || (events[1] = onEvent('error')));
+        events[0] = onEvent(stream, 'end');
+        events[1] = onEvent(stream, 'error');
 
         do {
-            events[2] = onEvent('readable');
+            events[2] = onEvent(stream, 'readable');
 
             // wait on the first message event from the stream
             [event, err] = await Promise.race(events.map((x) => x[2]));
@@ -73,7 +83,6 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             // if the stream emitted an Error, rethrow it
             if (event === 'error') { throw err; }
             if (!(done = event === 'end')) {
-                stream.off(...(<any> events.pop() as OffArgs));
                 buffer = isNaN(size - bufferLength)
                     ? toUint8Array(stream.read(undefined))
                     : toUint8Array(stream.read(size - bufferLength));
@@ -95,13 +104,14 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
     } finally { (err == null) && (await cleanup(events, err)); }
 
     function cleanup<T extends Error | null | void>(events: Event[], err?: T) {
+        buffer = buffers = <any> null;
         return new Promise<T>((resolve, reject) => {
             while (events.length > 0) {
-                const [ev, fn] = events.pop()!;
+                const [ev, fn] = events.pop() || []!;
                 if (ev && fn) { stream.off(ev, fn); }
             }
             const destroy = (stream as any).destroy || ((err: T, cb: any) => cb(err));
-            destroy.call(stream, err, (e: T) => e == null ? reject(e) : resolve(err));
+            destroy.call(stream, err, (e: T) => e != null ? reject(e) : resolve(err));
         });
     }
 }

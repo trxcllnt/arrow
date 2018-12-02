@@ -18,7 +18,7 @@
 import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
-import { nodeToDOMStream } from './util';
+import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
 
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
@@ -61,11 +61,29 @@ describe('RecordBatchStreamReader', () => {
             yield* iterableSource(simpleStreamData);
             yield* iterableSource(simpleStreamData);
         }());
-        testSimpleRecordBatchStreamReader(source);
-        testSimpleRecordBatchStreamReader(source);
+        testSimpleRecordBatchStreamReader(source, false);
+        testSimpleRecordBatchStreamReader(source, true);
     });
 
-    function testSimpleRecordBatchStreamReader(source: ArrowDataSource) {
+    describe('asReadableDOMStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(simpleStreamData);
+            const reader = source.open() as RecordBatchStreamReader;
+            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+    });
+
+    describe('asReadableNodeStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(simpleStreamData);
+            const reader = source.open() as RecordBatchStreamReader;
+            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+    });
+
+    function testSimpleRecordBatchStreamReader(source: ArrowDataSource, close = true) {
 
         let r: IteratorResult<RecordBatch>;
 
@@ -87,7 +105,7 @@ describe('RecordBatchStreamReader', () => {
 
         expect(reader.next().done).toBe(true);
 
-        reader.return();
+        close && reader.return();
     }
 });
 
@@ -101,47 +119,65 @@ describe('AsyncRecordBatchStreamReader', () => {
         await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(asyncIterableSource(simpleStreamData)));
     });
 
+    it('should read all messages from a whatwg ReadableStream', async () => {
+        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
+    });
+
+    it('should read all messages from a whatwg ReadableByteStream', async () => {
+        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
+    });
+
     it('should read all messages from an AsyncIterable that yields multiple tables as buffers of Arrow messages in memory', async () => {
         const source = new ArrowDataSource(async function *() {
             yield* asyncIterableSource(simpleStreamData);
             yield* asyncIterableSource(simpleStreamData);
         }());
-        await testSimpleAsyncRecordBatchStreamReader(source);
-        await testSimpleAsyncRecordBatchStreamReader(source);
+        await testSimpleAsyncRecordBatchStreamReader(source, false);
+        await testSimpleAsyncRecordBatchStreamReader(source, true);
     });
 
-    it('should read all messages from a whatwg ReadableStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(
-            nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
+    describe('asReadableDOMStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(asyncIterableSource(simpleStreamData));
+            const reader = await source.open() as AsyncRecordBatchStreamReader;
+            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
     });
 
-    it('should read all messages from a whatwg ReadableByteStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(
-            nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
+    describe('asReadableNodeStream', () => {
+        it('should yield all RecordBatches', async () => {
+            const source = new ArrowDataSource(asyncIterableSource(simpleStreamData));
+            const reader = await source.open() as AsyncRecordBatchStreamReader;
+            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            await testSimpleAsyncRecordBatchIterator(iterator);
+        });
     });
 
-    async function testSimpleAsyncRecordBatchStreamReader(source: ArrowDataSource) {
-
-        let r: IteratorResult<RecordBatch>;
-
-        let reader = await source.open() as AsyncRecordBatchStreamReader;
-
+    async function testSimpleAsyncRecordBatchStreamReader(source: ArrowDataSource, close = true) {
+        const reader = await source.open() as AsyncRecordBatchStreamReader;
         expect(await reader.readSchema()).toBeInstanceOf(Schema);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(RecordBatch);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(RecordBatch);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(RecordBatch);
-
-        expect((await reader.next()).done).toBe(true);
-
-        await reader.return();
+        await testSimpleAsyncRecordBatchIterator(reader, close);
     }
 });
+
+async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<RecordBatch>, close = true) {
+
+    let r: IteratorResult<RecordBatch>;
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    r = await iterator.next();
+    expect(r.done).toBe(false);
+    expect(r.value).toBeInstanceOf(RecordBatch);
+
+    expect((await iterator.next()).done).toBe(true);
+
+    close && (await iterator.return!());
+}
