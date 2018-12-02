@@ -79,7 +79,7 @@ export class VectorLoader extends Visitor {
     protected readOffsets<T extends DataType>(type: T, buffer?: BufferRegion) { return this.readData(type, buffer); }
     protected readTypeIds<T extends DataType>(type: T, buffer?: BufferRegion) { return this.readData(type, buffer); }
     protected readData<T extends DataType>(_type: T, { length, offset } = this.nextBufferRange()) {
-        return this.bytes.subarray(offset, length);
+        return this.bytes.subarray(offset, offset + length);
     }
 }
 
