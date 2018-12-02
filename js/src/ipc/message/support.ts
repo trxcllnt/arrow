@@ -17,6 +17,12 @@
 
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
+import { MessageHeader } from '../../enum';
+
+export const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
+export const nullMessage              = (type: MessageHeader) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`;
+export const invalidMessageMetadata   = (expected: number, actual: number) => `Expected to read ${expected} metadata bytes, but only read ${actual}.`;
+export const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
 
 export const PADDING = 4;
 export const MAGIC_STR = 'ARROW1';
