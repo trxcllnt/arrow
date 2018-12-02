@@ -22,8 +22,8 @@ import { nodeToDOMStream } from './util';
 
 import { Message } from '../../../src/ipc/metadata/message';
 
-import { MessageReader } from '../../../src/ipc/message';
-import { AsyncMessageReader } from '../../../src/ipc/message';
+import { MessageReader } from '../../../src/ipc/message/messagereader';
+import { AsyncMessageReader } from '../../../src/ipc/message/asyncmessagereader';
 import { resolveInputFormat, ArrowStream, AsyncArrowStream } from '../../../src/ipc/input';
 
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
