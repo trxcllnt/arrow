@@ -23,6 +23,12 @@ export type WritableNodeStream = import('stream').Writable;
 export type ReadableDOMStream<R = any> = import('whatwg-streams').ReadableStream<R>;
 export type WritableDOMStream<R = any> = import('whatwg-streams').WritableStream<R>;
 
+export type PipeOptions = import('whatwg-streams').PipeOptions;
+export type WritableReadablePair<
+    T extends WritableDOMStream<any>,
+    U extends ReadableDOMStream<any>
+> = import('whatwg-streams').WritableReadablePair<T, U>;
+
 export const ReadableNodeStream: typeof import('stream').Readable = Readable;
 export const WritableNodeStream: typeof import('stream').Writable = Writable;
 export const ReadableDOMStream: typeof import('whatwg-streams').ReadableStream = (<any> global).ReadableStream;
@@ -35,7 +41,7 @@ export const ITERATOR_DONE: any = Object.freeze({ done: true, value: void (0) })
  */
 export class IteratorBase<TResult, TSource extends Iterator<any> = Iterator<any>> implements Required<IterableIterator<TResult | null | void>> {
     constructor(protected source: TSource) {}
-    [Symbol.iterator]() { return this as Iterator<TResult>; }
+    [Symbol.iterator](): IterableIterator<TResult> { return this as IterableIterator<TResult>; }
     next(value?: any) { return (this.source && (this.source.next(value) as any) || ITERATOR_DONE) as IteratorResult<TResult>; }
     throw(value?: any) { return (this.source && this.source.throw && (this.source.throw(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
     return(value?: any) { return (this.source && this.source.return && (this.source.return(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
@@ -46,7 +52,7 @@ export class IteratorBase<TResult, TSource extends Iterator<any> = Iterator<any>
  */
 export class AsyncIteratorBase<TResult, TSource extends AsyncIterator<any> = AsyncIterator<any>> implements Required<AsyncIterableIterator<TResult | null | void>> {
     constructor(protected source: TSource) {}
-    [Symbol.asyncIterator]() { return this as AsyncIterator<TResult>; }
+    [Symbol.asyncIterator](): AsyncIterableIterator<TResult> { return this as AsyncIterableIterator<TResult>; }
     async next(value?: any) { return (this.source && (await this.source.next(value) as any) || ITERATOR_DONE) as IteratorResult<TResult>; }
     async throw(value?: any) { return (this.source && this.source.throw && (await this.source.throw(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
     async return(value?: any) { return (this.source && this.source.return && (await this.source.return(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
