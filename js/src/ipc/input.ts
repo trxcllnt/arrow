@@ -20,9 +20,13 @@ import ByteBuffer = flatbuffers.ByteBuffer;
 
 import { OptionallyAsync } from '../interfaces';
 import { ReadableDOMStream } from '../io/interfaces';
-import { ByteStream, AsyncByteStream } from '../io/stream';
 import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
-import { RandomAccessFile, AsyncRandomAccessFile } from '../io/file';
+import {
+    ByteStream,
+    AsyncByteStream,
+    RandomAccessFile,
+    AsyncRandomAccessFile
+} from '../io/interfaces';
 
 import { isArrowJSON, isFileHandle } from '../util/compat';
 import { isPromise, isAsyncIterable } from '../util/compat';
@@ -31,7 +35,7 @@ import { isReadableNodeStream, isReadableDOMStream } from '../util/compat';
 import { fromReadableDOMStream } from '../io/adapters/stream.dom';
 import { fromReadableNodeStream } from '../io/adapters/stream.node';
 import { fromIterable, fromAsyncIterable } from '../io/adapters/iterable';
-import { checkForMagicArrowString, magicLength, magicX2AndPadding } from './magic';
+import { checkForMagicArrowString, magicLength, magicX2AndPadding } from './message/support';
 
 type FileHandle = import('fs').promises.FileHandle;
 export type ArrowJSONInput = { schema: any; batches?: any[]; dictionaries?: any[]; };
@@ -81,6 +85,16 @@ export interface AsyncArrowInput {
     isStream(): this is AsyncArrowStream;
 }
 
+export class ArrowJSON implements ArrowInput {
+    isJSON(): this is ArrowJSON { return true; }
+    isFile(): this is ArrowFile { return false; }
+  isStream(): this is ArrowStream { return false; }
+  constructor(private _json: ArrowJSONInput) {}
+  public get schema(): any { return this._json['schema']; }
+  public get batches(): any[] { return (this._json['batches'] || []) as any[]; }
+  public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
+}
+
 export class ArrowFile extends RandomAccessFile<ByteBuffer> implements ArrowInput, OptionallyAsync<ArrowFile> {
     isJSON(): this is ArrowJSON { return false; }
     isFile(): this is ArrowFile { return true; }
@@ -90,21 +104,9 @@ export class ArrowFile extends RandomAccessFile<ByteBuffer> implements ArrowInpu
   constructor(source: ArrayBufferViewInput) {
       super(toUint8Array(source));
   }
-  next(size?: number) {
-      const r = super.next(size) as IteratorResult<any>;
-      !r.done && (r.value = new ByteBuffer(toUint8Array(r.value)));
-      return r as IteratorResult<ByteBuffer>;
+  read(size?: number) {
+    return new ByteBuffer(toUint8Array(super.read(size)));
   }
-}
-
-export class ArrowJSON implements ArrowInput {
-      isJSON(): this is ArrowJSON { return true; }
-      isFile(): this is ArrowFile { return false; }
-    isStream(): this is ArrowStream { return false; }
-    constructor(private _json: ArrowJSONInput) {}
-    public get schema(): any { return this._json['schema']; }
-    public get batches(): any[] { return (this._json['batches'] || []) as any[]; }
-    public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
 }
 
 export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements AsyncArrowInput, OptionallyAsync<ArrowFile> {
@@ -113,10 +115,8 @@ export class AsyncArrowFile extends AsyncRandomAccessFile<ByteBuffer> implements
     isStream(): this is AsyncArrowStream { return false; }
       isSync(): this is ArrowFile { return false; }
      isAsync(): this is AsyncArrowFile { return true; }
-    async next(size?: number) {
-        const r = (await super.next(size)) as IteratorResult<any>;
-        !r.done && (r.value = new ByteBuffer(toUint8Array(r.value)));
-        return r as IteratorResult<ByteBuffer>;
+    async read(size?: number) {
+        return new ByteBuffer(toUint8Array(await super.read(size)));
     }
 }
 
@@ -126,10 +126,8 @@ export class ArrowStream extends ByteStream<ByteBuffer> implements ArrowInput, O
     isStream(): this is ArrowStream { return true; }
       isSync(): this is ArrowStream { return true; }
      isAsync(): this is AsyncArrowStream { return false; }
-    next(size?: number) {
-        const r = super.next(size) as IteratorResult<any>;
-        !r.done && (r.value = new ByteBuffer(toUint8Array(r.value)));
-        return r as IteratorResult<ByteBuffer>;
+    read(size?: number) {
+        return new ByteBuffer(toUint8Array(super.read(size)));
     }
 }
 
@@ -139,10 +137,8 @@ export class AsyncArrowStream extends AsyncByteStream<ByteBuffer> implements Asy
      isStream(): this is AsyncArrowStream { return true; }
        isSync(): this is ArrowStream { return false; }
       isAsync(): this is AsyncArrowStream { return true; }
-    async next(size?: number) {
-        const r = (await super.next(size)) as IteratorResult<any>;
-        !r.done && (r.value = new ByteBuffer(toUint8Array(r.value)));
-        return r as IteratorResult<ByteBuffer>;
+    async read(size?: number) {
+        return new ByteBuffer(toUint8Array(await super.read(size)));
     }
 }
 
@@ -159,10 +155,10 @@ class ByteStreamResolver implements InputResolver {
     constructor(private source: ByteStream) {}
     resolve() {
         let { source } = this;
-        let r = source.peek(magicLength);
-        return !r.done
-            ? checkForMagicArrowString(r.value)
-            ? new ArrowFile(source.next())
+        let bytes = source.peek(magicLength);
+        return bytes
+            ? checkForMagicArrowString(bytes)
+            ? new ArrowFile(source.read())
             : new ArrowStream(source)
             : null;
     }
@@ -174,10 +170,10 @@ class AsyncByteStreamResolver implements AsyncInputResolver {
     constructor(private source: AsyncByteStream) {}
     async resolve() {
         let { source } = this;
-        let r = await source.peek(magicLength);
-        return !r.done
-            ? checkForMagicArrowString(r.value)
-            ? new ArrowFile(await source.next())
+        let bytes = await source.peek(magicLength);
+        return bytes
+            ? checkForMagicArrowString(bytes)
+            ? new ArrowFile(await source.read())
             : new AsyncArrowStream(source)
             : null;
     }

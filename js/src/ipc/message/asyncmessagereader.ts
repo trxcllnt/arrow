@@ -21,8 +21,8 @@ import { MessageHeader } from '../../enum';
 import { Message } from '../metadata/message';
 import { MessageReader } from './messagereader';
 import { toUint8Array } from '../../util/buffer';
-import { AsyncByteStream } from '../../io/stream';
 import { OptionallyAsync } from '../../interfaces';
+import { AsyncByteStream } from '../../io/interfaces';
 import { ITERATOR_DONE, AsyncIteratorBase } from '../../io/interfaces';
 import {
     PADDING,

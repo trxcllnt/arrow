@@ -18,8 +18,8 @@
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
 import { MessageHeader } from '../../enum';
-import { ByteStream } from '../../io/stream';
 import { Message } from '../metadata/message';
+import { ByteStream } from '../../io/interfaces';
 import { toUint8Array } from '../../util/buffer';
 import { AsyncMessageReader } from './asyncmessagereader';
 import { ITERATOR_DONE, IteratorBase } from '../../io/interfaces';
