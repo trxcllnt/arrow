@@ -118,7 +118,7 @@ export class RandomAccessFile<T = Uint8Array, U = Uint8Array> extends ByteStream
     }
     public readInt32(position: number) {
         const { buffer, byteOffset } = this.readAt(position, 4);
-        return new Int32Array(buffer, byteOffset, 1)[0];
+        return new DataView(buffer, byteOffset).getInt32(0, true);
     }
     public seek(position: number) {
         this.position = Math.min(position, this.size);
@@ -164,7 +164,7 @@ export class AsyncRandomAccessFile<T = Uint8Array, U = Uint8Array> extends Async
     }
     public async readInt32(position: number) {
         const { buffer, byteOffset } = await this.readAt(position, 4);
-        return new Int32Array(buffer, byteOffset, 1)[0];
+        return new DataView(buffer, byteOffset).getInt32(0, true);
     }
     public async seek(position: number) {
         this.position = Math.min(position, this.size);
@@ -237,8 +237,11 @@ export class ArrowStream extends ByteStream<ByteBuffer> {
     public static from<TResult = ByteBuffer>(source: ArrayBufferView | Iterable<ArrayBufferView>) {
         return super.from.call(this, source) as ByteStream<TResult>;
     }
+    public position: number = 0;
     public read(size?: number) {
-        return new ByteBuffer(toUint8Array(super.read(size)));
+        const buf = toUint8Array(super.read(size));
+        this.position += buf.byteLength;
+        return new ByteBuffer(buf);
     }
 }
 
@@ -249,7 +252,10 @@ export class AsyncArrowStream extends AsyncByteStream<ByteBuffer> {
     public static from<TResult = ByteBuffer>(source: NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>) {
         return super.from.call(this, source) as AsyncByteStream<TResult>;
     }
+    public position: number = 0;
     public async read(size?: number) {
-        return new ByteBuffer(toUint8Array(await super.read(size)));
+        const buf = toUint8Array(await super.read(size));
+        this.position += buf.byteLength;
+        return new ByteBuffer(buf);
     }
 }

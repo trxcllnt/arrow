@@ -36,10 +36,11 @@ export const invalidMessageBodyLength = (expected: number, actual: number) => `E
 
 export class MessageReader extends IteratorBase<Message, ByteStream<ByteBuffer>> {
     constructor(source: ArrowFile | ArrowStream | ArrayBufferView | Iterable<ArrayBufferView>) {
+        let stream = source as ByteStream<ByteBuffer>;
         if (!((source instanceof ArrowFile) || (source instanceof ArrowStream))) {
-            source = ArrowStream.from(source) as ByteStream<ByteBuffer>;
+            stream = ArrowStream.from(source) as ByteStream<ByteBuffer>;
         }
-        super(source);
+        super(stream);
     }
     public next(): IteratorResult<Message> {
         let r;
@@ -60,7 +61,10 @@ export class MessageReader extends IteratorBase<Message, ByteStream<ByteBuffer>>
         if (bb && (bb.capacity() < bodyLength)) {
             throw new Error(invalidMessageBodyLength(bodyLength, bb.capacity()));
         }
-        return toUint8Array(bb);
+        const body = toUint8Array(bb);
+        // Workaround bugs in fs.ReadStream's internal Buffer pooling
+        // see: https://github.com/nodejs/node/issues/24817
+        return body.byteOffset % 8 === 0 ? body : body.slice();
     }
     public readSchema() {
         const type = MessageHeader.Schema;
@@ -91,12 +95,13 @@ export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncByteStre
     constructor(source: AsyncArrowFile | AsyncArrowStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
+        let stream = source as AsyncByteStream<ByteBuffer>;
         if (isFileHandle(source) && typeof byteLength === 'number') {
-            source = new AsyncArrowFile(source, byteLength);
+            stream = new AsyncArrowFile(source, byteLength);
         } else if (!((source instanceof AsyncArrowFile) || (source instanceof AsyncArrowStream))) {
-            source = AsyncArrowStream.from(source) as AsyncByteStream<ByteBuffer>;
+            stream = AsyncArrowStream.from(source) as AsyncByteStream<ByteBuffer>;
         }
-        super(source);
+        super(stream);
     }
     public async next(): Promise<IteratorResult<Message>> {
         let r;
@@ -117,7 +122,10 @@ export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncByteStre
         if (bb && (bb.capacity() < bodyLength)) {
             throw new Error(invalidMessageBodyLength(bodyLength, bb.capacity()));
         }
-        return toUint8Array(bb);
+        const body = toUint8Array(bb);
+        // Workaround bugs in fs.ReadStream's internal Buffer pooling
+        // see: https://github.com/nodejs/node/issues/24817
+        return body.byteOffset % 8 === 0 ? body : body.slice();
     }
     public async readSchema() {
         const type = MessageHeader.Schema;

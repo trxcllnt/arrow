@@ -49,20 +49,7 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
         }
         [buffer, buffers] = joinUint8Arrays(buffers, size);
         bufferLength -= buffer.byteLength;
-        // 
-        // Node's internal Buffer pooling can lead to an unfortunate scenario
-        // where the byteOffset of the Uint8Array is correct as far as Arrow
-        // is concerned, but the fs.read() call wasn't passed a multiple-of-8
-        // byteOffset [1]. In this case, it's impossible to reliably create
-        // TypedArray views over the underlying pooled ArrayBuffer later,
-        // because the byteOffset for the view is required to align with
-        // BYTES_PER_ELEMENT. The only way around this is to copy the bytes
-        // from the current byteOffset into a new ArrayBuffer, ensuring
-        // the byteOffset of the yielded buffer starts at 0 :<
-        // 
-        // 1. https://github.com/nodejs/node/blob/3fb627bead14e68d989b0f141226c1703fa062ca/lib/internal/fs/streams.js#L175
-        // 
-        return buffer.byteOffset % 8 === 0 ? buffer : buffer.slice();
+        return buffer;
     }
 
     // Yield so the caller can inject the read command before we
