@@ -91,13 +91,14 @@ describe(`Table`, () => {
     // });
     for (let datum of test_data) {
         describe(datum.name, () => {
-            const table = datum.table();
-            const values = datum.values();
-
             test(`has the correct length`, () => {
+                const table = datum.table();
+                const values = datum.values();
                 expect(table.length).toEqual(values.length);
             });
             test(`gets expected values`, () => {
+                const table = datum.table();
+                const values = datum.values();
                 for (let i = -1; ++i < values.length;) {
                     const row = table.get(i);
                     const expected = values[i];
@@ -108,6 +109,8 @@ describe(`Table`, () => {
             });
             test(`iterates expected values`, () => {
                 let i = 0;
+                const table = datum.table();
+                const values = datum.values();
                 for (let row of table) {
                     const expected = values[i++];
                     expect(row.f32).toEqual(expected[F32]);

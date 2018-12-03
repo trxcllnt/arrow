@@ -21,37 +21,14 @@ import * as Path from 'path';
 import { nodeToDOMStream } from './util';
 
 import { Message } from '../../../src/ipc/metadata/message';
-
-import { MessageReader } from '../../../src/ipc/message/messagereader';
-import { AsyncMessageReader } from '../../../src/ipc/message/asyncmessagereader';
-import { resolveInputFormat, ArrowStream, AsyncArrowStream } from '../../../src/ipc/input';
+import { MessageReader, AsyncMessageReader } from '../../../src/ipc/message';
 
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
-const newMessageReader = (x: any) => new MessageReader(resolveInputFormat(x).resolve() as ArrowStream);
-const newAsyncMessageReader = async (x: any) => new AsyncMessageReader(await resolveInputFormat(x).resolve() as AsyncArrowStream);
-
-const zerosAndLengthPrefix = () => { const b = new Uint8Array(104); b[0] = 100; return b; };
-
-describe('MessageReader InputResolver', () => {
-
-    it('should return a MessageReader when created with a Buffer', () => {
-        expect(newMessageReader(zerosAndLengthPrefix())).toBeInstanceOf(MessageReader);
-    });
-    it('should return a MessageReader when created with an Iterable', () => {
-        expect(newMessageReader(function* () { yield zerosAndLengthPrefix(); }())).toBeInstanceOf(MessageReader);
-    });
-    it('should return an AsyncMessageReader when created with a Promise', async () => {
-        expect(await newAsyncMessageReader(Promise.resolve(zerosAndLengthPrefix()))).toBeInstanceOf(AsyncMessageReader);
-    });
-    it('should return an AsyncMessageReader when created with an AsyncIterable', async () => {
-        expect(await newAsyncMessageReader(async function* () { yield zerosAndLengthPrefix(); }())).toBeInstanceOf(AsyncMessageReader);
-    });
-});
 
 describe('MessageReader', () => {
 
     it('should read all messages from an Arrow Buffer stream', () => {
-        simpleStreamSyncMessageReaderTest(newMessageReader(fs.readFileSync(simpleStreamPath)));
+        simpleStreamSyncMessageReaderTest(new MessageReader(fs.readFileSync(simpleStreamPath)));
     });
 
     function simpleStreamSyncMessageReaderTest(reader: MessageReader) {
@@ -90,16 +67,16 @@ describe('MessageReader', () => {
 describe('AsyncMessageReader', () => {
 
     it('should read all messages from a NodeJS ReadableStream', async () => {
-        await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(fs.createReadStream(simpleStreamPath)));
+        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(fs.createReadStream(simpleStreamPath)));
     });
 
     it('should read all messages from a whatwg ReadableStream', async () => {
-        await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(
+        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(
             nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
     });
 
     it('should read all messages from a whatwg ReadableByteStream', async () => {
-        await simpleStreamAsyncMessageReaderTest(await newAsyncMessageReader(
+        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(
             nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
     });
 

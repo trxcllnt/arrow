@@ -19,7 +19,7 @@ import { Readable } from 'stream';
 import { toUint8Array } from '../../../src/util/buffer';
 import { ReadableDOMStream } from '../../../src/io/interfaces';
 
-export async function* readableDOMStreamToAsyncIterator(stream: ReadableDOMStream) {
+export async function* readableDOMStreamToAsyncIterator<T>(stream: ReadableDOMStream<T>) {
     // Get a lock on the stream
     const reader = stream.getReader();
     try {

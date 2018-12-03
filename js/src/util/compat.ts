@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { ArrowJSONInput } from '../ipc/input';
+import { ArrowJSONInput } from '../io/interfaces';
 
 type ReadableNodeStream = NodeJS.ReadableStream;
 type ReadStream = import('fs').ReadStream;

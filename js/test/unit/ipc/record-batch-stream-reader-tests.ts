@@ -22,10 +22,8 @@ import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
 
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
-import {
-    ArrowDataSource,
-    RecordBatchStreamReader, AsyncRecordBatchStreamReader,
-}  from '../../../src/ipc/reader';
+import { RecordBatchReader }  from '../../../src/ipc/reader';
+import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from '../../../src/ipc/reader/stream';
 
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
 const simpleStreamData = fs.readFileSync(simpleStreamPath);
@@ -49,26 +47,29 @@ async function* asyncIterableSource(buffer: Uint8Array) {
 describe('RecordBatchStreamReader', () => {
 
     it('should read all messages from a Buffer of Arrow data in memory', () => {
-        testSimpleRecordBatchStreamReader(new ArrowDataSource(simpleStreamData));
+        const source = simpleStreamData;
+        testSimpleRecordBatchStreamReader(RecordBatchReader.open(source));
     });
 
     it('should read all messages from an Iterable that yields buffers of Arrow messages in memory', () => {
-        testSimpleRecordBatchStreamReader(new ArrowDataSource(iterableSource(simpleStreamData)));
+        const source = iterableSource(simpleStreamData);
+        testSimpleRecordBatchStreamReader(RecordBatchReader.open(source));
     });
 
     it('should read all messages from an Iterable that yields multiple tables as buffers of Arrow messages in memory', () => {
-        const source = new ArrowDataSource(function *() {
+        const source = (function *() {
             yield* iterableSource(simpleStreamData);
             yield* iterableSource(simpleStreamData);
         }());
-        testSimpleRecordBatchStreamReader(source, false);
-        testSimpleRecordBatchStreamReader(source, true);
+        const reader = RecordBatchReader.open(source);
+        testSimpleRecordBatchStreamReader(reader, false);
+        testSimpleRecordBatchStreamReader(reader, true);
     });
 
     describe('asReadableDOMStream', () => {
         it('should yield all RecordBatches', async () => {
-            const source = new ArrowDataSource(simpleStreamData);
-            const reader = source.open() as RecordBatchStreamReader;
+            const source = simpleStreamData;
+            const reader = RecordBatchReader.open(source);
             const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
@@ -76,19 +77,20 @@ describe('RecordBatchStreamReader', () => {
 
     describe('asReadableNodeStream', () => {
         it('should yield all RecordBatches', async () => {
-            const source = new ArrowDataSource(simpleStreamData);
-            const reader = source.open() as RecordBatchStreamReader;
+            const source = simpleStreamData;
+            const reader = RecordBatchReader.open(source);
             const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
     });
 
-    function testSimpleRecordBatchStreamReader(source: ArrowDataSource, close = true) {
+    function testSimpleRecordBatchStreamReader(reader: RecordBatchStreamReader, close = true) {
 
         let r: IteratorResult<RecordBatch>;
 
-        const reader = source.open() as RecordBatchStreamReader;
+        reader = reader.open();
 
+        expect(reader.isStream()).toBe(true);
         expect(reader.readSchema()).toBeInstanceOf(Schema);
 
         r = reader.next();
@@ -105,59 +107,66 @@ describe('RecordBatchStreamReader', () => {
 
         expect(reader.next().done).toBe(true);
 
-        close && reader.return();
+        close ? reader.return() : reader.reset();
     }
 });
 
 describe('AsyncRecordBatchStreamReader', () => {
 
     it('should read all messages from a NodeJS ReadableStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(fs.createReadStream(simpleStreamPath)));
+        const source = fs.createReadStream(simpleStreamPath);
+        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.open(source));
     });
 
     it('should read all messages from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(asyncIterableSource(simpleStreamData)));
+        const source = asyncIterableSource(simpleStreamData);
+        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.open(source));
     });
 
     it('should read all messages from a whatwg ReadableStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
+        const source = nodeToDOMStream(fs.createReadStream(simpleStreamPath));
+        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.open(source));
     });
 
     it('should read all messages from a whatwg ReadableByteStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(new ArrowDataSource(nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
+        const source = nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' });
+        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.open(source));
     });
 
     it('should read all messages from an AsyncIterable that yields multiple tables as buffers of Arrow messages in memory', async () => {
-        const source = new ArrowDataSource(async function *() {
+        const source = (async function *() {
             yield* asyncIterableSource(simpleStreamData);
             yield* asyncIterableSource(simpleStreamData);
         }());
-        await testSimpleAsyncRecordBatchStreamReader(source, false);
-        await testSimpleAsyncRecordBatchStreamReader(source, true);
+        const reader = await RecordBatchReader.open(source);
+        await testSimpleAsyncRecordBatchStreamReader(reader, false);
+        await testSimpleAsyncRecordBatchStreamReader(reader, true);
     });
 
     describe('asReadableDOMStream', () => {
         it('should yield all RecordBatches', async () => {
-            const source = new ArrowDataSource(asyncIterableSource(simpleStreamData));
-            const reader = await source.open() as AsyncRecordBatchStreamReader;
+            const source = asyncIterableSource(simpleStreamData);
+            const reader = await RecordBatchReader.open(source);
             const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
+            await testSimpleAsyncRecordBatchIterator(iterator, true);
         });
     });
 
     describe('asReadableNodeStream', () => {
         it('should yield all RecordBatches', async () => {
-            const source = new ArrowDataSource(asyncIterableSource(simpleStreamData));
-            const reader = await source.open() as AsyncRecordBatchStreamReader;
+            const source = asyncIterableSource(simpleStreamData);
+            const reader = await RecordBatchReader.open(source);
             const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
-            await testSimpleAsyncRecordBatchIterator(iterator);
+            await testSimpleAsyncRecordBatchIterator(iterator, true);
         });
     });
 
-    async function testSimpleAsyncRecordBatchStreamReader(source: ArrowDataSource, close = true) {
-        const reader = await source.open() as AsyncRecordBatchStreamReader;
+    async function testSimpleAsyncRecordBatchStreamReader(reader: RecordBatchReader, close = true) {
+        reader = await reader.open();
+        expect(reader.isStream()).toBe(true);
         expect(await reader.readSchema()).toBeInstanceOf(Schema);
-        await testSimpleAsyncRecordBatchIterator(reader, close);
+        await testSimpleAsyncRecordBatchIterator(reader as AsyncRecordBatchStreamReader, close);
+        close ? (await reader.return()) : (await reader.reset());
     }
 });
 

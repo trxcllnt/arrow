@@ -17,14 +17,22 @@
 
 import { Vector } from './vector';
 import { Schema, Field } from './schema';
+import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
 import { DataType, Row, Struct } from './type';
 import { ChunkedVector, Column } from './column';
-import { Asyncified, Vector as TVector } from './interfaces';
-import { ArrowIPCInput, ArrowIPCSyncInput, ArrowIPCAsyncInput } from './ipc/input';
-import { ArrowDataSource } from './ipc/reader';
-import { RecordBatchReader } from './ipc/reader/recordbatchreader';
-import { AsyncRecordBatchReader } from './ipc/reader/asyncrecordbatchreader';
+import { Vector as TVector } from './interfaces';
+import { ReadableDOMStream } from './io/interfaces';
+import { RecordBatchJSONReader } from './ipc/reader/json';
+import { RecordBatchReader, TOpenRecordBatchReaderArgs } from './ipc/reader';
+import { RecordBatchFileReader, AsyncRecordBatchFileReader } from './ipc/reader/file';
+import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from './ipc/reader/stream';
+import {
+    ArrowJSON, ArrowJSONInput,
+    ArrowStream, AsyncArrowStream,
+    ArrowFile, AsyncArrowFile, FileHandle,
+} from './io/interfaces';
+
 // import { Col, Predicate } from './predicate';
 // import { read, readAsync } from './ipc/reader/arrow';
 // import { writeTableBinary } from './ipc/writer/arrow';
@@ -44,32 +52,49 @@ export interface DataFrame<T extends { [key: string]: DataType; } = any> {
 }
 
 export class Table<T extends { [key: string]: DataType; } = any> implements DataFrame<T> {
-    static empty<R extends { [key: string]: DataType; } = any>() { return new Table<R>(new Schema([]), []); }
-    static from<R extends { [key: string]: DataType; } = any>(sources?: ArrowIPCSyncInput): Table<R>;
-    static from<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCAsyncInput): Promise<Table<R>>;
-    static from<R extends { [key: string]: DataType; } = any>(sources?: ArrowIPCInput): Table<R> | Promise<Table<R>> {
-        if (sources == null) return Table.empty<R>();
-        const source = new ArrowDataSource(sources) as ArrowDataSource | Asyncified<ArrowDataSource>;
-        if (source.isSync()) {
-            const reader = source.open() as RecordBatchReader<R>;
-            return new Table<R>(reader.schema, [...reader]);
+
+    public static empty<T extends { [key: string]: DataType; } = any>() { return new Table<T>(new Schema([]), []); }
+
+    public static from<T extends { [key: string]: DataType } = any>(source: ArrowJSON | RecordBatchJSONReader<T> | ArrowJSONInput                                      ): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: ArrowFile | RecordBatchFileReader<T>                                                       ): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: ArrowStream | RecordBatchStreamReader<T>                                                   ): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(...sources: Array<ArrayBufferView | Iterable<ArrayBufferView>>                                     ): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: AsyncArrowFile | AsyncRecordBatchFileReader<T>                                             ): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: AsyncArrowStream | AsyncRecordBatchStreamReader<T>                                         ): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FileHandle | PromiseLike<FileHandle>                                                       ): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: TOpenRecordBatchReaderArgs<T>) {
+    
+        if (arguments.length > 1) {
+            source = [...arguments];
         }
-        return (async () => {
-            const reader = await source.open() as AsyncRecordBatchReader<R>;
-            const recordBatches: RecordBatch[] = [];
-            for await (let recordBatch of reader) {
-                recordBatches.push(recordBatch);
-            }
-            return new Table<R>(reader.schema, recordBatches);
-        })();
+
+        if (source == null) return Table.empty<T>();
+
+        const reader = RecordBatchReader.open<T>(source as any);
+
+        if (isPromise<RecordBatchReader<T>>(reader)) {
+            return (async () => await Table.from<T>(await reader as any))();
+        } else if (reader.isSync()) {
+            return new Table<T>(reader.schema, [...reader]);
+        } else {
+            return (async () => {
+                const recordBatches: RecordBatch[] = [];
+                for await (let recordBatch of reader) {
+                    recordBatches.push(recordBatch);
+                }
+                return new Table<T>(reader.schema, recordBatches);
+            })();
+        }
     }
-    static async fromAsync<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCInput): Promise<Table<R>> {
-        return await Table.from<R>(sources as any);
+
+    static async fromAsync<T extends { [key: string]: DataType; } = any>(...sources: TOpenRecordBatchReaderArgs<T>[]): Promise<Table<T>> {
+        return await Table.from<T>(...sources as any[]);
     }
-    static fromStruct<R extends { [key: string]: DataType; } = any>(struct: Vector<Struct<R>>) {
+    static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
         const schema = new Schema(struct.type.children);
-        const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as TVector<Struct<R>>[];
-        return new Table<R>(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
+        const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as TVector<Struct<T>>[];
+        return new Table<T>(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
     }
 
     public readonly schema: Schema;
