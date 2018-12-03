@@ -100,11 +100,11 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
 
     // @ts-ignore
     protected bindDataAccessors(data: Data<T>) {
-        const TType = this.TType;
-        this['get'] = getVisitor.getVisitFn(TType).bind(this, this);
-        this['indexOf'] = indexOfVisitor.getVisitFn(TType).bind(this, this);
-        this['toArray'] = toArrayVisitor.getVisitFn(TType).bind(this, this);
-        this[Symbol.iterator] = iteratorVisitor.getVisitFn(TType).bind(this, this);
+        const type = this.type;
+        this['get'] = getVisitor.getVisitFn(type).bind(this, this);
+        this['indexOf'] = indexOfVisitor.getVisitFn(type).bind(this, this);
+        this['toArray'] = toArrayVisitor.getVisitFn(type).bind(this, this);
+        this[Symbol.iterator] = iteratorVisitor.getVisitFn(type).bind(this, this);
         super.bindDataAccessors(data);
     }
 
