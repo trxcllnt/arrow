@@ -22,56 +22,62 @@ import { MessageHeader } from '../enum';
 import { Footer } from './metadata/file';
 import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
-import { iterableAsReadableDOMStream, iterableAsReadableNodeStream} from '../io/stream';
-import { asyncIterableAsReadableDOMStream, asyncIterableAsReadableNodeStream } from '../io/stream';
-import { MessageReader, AsyncMessageReader, checkForMagicArrowString, magicLength, magicX2AndPadding } from './message';
-import { ReadableDOMStream, WritableDOMStream, ReadableNodeStream, PipeOptions, WritableReadablePair } from '../io/interfaces';
-import { isPromise, isArrowJSON, isFileHandle, isIterable, isAsyncIterable, isReadableDOMStream, isReadableNodeStream } from '../util/compat';
+import { ArrayBufferViewInput } from '../util/buffer';
+import { ByteStream, AsyncByteStream } from '../io/stream';
+import { ArrowJSONInput, FileHandle } from '../io/interfaces';
+import { toReadableDOMStream } from '../io/adapters/stream.dom';
+import { toReadableNodeStream } from '../io/adapters/stream.node';
+import { ArrowJSON, ArrowStream, AsyncArrowStream, ArrowFile, AsyncArrowFile } from '../io';
+import { ReadableDOMStream, WritableDOMStream, PipeOptions, WritableReadablePair } from '../io/interfaces';
+import { MessageReader, AsyncMessageReader, checkForMagicArrowString, magicLength, magicX2AndPadding } from './reader/message';
+import { isPromise, isArrowJSON, isFileHandle, isAsyncIterable, isReadableDOMStream, isReadableNodeStream } from '../util/compat';
 
 abstract class AbstractRecordBatchReader<T extends { [key: string]: DataType } = any> {
 
-    public static open<T extends { [key: string]: DataType } = any>(source: ArrowJSONInput | ArrowJSON | RecordBatchJSONReader<T>                                       ): RecordBatchJSONReader<T>;
-    public static open<T extends { [key: string]: DataType } = any>(source: ArrowFile | RecordBatchFileReader<T>                                                        ): RecordBatchFileReader<T>;
-    public static open<T extends { [key: string]: DataType } = any>(source: ArrowStream | RecordBatchStreamReader<T>                                                    ): RecordBatchStreamReader<T>;
-    public static open<T extends { [key: string]: DataType } = any>(source: AsyncArrowFile | AsyncRecordBatchFileReader<T>                                              ): Promise<AsyncRecordBatchFileReader<T>>;
-    public static open<T extends { [key: string]: DataType } = any>(source: AsyncArrowStream | AsyncRecordBatchStreamReader<T>                                          ): Promise<AsyncRecordBatchStreamReader<T>>;
-    public static open<T extends { [key: string]: DataType } = any>(source: ArrayBufferView | Iterable<ArrayBufferView>                                                 ): RecordBatchFileReader<T> | RecordBatchStreamReader<T>;
-    public static open<T extends { [key: string]: DataType } = any>(source: PromiseLike<ArrayBufferView> | PromiseLike<Iterable<ArrayBufferView>>                       ): Promise<RecordBatchFileReader<T> | RecordBatchStreamReader<T>>;
-    public static open<T extends { [key: string]: DataType } = any>(source: NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView> ): Promise<RecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
-    public static open<T extends { [key: string]: DataType } = any>(source: FileHandle | PromiseLike<FileHandle>                                                        ): Promise<AsyncRecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
-    public static open<T extends { [key: string]: DataType } = any>(source: TOpenRecordBatchReaderArgs<T>) {
+    public static open<T extends { [key: string]: DataType } = any>(source: ArrowJSONInput | ArrowJSON | RecordBatchJSONReader<T>                                                 , autoClose?: boolean): RecordBatchJSONReader<T>;
+    public static open<T extends { [key: string]: DataType } = any>(source: ArrowFile | RecordBatchFileReader<T>                                                                  , autoClose?: boolean): RecordBatchFileReader<T>;
+    public static open<T extends { [key: string]: DataType } = any>(source: ArrowStream | RecordBatchStreamReader<T>                                                              , autoClose?: boolean): RecordBatchStreamReader<T>;
+    public static open<T extends { [key: string]: DataType } = any>(source: AsyncArrowFile | AsyncRecordBatchFileReader<T>                                                        , autoClose?: boolean): Promise<AsyncRecordBatchFileReader<T>>;
+    public static open<T extends { [key: string]: DataType } = any>(source: AsyncArrowStream | AsyncRecordBatchStreamReader<T>                                                    , autoClose?: boolean): Promise<AsyncRecordBatchStreamReader<T>>;
+    public static open<T extends { [key: string]: DataType } = any>(source: ArrayBufferViewInput | Iterable<ArrayBufferViewInput>                                                 , autoClose?: boolean): RecordBatchFileReader<T> | RecordBatchStreamReader<T>;
+    public static open<T extends { [key: string]: DataType } = any>(source: PromiseLike<ArrayBufferViewInput> | PromiseLike<Iterable<ArrayBufferViewInput>>                       , autoClose?: boolean): Promise<RecordBatchFileReader<T> | RecordBatchStreamReader<T>>;
+    public static open<T extends { [key: string]: DataType } = any>(source: NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> , autoClose?: boolean): Promise<RecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
+    public static open<T extends { [key: string]: DataType } = any>(source: FileHandle | PromiseLike<FileHandle>                                                                  , autoClose?: boolean): Promise<AsyncRecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
+    public static open<T extends { [key: string]: DataType } = any>(source: TOpenRecordBatchReaderArgs<T>                                                                         , autoClose = true) {
 
-        if (isPromise<FileHandle>(source)) { return (async () => await AbstractRecordBatchReader.open<T>(await source))(); }
-        if (isPromise<ArrayBufferView>(source)) { return (async () => await AbstractRecordBatchReader.open<T>(await source))(); }
-        if (isPromise<Iterable<ArrayBufferView>>(source)) { return (async () => await AbstractRecordBatchReader.open<T>(await source))(); }
+        if (isPromise<FileHandle>(source)) { return (async () => await AbstractRecordBatchReader.open<T>(await source, autoClose))(); }
+        if (isPromise<ArrayBufferViewInput>(source)) { return (async () => await AbstractRecordBatchReader.open<T>(await source, autoClose))(); }
+        if (isPromise<Iterable<ArrayBufferViewInput>>(source)) { return (async () => await AbstractRecordBatchReader.open<T>(await source, autoClose))(); }
 
-        if (source instanceof RecordBatchJSONReader) { return source.open() as RecordBatchJSONReader<T>; }
-        if (source instanceof RecordBatchFileReader) { return source.open() as RecordBatchFileReader<T>; }
-        if (source instanceof RecordBatchStreamReader) { return source.open() as RecordBatchStreamReader<T>; }
-        if (source instanceof AsyncRecordBatchFileReader) { return source.open() as Promise<AsyncRecordBatchFileReader<T>>; }
-        if (source instanceof AsyncRecordBatchStreamReader) { return source.open() as Promise<AsyncRecordBatchStreamReader<T>>; }
+        if (source instanceof RecordBatchJSONReader) { return source.open(autoClose) as RecordBatchJSONReader<T>; }
+        if (source instanceof RecordBatchFileReader) { return source.open(autoClose) as RecordBatchFileReader<T>; }
+        if (source instanceof RecordBatchStreamReader) { return source.open(autoClose) as RecordBatchStreamReader<T>; }
+        if (source instanceof AsyncRecordBatchFileReader) { return source.open(autoClose) as Promise<AsyncRecordBatchFileReader<T>>; }
+        if (source instanceof AsyncRecordBatchStreamReader) { return source.open(autoClose) as Promise<AsyncRecordBatchStreamReader<T>>; }
 
-        if (source instanceof ArrowJSON) { return new RecordBatchJSONReader<T>(source).open(); }
-        if (source instanceof ArrowFile) { return new RecordBatchFileReader<T>(source).open(); }
-        if (source instanceof ArrowStream) { return new RecordBatchStreamReader<T>(source).open(); }
-        if (source instanceof AsyncArrowFile) { return new AsyncRecordBatchFileReader<T>(source).open(); }
-        if (source instanceof AsyncArrowStream) { return new AsyncRecordBatchStreamReader<T>(source).open(); }
+        if (source instanceof ArrowJSON) { return new RecordBatchJSONReader<T>(source).open(autoClose); }
+        if (source instanceof ArrowFile) { return new RecordBatchFileReader<T>(source).open(autoClose); }
+        if (source instanceof ArrowStream) { return new RecordBatchStreamReader<T>(source).open(autoClose); }
+        if (source instanceof AsyncArrowFile) { return new AsyncRecordBatchFileReader<T>(source).open(autoClose); }
+        if (source instanceof AsyncArrowStream) { return new AsyncRecordBatchStreamReader<T>(source).open(autoClose); }
 
-        if (                         isArrowJSON(source)) { return openJSON<T>(source); }
-        if (                        isFileHandle(source)) { return openFileHandle<T>(source); }
-        if (isReadableDOMStream<ArrayBufferView>(source)) { return openAsyncByteStream<T>(AsyncByteStream.from(source)); }
-        if (                isReadableNodeStream(source)) { return openAsyncByteStream<T>(AsyncByteStream.from(source)); }
-        if (    isAsyncIterable<ArrayBufferView>(source)) { return openAsyncByteStream<T>(AsyncByteStream.from(source)); }
-                                                            return      openByteStream<T>(     ByteStream.from(source));
+        if (                              isArrowJSON(source)) { return openJSON<T>(source, autoClose); }
+        if (                             isFileHandle(source)) { return openFileHandle<T>(source, autoClose); }
+        if (isReadableDOMStream<ArrayBufferViewInput>(source)) { return openAsyncByteStream<T>(new AsyncByteStream(source), autoClose); }
+        if (                     isReadableNodeStream(source)) { return openAsyncByteStream<T>(new AsyncByteStream(source), autoClose); }
+        if (    isAsyncIterable<ArrayBufferViewInput>(source)) { return openAsyncByteStream<T>(new AsyncByteStream(source), autoClose); }
+                                                                 return      openByteStream<T>(new      ByteStream(source), autoClose);
     }
 
     // @ts-ignore
     protected _schema: Schema;
     // @ts-ignore
     protected _footer: Footer;
+    protected _autoClose = true;
     protected _dictionaryIndex = 0;
     protected _recordBatchIndex = 0;
     protected _dictionaries: Map<number, Vector>;
+
     public get schema() { return this._schema; }
     public get dictionaries() { return this._dictionaries; }
     public get numDictionaries() { return this._dictionaryIndex; }
@@ -81,9 +87,13 @@ abstract class AbstractRecordBatchReader<T extends { [key: string]: DataType } =
         this._dictionaries = dictionaries;
     }
 
-    public abstract open(): this | Promise<this>;
+    public abstract open(autoClose?: boolean): this | Promise<this>;
+    public abstract close(): this | Promise<this>;
+
+    public abstract next(): IteratorResult<RecordBatch<T>> | Promise<IteratorResult<RecordBatch<T>>>;
     public abstract throw(value?: any): any | Promise<any>;
     public abstract return(value?: any): any | Promise<any>;
+
     public abstract readSchema(): Schema | null | Promise<Schema | null>;
     public abstract readMessage<T extends MessageHeader>(type?: T | null): Message | null | Promise<Message | null>;
 
@@ -96,14 +106,16 @@ abstract class AbstractRecordBatchReader<T extends { [key: string]: DataType } =
         return (this instanceof RecordBatchStreamReader) || (this instanceof AsyncRecordBatchStreamReader);
     }
 
-    public reset(schema?: Schema | null) {
-        this._schema = <any> schema;
+    public reset(schema: Schema | null = this._schema) {
         this._dictionaryIndex = 0;
         this._recordBatchIndex = 0;
+        this._schema = <any> schema;
         this._dictionaries = new Map();
         return this;
     }
 
+    public asReadableDOMStream() { return toReadableDOMStream<RecordBatch<T>>(<any> this); }
+    public asReadableNodeStream() { return toReadableNodeStream<RecordBatch<T>>(<any> this, { objectMode: true }); }
     public pipe<R extends NodeJS.WritableStream>(writable: R, options?: { end?: boolean; }) {
         return this.asReadableNodeStream().pipe(writable, options);
     }
@@ -113,16 +125,6 @@ abstract class AbstractRecordBatchReader<T extends { [key: string]: DataType } =
     public pipeThrough<R extends ReadableDOMStream<any>>(duplex: WritableReadablePair<WritableDOMStream<RecordBatch<T>>, R>, options?: PipeOptions) {
         return this.asReadableDOMStream().pipeThrough(duplex, options);
     }
-    public asReadableDOMStream(): ReadableDOMStream<RecordBatch<T>> {
-        if (isIterable<RecordBatch<T>>(this)) { return iterableAsReadableDOMStream(this); }
-        if (isAsyncIterable<RecordBatch<T>>(this)) { return asyncIterableAsReadableDOMStream(this); }
-        throw new Error(`'asReadableDOMStream()' can only be called on an Iterable or AsyncIterable RecordBatchReader`);
-    }
-    public asReadableNodeStream(): ReadableNodeStream {
-        if (isIterable<RecordBatch<T>>(this)) { return iterableAsReadableNodeStream(this); }
-        if (isAsyncIterable<RecordBatch<T>>(this)) { return asyncIterableAsReadableNodeStream(this); }
-        throw new Error(`'asReadableNodeStream()' can only be called on an Iterable or AsyncIterable RecordBatchReader`);
-    }
 }
 
 export { AbstractRecordBatchReader as RecordBatchReader };
@@ -131,66 +133,59 @@ import { RecordBatchJSONReader } from './reader/json';
 import { RecordBatchReader, AsyncRecordBatchReader } from './reader/base';
 import { RecordBatchFileReader, AsyncRecordBatchFileReader } from './reader/file';
 import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from './reader/stream';
-import {
-    ByteStream,
-    AsyncByteStream,
-    ArrowJSON, ArrowJSONInput,
-    ArrowStream, AsyncArrowStream,
-    ArrowFile, AsyncArrowFile, FileHandle,
-} from '../io/interfaces';
 
-function openJSON<T extends { [key: string]: DataType }>(source: ArrowJSONInput) {
-    return new RecordBatchJSONReader<T>(new ArrowJSON(source)).open();
+function openJSON<T extends { [key: string]: DataType }>(source: ArrowJSONInput, autoClose?: boolean) {
+    return new RecordBatchJSONReader<T>(new ArrowJSON(source)).open(autoClose);
 }
 
-function openByteStream<T extends { [key: string]: DataType }>(source: ByteStream) {
+function openByteStream<T extends { [key: string]: DataType }>(source: ByteStream, autoClose?: boolean) {
     let bytes = source.peek(magicLength);
     return bytes
         ? checkForMagicArrowString(bytes)
-        ? new RecordBatchFileReader<T>(source.read()).open()
-        : new RecordBatchStreamReader<T>(source).open()
-        : new RecordBatchStreamReader<T>(function*(): any {}());
+        ? new RecordBatchFileReader<T>(source.read()).open(autoClose)
+        : new RecordBatchStreamReader<T>(source).open(autoClose)
+        : new RecordBatchStreamReader<T>(function*(): any {}()).open(autoClose);
 }
 
-async function openAsyncByteStream<T extends { [key: string]: DataType }>(source: AsyncByteStream) {
+async function openAsyncByteStream<T extends { [key: string]: DataType }>(source: AsyncByteStream, autoClose?: boolean) {
     let bytes = await source.peek(magicLength);
     return await (bytes
         ? checkForMagicArrowString(bytes)
-        ? new RecordBatchFileReader<T>(await source.read()).open()
-        : new AsyncRecordBatchStreamReader<T>(source).open()
-        : new AsyncRecordBatchStreamReader<T>(async function*(): any {}()).open());
+        ? new RecordBatchFileReader<T>(await source.read()).open(autoClose)
+        : new AsyncRecordBatchStreamReader<T>(source).open(autoClose)
+        : new AsyncRecordBatchStreamReader<T>(async function*(): any {}()).open(autoClose));
 }
 
-async function openFileHandle<T extends { [key: string]: DataType }>(source: FileHandle) {
+async function openFileHandle<T extends { [key: string]: DataType }>(source: FileHandle, autoClose?: boolean) {
     let { size } = await source.stat();
     let file = new AsyncArrowFile(source, size);
     if (size >= magicX2AndPadding) {
         if (checkForMagicArrowString(await file.readAt(0, magicLength))) {
-            return await new AsyncRecordBatchFileReader<T>(file).open();
+            return await new AsyncRecordBatchFileReader<T>(file).open(autoClose);
         }
     }
-    return await new AsyncRecordBatchStreamReader<T>(file).open();
+    return await new AsyncRecordBatchStreamReader<T>(file).open(autoClose);
 }
 
 export type TOpenRecordBatchReaderArgs<T extends { [key: string]: DataType }> =
-    RecordBatchJSONReader<T>               |
-    RecordBatchFileReader<T>               |
-    RecordBatchStreamReader<T>             |
-    AsyncRecordBatchFileReader<T>          |
-    AsyncRecordBatchStreamReader<T>        |
-    ArrowJSON                              |
-    ArrowFile                              |
-    ArrowStream                            |
-    AsyncArrowFile                         |
-    AsyncArrowStream                       |
-    ArrowJSONInput                         |
-    ArrayBufferView                        |
-    Iterable<ArrayBufferView>              |
-    NodeJS.ReadableStream                  |
-    ReadableDOMStream<ArrayBufferView>     |
-    AsyncIterable<ArrayBufferView>         |
-    FileHandle                             |
-    PromiseLike<FileHandle>                |
-    PromiseLike<ArrayBufferView>           |
-    PromiseLike<Iterable<ArrayBufferView>> |
-    never                                  ;
+    RecordBatchJSONReader<T>        |
+    RecordBatchFileReader<T>        |
+    RecordBatchStreamReader<T>      |
+    AsyncRecordBatchFileReader<T>   |
+    AsyncRecordBatchStreamReader<T> |
+    ArrowJSON                       |
+    ArrowFile                       |
+    ArrowStream                     |
+    AsyncArrowFile                  |
+    AsyncArrowStream                |
+    ArrowJSONInput                  |
+    ArrayBufferViewInput                        |
+    Iterable<ArrayBufferViewInput>              |
+    NodeJS.ReadableStream           |
+    ReadableDOMStream<ArrayBufferViewInput>     |
+    AsyncIterable<ArrayBufferViewInput>         |
+    FileHandle                      |
+    PromiseLike<FileHandle>         |
+    PromiseLike<ArrayBufferViewInput>           |
+    PromiseLike<Iterable<ArrayBufferViewInput>> |
+    never                           ;

@@ -23,7 +23,7 @@ import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
 import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from '../../../src/ipc/reader/stream';
+import { RecordBatchStreamReader } from '../../../src/ipc/reader/stream';
 
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
 const simpleStreamData = fs.readFileSync(simpleStreamPath);
@@ -61,9 +61,10 @@ describe('RecordBatchStreamReader', () => {
             yield* iterableSource(simpleStreamData);
             yield* iterableSource(simpleStreamData);
         }());
-        const reader = RecordBatchReader.open(source);
-        testSimpleRecordBatchStreamReader(reader, false);
-        testSimpleRecordBatchStreamReader(reader, true);
+        const reader = RecordBatchReader.open(source, false);
+        testSimpleRecordBatchStreamReader(reader);
+        testSimpleRecordBatchStreamReader(reader);
+        reader.close();
     });
 
     describe('asReadableDOMStream', () => {
@@ -84,7 +85,7 @@ describe('RecordBatchStreamReader', () => {
         });
     });
 
-    function testSimpleRecordBatchStreamReader(reader: RecordBatchStreamReader, close = true) {
+    function testSimpleRecordBatchStreamReader(reader: RecordBatchStreamReader) {
 
         let r: IteratorResult<RecordBatch>;
 
@@ -107,7 +108,7 @@ describe('RecordBatchStreamReader', () => {
 
         expect(reader.next().done).toBe(true);
 
-        close ? reader.return() : reader.reset();
+        reader.return();
     }
 });
 
@@ -138,9 +139,10 @@ describe('AsyncRecordBatchStreamReader', () => {
             yield* asyncIterableSource(simpleStreamData);
             yield* asyncIterableSource(simpleStreamData);
         }());
-        const reader = await RecordBatchReader.open(source);
-        await testSimpleAsyncRecordBatchStreamReader(reader, false);
-        await testSimpleAsyncRecordBatchStreamReader(reader, true);
+        const reader = await RecordBatchReader.open(source, false);
+        await testSimpleAsyncRecordBatchStreamReader(reader);
+        await testSimpleAsyncRecordBatchStreamReader(reader);
+        await reader.close();
     });
 
     describe('asReadableDOMStream', () => {
@@ -148,7 +150,7 @@ describe('AsyncRecordBatchStreamReader', () => {
             const source = asyncIterableSource(simpleStreamData);
             const reader = await RecordBatchReader.open(source);
             const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator, true);
+            await testSimpleAsyncRecordBatchIterator(iterator);
         });
     });
 
@@ -157,20 +159,19 @@ describe('AsyncRecordBatchStreamReader', () => {
             const source = asyncIterableSource(simpleStreamData);
             const reader = await RecordBatchReader.open(source);
             const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
-            await testSimpleAsyncRecordBatchIterator(iterator, true);
+            await testSimpleAsyncRecordBatchIterator(iterator);
         });
     });
 
-    async function testSimpleAsyncRecordBatchStreamReader(reader: RecordBatchReader, close = true) {
+    async function testSimpleAsyncRecordBatchStreamReader(reader: RecordBatchReader) {
         reader = await reader.open();
         expect(reader.isStream()).toBe(true);
         expect(await reader.readSchema()).toBeInstanceOf(Schema);
-        await testSimpleAsyncRecordBatchIterator(reader as AsyncRecordBatchStreamReader, close);
-        close ? (await reader.return()) : (await reader.reset());
+        await testSimpleAsyncRecordBatchIterator(reader as AsyncIterator<RecordBatch>);
     }
 });
 
-async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<RecordBatch>, close = true) {
+async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<RecordBatch>) {
 
     let r: IteratorResult<RecordBatch>;
 
@@ -188,5 +189,5 @@ async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<Record
 
     expect((await iterator.next()).done).toBe(true);
 
-    close && (await iterator.return!());
+    await iterator.return!();
 }

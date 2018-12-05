@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { ReadableDOMStream } from '../interfaces';
-import { joinUint8Arrays, toUint8Array } from '../../util/buffer';
+import { isIterable, isAsyncIterable } from '../../util/compat';
+import { ReadableDOMStream, ReadableDOMStreamOptions } from '../interfaces';
+import { joinUint8Arrays, toUint8Array, ArrayBufferViewInput } from '../../util/buffer';
 
-type TElement = ArrayBufferLike | ArrayBufferView | string;
 type ReadResult<T = any> = import('whatwg-streams').ReadResult<T>;
 type ReadableStreamBYOBReader<T = any> = import('whatwg-streams').ReadableStreamBYOBReader<T>;
 type ReadableStreamDefaultReader<T = any> = import('whatwg-streams').ReadableStreamDefaultReader<T>;
@@ -28,14 +28,23 @@ const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { it
 /**
  * @ignore
  */
-export function fromReadableDOMStream<T extends TElement>(source: ReadableDOMStream<T>): AsyncIterableIterator<Uint8Array> {
+export function toReadableDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableDOMStreamOptions): ReadableDOMStream<T> {
+    if (isAsyncIterable<T>(source)) { return asyncIterableAsReadableDOMStream(source, options); }
+    if (isIterable<T>(source)) { return iterableAsReadableDOMStream(source, options); }
+    throw new Error(`toReadableNodeStream() must be called with an Iterable or AsyncIterable`);
+}
+
+/**
+ * @ignore
+ */
+export function fromReadableDOMStream<T extends ArrayBufferViewInput>(source: ReadableDOMStream<T>): AsyncIterableIterator<Uint8Array> {
     return pump(_fromReadableDOMStream<T>(source));
 }
 
 // All this manual Uint8Array chunk management can be avoided if/when engines
 // add support for ArrayBuffer.transfer() or ArrayBuffer.prototype.realloc():
 // https://github.com/domenic/proposal-arraybuffer-transfer
-async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMStream<T>): AsyncIterableIterator<Uint8Array> {
+async function* _fromReadableDOMStream<T extends ArrayBufferViewInput>(source: ReadableDOMStream<T>): AsyncIterableIterator<Uint8Array> {
 
     let done = false;
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
@@ -84,7 +93,60 @@ async function* _fromReadableDOMStream<T extends TElement>(source: ReadableDOMSt
     }
 }
 
-class AdaptiveByteReader<T extends TElement> {
+function iterableAsReadableDOMStream<T>(source: Iterable<T>, options?: ReadableDOMStreamOptions) {
+    let it: Iterator<T>;
+    return new ReadableDOMStream<T>({
+        ...options,
+        cancel: close.bind(null, 'return'),
+        start() { it = source[Symbol.iterator](); },
+        pull(controller) {
+            try {
+                let size = controller.desiredSize;
+                let r: IteratorResult<T> | null = null;
+                while ((size == null || size-- > 0) && !(r = it.next()).done) {
+                    controller.enqueue(r.value);
+                }
+                r && r.done && [close('return'), controller.close()];
+            } catch (e) {
+                close('throw', e);
+                controller.error(e);
+            }
+        }
+    });
+    function close(signal: 'throw' | 'return', value?: any) {
+        if (it && typeof it[signal] === 'function') {
+            it[signal]!(value);
+        }
+    }
+}
+
+function asyncIterableAsReadableDOMStream<T>(source: AsyncIterable<T>, options?: ReadableDOMStreamOptions) {
+    let it: AsyncIterator<T>;
+    return new ReadableDOMStream<T>({
+        ...options,
+        cancel: close.bind(null, 'return'),
+        async start() { it = source[Symbol.asyncIterator](); },
+        async pull(controller) {
+            try {
+                let size = controller.desiredSize;
+                let r: IteratorResult<T> | null = null;
+                while ((size == null || size > 0) && !(r = await it.next()).done) {
+                    controller.enqueue(r.value);
+                }
+                r && r.done && (await Promise.all([close('return'), controller.close()]));
+            } catch (e) {
+                await Promise.all([close('throw', e), controller.error(e)]);
+            }
+        }
+    });
+    async function close(signal: 'throw' | 'return', value?: any) {
+        if (it && typeof it[signal] === 'function') {
+            await it[signal]!(value);
+        }
+    }
+}
+
+class AdaptiveByteReader<T extends ArrayBufferViewInput> {
 
     private supportsBYOB: boolean;
     private byobReader: ReadableStreamBYOBReader<T> | null = null;
@@ -126,7 +188,7 @@ class AdaptiveByteReader<T extends TElement> {
         const result = !this.supportsBYOB || typeof size !== 'number'
             ? await this.getDefaultReader().read()
             : await this.readFromBYOBReader(size);
-        !result.done && (result.value = toUint8Array(result));
+        !result.done && (result.value = toUint8Array(result as ReadResult<Uint8Array>));
         return result as ReadResult<Uint8Array>;
     }
 
@@ -165,7 +227,7 @@ class AdaptiveByteReader<T extends TElement> {
     }
 }
 
-async function readInto<T extends TElement>(reader: ReadableStreamBYOBReader<T>, buffer: ArrayBufferLike, offset: number): Promise<ReadResult<Uint8Array>> {
+async function readInto<T extends ArrayBufferViewInput>(reader: ReadableStreamBYOBReader<T>, buffer: ArrayBufferLike, offset: number): Promise<ReadResult<Uint8Array>> {
     const total = buffer.byteLength;
     if (offset >= total) {
         return { done: false, value: new Uint8Array(buffer, 0, total) };

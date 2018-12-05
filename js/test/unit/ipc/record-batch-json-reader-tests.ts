@@ -83,7 +83,7 @@ describe('RecordBatchJSONReader', () => {
     }
 });
 
-async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<RecordBatch>, close = true) {
+async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<RecordBatch>) {
 
     let r: IteratorResult<RecordBatch>;
 
@@ -101,5 +101,5 @@ async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterator<Record
 
     expect((await iterator.next()).done).toBe(true);
 
-    close && (await iterator.return!());
+    await iterator.return!();
 }

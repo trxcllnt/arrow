@@ -18,7 +18,9 @@
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
 import { ArrayBufferViewConstructor  } from '../interfaces';
-import { isIteratorResult, isIterable, isAsyncIterable } from './compat';
+import { isPromise, isIterable, isAsyncIterable, isIteratorResult } from './compat';
+
+type ReadResult<T = any> = import('whatwg-streams').ReadResult<T>;
 
 function collapseContiguousByteRanges(chunks: Uint8Array[]) {
     for (let x, y, i = 0; ++i < chunks.length;) {
@@ -62,8 +64,9 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
     return [buffer || new Uint8Array(0), chunks.slice(index)];
 }
 
-export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined |
-                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined>;
+export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined  |
+                        ReadResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> |
+                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> ;
 
 /**
  * @ignore
@@ -128,17 +131,31 @@ export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor:
 type ArrayBufferViewAsyncIteratorInput = AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput> | ArrayBufferViewInput;
 
 /** @ignore */
-export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewAsyncIteratorInput) {
+export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewAsyncIteratorInput): AsyncIterableIterator<T> {
+
+    // if a Promise, unwrap the Promise and iterate the resolved value
+    if (isPromise<ArrayBufferViewInput>(source)) {
+        return yield* toArrayBufferViewAsyncIterator(ArrayCtor, await source);
+    }
 
     const wrap = async function*<T>(x: T) { yield await x; };
-    const emit = async function*<T>(x: Iterable<T>) { yield* x; };
+    const emit = async function* <T extends Iterable<any>>(source: T) {
+        yield* pump((function*(it: Iterator<any>) {
+            let r: IteratorResult<any> = <any> null;
+            do {
+                r = it.next(yield r && r.value);
+            } while (!r.done);
+        })(source[Symbol.iterator]()));
+    };
+
     const buffers: AsyncIterable<ArrayBufferViewInput> =
-                        (typeof source === 'string') ? wrap(source)
-                      : (ArrayBuffer.isView(source)) ? wrap(source)
-                   : (source instanceof ArrayBuffer) ? wrap(source)
-             : (source instanceof SharedArrayBuffer) ? wrap(source)
-          : isIterable<ArrayBufferViewInput>(source) ? emit(source)
-    : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source as ArrayBufferViewInput) : source;
+                        (typeof source === 'string') ? wrap(source) // if string, wrap in an AsyncIterableIterator
+                      : (ArrayBuffer.isView(source)) ? wrap(source) // if TypedArray, wrap in an AsyncIterableIterator
+                   : (source instanceof ArrayBuffer) ? wrap(source) // if ArrayBuffer, wrap in an AsyncIterableIterator
+             : (source instanceof SharedArrayBuffer) ? wrap(source) // if SharedArrayBuffer, wrap in an AsyncIterableIterator
+          : isIterable<ArrayBufferViewInput>(source) ? emit(source) // If Iterable, wrap in an AsyncIterableIterator and compose the `next` values
+    : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source) // If not an AsyncIterable, treat as a sentinel and wrap in an AsyncIterableIterator
+                                                     : source // otherwise if AsyncIterable, use it
 
     yield* pump((async function* (it) {
         let r: IteratorResult<any> = <any> null;

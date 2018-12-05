@@ -18,29 +18,28 @@
 import {
     toUint8Array,
     joinUint8Arrays,
+    ArrayBufferViewInput,
     toUint8ArrayIterator,
     toUint8ArrayAsyncIterator
 } from '../../util/buffer';
-
-type TElement = ArrayBufferLike | ArrayBufferView | string;
 
 const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; };
 
 /**
  * @ignore
  */
-export function fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
+export function fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
     return pump(_fromIterable<T>(source));
 }
 
 /**
  * @ignore
  */
-export function fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
+export function fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
     return pump(_fromAsyncIterable<T>(source));
 }
 
-function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
+function* _fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
 
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
     let done: boolean, it: Iterator<Uint8Array> | null = null;
@@ -66,8 +65,8 @@ function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIt
             ({ done, value: buffer } = isNaN(size - bufferLength) ?
                 it.next(undefined) : it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
-            if (buffer && (buffer.byteLength > 0)) {
-                buffers.push(toUint8Array(buffer));
+            if ((buffer = toUint8Array(buffer)).byteLength > 0) {
+                buffers.push(buffer);
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't
@@ -83,7 +82,7 @@ function* _fromIterable<T extends TElement>(source: Iterable<T> | T): IterableIt
     }
 }
 
-async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
+async function* _fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
 
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
     let done: boolean, it: AsyncIterator<Uint8Array> | null = null;
@@ -110,8 +109,8 @@ async function* _fromAsyncIterable<T extends TElement>(source: AsyncIterable<T> 
                 ? await it.next(undefined)
                 : await it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
-            if (buffer && (buffer.byteLength > 0)) {
-                buffers.push(toUint8Array(buffer));
+            if ((buffer = toUint8Array(buffer)).byteLength > 0) {
+                buffers.push(buffer);
                 bufferLength += buffer.byteLength;
             }
             // If we have enough bytes in our buffer, yield chunks until we don't

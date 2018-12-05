@@ -16,18 +16,20 @@
 // under the License.
 
 import { DataType } from '../../type';
-import { MessageReader, AsyncMessageReader } from '../message';
+import { ArrowStream, AsyncArrowStream } from '../../io';
+import { ByteStream, AsyncByteStream } from '../../io/stream';
+import { MessageReader, AsyncMessageReader } from './message';
 import { RecordBatchReader, AsyncRecordBatchReader } from './base';
-import { ArrowStream, AsyncArrowStream, ReadableDOMStream, FileHandle } from '../../io/interfaces';
+import { ReadableDOMStream, FileHandle } from '../../io/interfaces';
 
 export class RecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
-    constructor(source: ArrowStream | ArrayBufferView | Iterable<ArrayBufferView>) {
+    constructor(source: ArrowStream | ByteStream | ArrayBufferView | Iterable<ArrayBufferView>) {
         super(new MessageReader(source));
     }
 }
 
 export class AsyncRecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends AsyncRecordBatchReader<T> {
-    constructor(source: AsyncArrowStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>);
+    constructor(source: AsyncArrowStream | AsyncByteStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
         super(new AsyncMessageReader(source, byteLength));

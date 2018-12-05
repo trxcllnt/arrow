@@ -15,7 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { isIterable, isAsyncIterable } from '../../util/compat';
 import { joinUint8Arrays, toUint8Array } from '../../util/buffer';
+import { ReadableNodeStream, ReadableNodeStreamOptions } from '../interfaces';
 
 type EventName = 'end' | 'error' | 'readable';
 type Event = [EventName, (_: any) => void, Promise<[EventName, Error | null]>];
@@ -27,6 +29,15 @@ const onEvent = <T extends string>(stream: NodeJS.ReadableStream, event: T) => {
         (r) => (resolve = r) && stream.once(event, handler)
     )] as Event;
 };
+
+/**
+ * @ignore
+ */
+export function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableNodeStreamOptions): ReadableNodeStream {
+    if (isAsyncIterable<T>(source)) { return asyncIterableAsReadableNodeStream(source, options); }
+    if (isIterable<T>(source)) { return iterableAsReadableNodeStream(source, options); }
+    throw new Error(`toReadableNodeStream() must be called with an Iterable or AsyncIterable`);
+}
 
 /**
  * @ignore
@@ -100,5 +111,67 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
             const destroy = (stream as any).destroy || ((err: T, cb: any) => cb(err));
             destroy.call(stream, err, (e: T) => e != null ? reject(e) : resolve(err));
         });
+    }
+}
+
+function iterableAsReadableNodeStream<T>(source: Iterable<T>, options?: ReadableNodeStreamOptions) {
+    let it: Iterator<T>;
+    return new ReadableNodeStream({
+        ...options,
+        read(size: number) {
+            (it || (it = source[Symbol.iterator]())) && read(this, size);
+        },
+        destroy(e: Error | null, cb: (e: Error | null) => void) {
+            const signal = e == null ? 'return' : 'throw';
+            try { close(signal, e); } catch (err) {
+                return cb && Promise.resolve(err).then(cb);
+            }
+            return cb && Promise.resolve(null).then(cb);
+        }
+    });
+    function read(sink: ReadableNodeStream, size: number) {
+        let r: IteratorResult<T> | null = null;
+        while ((size == null || size-- > 0) && !(r = it.next()).done) {
+            if (!sink.push(r.value)) { return; }
+        }
+        r && r.done && end(sink);
+    }
+    function close(signal: 'throw' | 'return', value?: any) {
+        if (it && typeof it[signal] === 'function') {
+            it[signal]!(value);
+        }
+    }
+    function end(sink: ReadableNodeStream) {
+        sink.push(null);
+        close('return');
+    }
+}
+
+function asyncIterableAsReadableNodeStream<T>(source: AsyncIterable<T>, options?: ReadableNodeStreamOptions) {
+    let it: AsyncIterator<T>;
+    return new ReadableNodeStream({
+        ...options,
+        read(size: number) {
+            (it || (it = source[Symbol.asyncIterator]())) && read(this, size);
+        },
+        destroy(e: Error | null, cb: (e: Error | null) => void) {
+            close(e == null ? 'return' : 'throw', e).then(cb as any, cb);
+        }
+    });
+    async function read(sink: ReadableNodeStream, size: number) {
+        let r: IteratorResult<T> | null = null;
+        while ((size == null || size-- > 0) && !(r = await it.next()).done) {
+            if (!sink.push(r.value)) { return; }
+        }
+        r && r.done && await end(sink);
+    }
+    async function close(signal: 'throw' | 'return', value?: any) {
+        if (it && typeof it[signal] === 'function') {
+            await it[signal]!(value);
+        }
+    }
+    async function end(sink: ReadableNodeStream) {
+        sink.push(null);
+        await close('return');
     }
 }

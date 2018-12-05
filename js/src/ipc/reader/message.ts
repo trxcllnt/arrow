@@ -15,39 +15,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { MessageHeader } from '../enum';
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
-import { Message } from './metadata/message';
-import { toUint8Array } from '../util/buffer';
-import { isFileHandle } from '../util/compat';
-import {
-    ITERATOR_DONE, ArrowJSON,
-    ByteStream, AsyncByteStream,
-    IteratorBase, AsyncIteratorBase,
-    FileHandle, ArrowFile, AsyncArrowFile,
-    ReadableDOMStream, ArrowStream, AsyncArrowStream,
-} from '../io/interfaces';
+import { MessageHeader } from '../../enum';
+import { Message } from '../metadata/message';
+import { isFileHandle } from '../../util/compat';
+import { ByteStream, AsyncByteStream } from '../../io/stream';
+import { toUint8Array, ArrayBufferViewInput } from '../../util/buffer';
+import { ITERATOR_DONE, FileHandle, ReadableDOMStream } from '../../io/interfaces';
+import { ArrowJSON, AsyncArrowFile, ArrowStream, AsyncArrowStream } from '../../io';
 
 export const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
 export const nullMessage              = (type: MessageHeader) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`;
 export const invalidMessageMetadata   = (expected: number, actual: number) => `Expected to read ${expected} metadata bytes, but only read ${actual}.`;
 export const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
 
-export class MessageReader extends IteratorBase<Message, ByteStream<ByteBuffer>> {
-    constructor(source: ArrowFile | ArrowStream | ArrayBufferView | Iterable<ArrayBufferView>) {
-        let stream = source as ByteStream<ByteBuffer>;
-        if (!((source instanceof ArrowFile) || (source instanceof ArrowStream))) {
-            stream = ArrowStream.from(source) as ByteStream<ByteBuffer>;
-        }
-        super(stream);
+export class MessageReader implements IterableIterator<Message> {
+    protected source: ArrowStream;
+    constructor(source: ArrowStream | ByteStream | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
+        this.source = source instanceof ArrowStream ? source : new ArrowStream(source);
     }
+    public [Symbol.iterator](): IterableIterator<Message> { return this as IterableIterator<Message>; }
     public next(): IteratorResult<Message> {
         let r;
         if ((r = this.readMetadataLength()).done) { return ITERATOR_DONE; }
         if ((r = this.readMetadata(r.value)).done) { return ITERATOR_DONE; }
         return (<any> r) as IteratorResult<Message>;
     }
+    public throw(value?: any) { return this.source.throw(value); }
+    public return(value?: any) { return this.source.return(value); }
     public readMessage<T extends MessageHeader>(type?: T | null) {
         let r: IteratorResult<Message<T>>;
         if ((r = this.next()).done) { return null; }
@@ -62,7 +58,7 @@ export class MessageReader extends IteratorBase<Message, ByteStream<ByteBuffer>>
             throw new Error(invalidMessageBodyLength(bodyLength, bb.capacity()));
         }
         const body = toUint8Array(bb);
-        // Workaround bugs in fs.ReadStream's internal Buffer pooling
+        // Work around bugs in fs.ReadStream's internal Buffer pooling
         // see: https://github.com/nodejs/node/issues/24817
         return body.byteOffset % 8 === 0 ? body : body.slice();
     }
@@ -91,24 +87,25 @@ export class MessageReader extends IteratorBase<Message, ByteStream<ByteBuffer>>
     }
 }
 
-export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncByteStream<ByteBuffer>> {
-    constructor(source: AsyncArrowFile | AsyncArrowStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>);
+export class AsyncMessageReader implements AsyncIterableIterator<Message> {
+    protected source: AsyncArrowStream;
+    constructor(source: AsyncArrowStream | AsyncByteStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
-        let stream = source as AsyncByteStream<ByteBuffer>;
-        if (isFileHandle(source) && typeof byteLength === 'number') {
-            stream = new AsyncArrowFile(source, byteLength);
-        } else if (!((source instanceof AsyncArrowFile) || (source instanceof AsyncArrowStream))) {
-            stream = AsyncArrowStream.from(source) as AsyncByteStream<ByteBuffer>;
-        }
-        super(stream);
+        this.source = source instanceof AsyncArrowStream ? source
+            : (isFileHandle(source) && typeof byteLength === 'number')
+            ? new AsyncArrowFile(source, byteLength)
+            : new AsyncArrowStream(source);
     }
+    public [Symbol.asyncIterator](): AsyncIterableIterator<Message> { return this as AsyncIterableIterator<Message>; }
     public async next(): Promise<IteratorResult<Message>> {
         let r;
         if ((r = await this.readMetadataLength()).done) { return ITERATOR_DONE; }
         if ((r = await this.readMetadata(r.value)).done) { return ITERATOR_DONE; }
         return (<any> r) as IteratorResult<Message>;
     }
+    public async throw(value?: any) { return await this.source.throw(value); }
+    public async return(value?: any) { return await this.source.return(value); }
     public async readMessage<T extends MessageHeader>(type?: T | null) {
         let r: IteratorResult<Message<T>>;
         if ((r = await this.next()).done) { return null; }
@@ -123,7 +120,7 @@ export class AsyncMessageReader extends AsyncIteratorBase<Message, AsyncByteStre
             throw new Error(invalidMessageBodyLength(bodyLength, bb.capacity()));
         }
         const body = toUint8Array(bb);
-        // Workaround bugs in fs.ReadStream's internal Buffer pooling
+        // Work around bugs in fs.ReadStream's internal Buffer pooling
         // see: https://github.com/nodejs/node/issues/24817
         return body.byteOffset % 8 === 0 ? body : body.slice();
     }

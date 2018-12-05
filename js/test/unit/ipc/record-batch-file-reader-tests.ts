@@ -23,7 +23,6 @@ import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
 import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { AsyncRecordBatchReader } from '../../../src/ipc/reader/base';
 import { RecordBatchFileReader } from '../../../src/ipc/reader/file';
 import { RecordBatchStreamReader } from '../../../src/ipc/reader/stream';
 
@@ -149,11 +148,11 @@ describe('AsyncRecordBatchFileReader', () => {
         });
     });
 
-    async function testSimpleAsyncRecordBatchFileReader(reader: RecordBatchFileReader | AsyncRecordBatchReader) {
+    async function testSimpleAsyncRecordBatchFileReader(reader: RecordBatchReader) {
         reader = await reader.open();
         expect(reader.isFile()).toBe(true);
         expect(await reader.readSchema()).toBeInstanceOf(Schema);
-        await testSimpleAsyncRecordBatchIterator(reader);
+        await testSimpleAsyncRecordBatchIterator(reader as AsyncIterator<RecordBatch>);
     }
 });
 

@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { ArrowJSON } from '../../io';
 import { DataType } from '../../type';
 import { RecordBatchReader } from './base';
-import { ArrowJSON } from '../../io/interfaces';
+import { JSONMessageReader } from './message';
 import * as metadata from '../metadata/message';
-import { JSONMessageReader } from '../message';
 import { JSONVectorLoader } from '../../visitor/vectorloader';
 
 export class RecordBatchJSONReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {

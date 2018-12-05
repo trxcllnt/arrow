@@ -15,117 +15,73 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { ReadableDOMStream, ReadableNodeStream } from './interfaces';
+import { ArrayBufferViewInput } from '../util/buffer';
+import { ReadableDOMStream, ITERATOR_DONE } from './interfaces';
+import { fromReadableDOMStream } from './adapters/stream.dom';
+import { fromReadableNodeStream } from './adapters/stream.node';
+import { fromIterable, fromAsyncIterable } from './adapters/iterable';
+import { isAsyncIterable, isReadableDOMStream, isReadableNodeStream, isPromise } from '../util/compat';
 
-export function iterableAsReadableDOMStream<T>(self: Iterable<T>) {
-    let it: Iterator<T>;
-    return new ReadableDOMStream<T>({
-        cancel: close.bind(null, 'return'),
-        start() { it = self[Symbol.iterator](); },
-        pull(controller) {
-            try {
-                let size = controller.desiredSize;
-                let r: IteratorResult<T> | null = null;
-                while ((size == null || size-- > 0) && !(r = it.next()).done) {
-                    controller.enqueue(r.value);
-                }
-                r && r.done && [close('return'), controller.close()];
-            } catch (e) {
-                close('throw', e);
-                controller.error(e);
-            }
-        }
-    });
-    function close(signal: 'throw' | 'return', value?: any) {
-        if (it && typeof it[signal] === 'function') {
-            it[signal]!(value);
+/**
+ * @ignore
+ */
+export class ByteStream {
+    // @ts-ignore
+    private source: ByteStreamIterator;
+    constructor(source?: Iterable<ArrayBufferViewInput> | ArrayBufferViewInput) {
+        if (source) {
+            this.source = new ByteStreamIterator(fromIterable(source));
         }
     }
+    public throw(value?: any) { return this.source.throw(value); }
+    public return(value?: any) { return this.source.return(value); }
+    public peek(size?: number | null) { return this.source.peek(size); }
+    public read(size?: number | null) { return this.source.read(size); }
 }
 
-export function iterableAsReadableNodeStream<T>(self: Iterable<T>) {
-    let it: Iterator<T>;
-    return new ReadableNodeStream({
-        objectMode: true,
-        read(size: number) {
-            (it || (it = self[Symbol.iterator]())) && read(this, size);
-        },
-        destroy(e: Error | null, cb: (e: Error | null) => void) {
-            const signal = e == null ? 'return' : 'throw';
-            try { close(signal, e); } catch (err) {
-                return cb && Promise.resolve(err).then(cb);
-            }
-            return cb && Promise.resolve(null).then(cb);
-        }
-    });
-    function read(sink: ReadableNodeStream, size: number) {
-        let r: IteratorResult<T> | null = null;
-        while ((size == null || size-- > 0) && !(r = it.next()).done) {
-            if (!sink.push(r.value)) { return; }
-        }
-        r && r.done && end(sink);
-    }
-    function close(signal: 'throw' | 'return', value?: any) {
-        if (it && typeof it[signal] === 'function') {
-            it[signal]!(value);
+/**
+ * @ignore
+ */
+export class AsyncByteStream {
+    // @ts-ignore
+    private source: AsyncByteStreamIterator;
+    constructor(source?: PromiseLike<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | ReadableDOMStream<ArrayBufferViewInput> | NodeJS.ReadableStream | null) {
+        if (isReadableDOMStream<ArrayBufferViewInput>(source)) {
+            this.source = new AsyncByteStreamIterator(fromReadableDOMStream(source));
+        } else if (isReadableNodeStream(source)) {
+            this.source = new AsyncByteStreamIterator(fromReadableNodeStream(source));
+        } else if (isAsyncIterable<ArrayBufferViewInput>(source)) {
+            this.source = new AsyncByteStreamIterator(fromAsyncIterable(source));
+        } else if (isPromise<ArrayBufferViewInput>(source)) {
+            this.source = new AsyncByteStreamIterator(fromAsyncIterable(source));
         }
     }
-    function end(sink: ReadableNodeStream) {
-        sink.push(null);
-        close('return');
-    }
+    public async throw(value?: any) { return await this.source.throw(value); }
+    public async return(value?: any) { return await this.source.return(value); }
+    public async peek(size?: number | null) { return await this.source.peek(size); }
+    public async read(size?: number | null) { return await this.source.read(size); }
 }
 
-export function asyncIterableAsReadableDOMStream<T>(source: AsyncIterable<T>) {
-    let it: AsyncIterator<T>;
-    return new ReadableDOMStream<T>({
-        cancel: close.bind(null, 'return'),
-        async start() { it = source[Symbol.asyncIterator](); },
-        async pull(controller) {
-            try {
-                let size = controller.desiredSize;
-                let r: IteratorResult<T> | null = null;
-                while ((size == null || size > 0) && !(r = await it.next()).done) {
-                    controller.enqueue(r.value);
-                }
-                r && r.done && (await Promise.all([close('return'), controller.close()]));
-            } catch (e) {
-                await Promise.all([close('throw', e), controller.error(e)]);
-            }
-        }
-    });
-    async function close(signal: 'throw' | 'return', value?: any) {
-        if (it && typeof it[signal] === 'function') {
-            await it[signal]!(value);
-        }
-    }
+interface IterableByteStreamIterator extends IterableIterator<Uint8Array> {
+    next(value: { cmd: 'peek' | 'read', size?: number | null }): IteratorResult<Uint8Array>;
 }
 
-export function asyncIterableAsReadableNodeStream<T>(source: AsyncIterable<T>) {
-    let it: AsyncIterator<T>;
-    return new ReadableNodeStream({
-        objectMode: true,
-        read(size: number) {
-            (it || (it = source[Symbol.asyncIterator]())) && read(this, size);
-        },
-        destroy(e: Error | null, cb: (e: Error | null) => void) {
-            close(e == null ? 'return' : 'throw', e).then(cb as any, cb);
-        }
-    });
-    async function read(sink: ReadableNodeStream, size: number) {
-        let r: IteratorResult<T> | null = null;
-        while ((size == null || size-- > 0) && !(r = await it.next()).done) {
-            if (!sink.push(r.value)) { return; }
-        }
-        r && r.done && await end(sink);
-    }
-    async function close(signal: 'throw' | 'return', value?: any) {
-        if (it && typeof it[signal] === 'function') {
-            await it[signal]!(value);
-        }
-    }
-    async function end(sink: ReadableNodeStream) {
-        sink.push(null);
-        await close('return');
-    }
+interface AsyncIterableByteStreamIterator extends AsyncIterableIterator<Uint8Array> {
+    next(value: { cmd: 'peek' | 'read', size?: number | null }): Promise<IteratorResult<Uint8Array>>;
+}
+
+class ByteStreamIterator {
+    constructor(protected source: IterableByteStreamIterator) {}
+    public throw(value?: any) { return this.source.throw && this.source.throw(value) || ITERATOR_DONE; }
+    public return(value?: any) { return this.source.return && this.source.return(value) || ITERATOR_DONE; }
+    public peek(size?: number | null): Uint8Array | null { return this.source.next({ cmd: 'peek', size }).value; }
+    public read(size?: number | null): Uint8Array | null { return this.source.next({ cmd: 'read', size }).value; }
+}
+
+class AsyncByteStreamIterator {
+    constructor(protected source: AsyncIterableByteStreamIterator) {}
+    public async throw(value?: any) { return this.source.throw && await this.source.throw(value) || ITERATOR_DONE; }
+    public async return(value?: any) { return this.source.return && await this.source.return(value) || ITERATOR_DONE; }
+    public async peek(size?: number | null): Promise<Uint8Array | null> { return (await this.source.next({ cmd: 'peek', size })).value; }
+    public async read(size?: number | null): Promise<Uint8Array | null> { return (await this.source.next({ cmd: 'read', size })).value; }
 }

@@ -16,13 +16,14 @@
 // under the License.
 
 import { DataType } from '../../type';
-import { MessageHeader } from '../../enum';
 import { Footer } from '../metadata/file';
+import { MessageHeader } from '../../enum';
 import { Message } from '../metadata/message';
+import { FileHandle } from '../../io/interfaces';
+import { ArrowFile, AsyncArrowFile } from '../../io';
 import { ArrayBufferViewInput } from '../../util/buffer';
 import { RecordBatchReader, AsyncRecordBatchReader } from './base';
-import { ArrowFile, AsyncArrowFile, FileHandle } from '../../io/interfaces';
-import { MessageReader, AsyncMessageReader, magicAndPadding } from '../message';
+import { MessageReader, AsyncMessageReader, magicAndPadding } from './message';
 
 export class RecordBatchFileReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
 
