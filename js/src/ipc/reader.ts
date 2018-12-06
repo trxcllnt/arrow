@@ -139,7 +139,7 @@ function openJSON<T extends { [key: string]: DataType }>(source: ArrowJSONInput,
 }
 
 function openByteStream<T extends { [key: string]: DataType }>(source: ByteStream, autoClose?: boolean) {
-    let bytes = source.peek(magicLength);
+    let bytes = source.peek((magicLength + 7) & ~7);
     return bytes
         ? checkForMagicArrowString(bytes)
         ? new RecordBatchFileReader<T>(source.read()).open(autoClose)
@@ -148,7 +148,7 @@ function openByteStream<T extends { [key: string]: DataType }>(source: ByteStrea
 }
 
 async function openAsyncByteStream<T extends { [key: string]: DataType }>(source: AsyncByteStream, autoClose?: boolean) {
-    let bytes = await source.peek(magicLength);
+    let bytes = await source.peek((magicLength + 7) & ~7);
     return await (bytes
         ? checkForMagicArrowString(bytes)
         ? new RecordBatchFileReader<T>(await source.read()).open(autoClose)
@@ -160,7 +160,7 @@ async function openFileHandle<T extends { [key: string]: DataType }>(source: Fil
     let { size } = await source.stat();
     let file = new AsyncArrowFile(source, size);
     if (size >= magicX2AndPadding) {
-        if (checkForMagicArrowString(await file.readAt(0, magicLength))) {
+        if (checkForMagicArrowString(await file.readAt(0, (magicLength + 7) & ~7))) {
             return await new AsyncRecordBatchFileReader<T>(file).open(autoClose);
         }
     }
