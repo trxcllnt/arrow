@@ -17,19 +17,19 @@
 
 import { DataType } from '../../type';
 import { ArrowStream, AsyncArrowStream } from '../../io';
-import { ByteStream, AsyncByteStream } from '../../io/stream';
+import { ByteSource, AsyncByteSource } from '../../io/stream';
 import { MessageReader, AsyncMessageReader } from './message';
 import { RecordBatchReader, AsyncRecordBatchReader } from './base';
 import { ReadableDOMStream, FileHandle } from '../../io/interfaces';
 
 export class RecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
-    constructor(source: ArrowStream | ByteStream | ArrayBufferView | Iterable<ArrayBufferView>) {
+    constructor(source: ArrowStream | ByteSource | ArrayBufferView | Iterable<ArrayBufferView>) {
         super(new MessageReader(source));
     }
 }
 
 export class AsyncRecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends AsyncRecordBatchReader<T> {
-    constructor(source: AsyncArrowStream | AsyncByteStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>);
+    constructor(source: AsyncArrowStream | AsyncByteSource | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
         super(new AsyncMessageReader(source, byteLength));

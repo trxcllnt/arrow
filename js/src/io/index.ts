@@ -17,7 +17,7 @@
 
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
-import { ByteStream, AsyncByteStream } from './stream';
+import { ByteSource, AsyncByteSource } from './stream';
 import { RandomAccessFile, AsyncRandomAccessFile } from './file';
 import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
 import { ArrowJSONInput, ReadableDOMStream, FileHandle } from './interfaces';
@@ -36,9 +36,9 @@ export class ArrowJSON {
  * @ignore
  */
 export class ArrowStream {
-    protected source: ByteStream;
-    constructor(source: ByteStream | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
-        this.source = source instanceof ByteStream ? source : new ByteStream(source);
+    protected source: ByteSource;
+    constructor(source: ByteSource | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
+        this.source = source instanceof ByteSource ? source : new ByteSource(source);
     }
     public throw(value?: any) { return this.source.throw(value); }
     public return(value?: any) { return this.source.return(value); }
@@ -50,9 +50,9 @@ export class ArrowStream {
  * @ignore
  */
 export class AsyncArrowStream {
-    protected source: AsyncByteStream;
-    constructor(source: AsyncByteStream | PromiseLike<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | ReadableDOMStream<ArrayBufferViewInput> | NodeJS.ReadableStream) {
-        this.source = source instanceof AsyncByteStream ? source : new AsyncByteStream(source);
+    protected source: AsyncByteSource;
+    constructor(source: AsyncByteSource | PromiseLike<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | ReadableDOMStream<ArrayBufferViewInput> | NodeJS.ReadableStream) {
+        this.source = source instanceof AsyncByteSource ? source : new AsyncByteSource(source);
     }
     public async throw(value?: any) { return await this.source.throw(value); }
     public async return(value?: any) { return await this.source.return(value); }

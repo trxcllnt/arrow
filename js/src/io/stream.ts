@@ -16,21 +16,21 @@
 // under the License.
 
 import { ArrayBufferViewInput } from '../util/buffer';
-import { ReadableDOMStream, ITERATOR_DONE } from './interfaces';
 import { fromReadableDOMStream } from './adapters/stream.dom';
 import { fromReadableNodeStream } from './adapters/stream.node';
 import { fromIterable, fromAsyncIterable } from './adapters/iterable';
+import { ITERATOR_DONE, ReadableDOMStream } from './interfaces';
 import { isAsyncIterable, isReadableDOMStream, isReadableNodeStream, isPromise } from '../util/compat';
 
 /**
  * @ignore
  */
-export class ByteStream {
+export class ByteSource {
     // @ts-ignore
-    private source: ByteStreamIterator;
+    private source: ByteSourceIterator;
     constructor(source?: Iterable<ArrayBufferViewInput> | ArrayBufferViewInput) {
         if (source) {
-            this.source = new ByteStreamIterator(fromIterable(source));
+            this.source = new ByteSourceIterator(fromIterable(source));
         }
     }
     public throw(value?: any) { return this.source.throw(value); }
@@ -42,18 +42,18 @@ export class ByteStream {
 /**
  * @ignore
  */
-export class AsyncByteStream {
+export class AsyncByteSource {
     // @ts-ignore
-    private source: AsyncByteStreamIterator;
+    private source: AsyncByteSourceIterator;
     constructor(source?: PromiseLike<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | ReadableDOMStream<ArrayBufferViewInput> | NodeJS.ReadableStream | null) {
         if (isReadableDOMStream<ArrayBufferViewInput>(source)) {
-            this.source = new AsyncByteStreamIterator(fromReadableDOMStream(source));
+            this.source = new AsyncByteSourceIterator(fromReadableDOMStream(source));
         } else if (isReadableNodeStream(source)) {
-            this.source = new AsyncByteStreamIterator(fromReadableNodeStream(source));
+            this.source = new AsyncByteSourceIterator(fromReadableNodeStream(source));
         } else if (isAsyncIterable<ArrayBufferViewInput>(source)) {
-            this.source = new AsyncByteStreamIterator(fromAsyncIterable(source));
+            this.source = new AsyncByteSourceIterator(fromAsyncIterable(source));
         } else if (isPromise<ArrayBufferViewInput>(source)) {
-            this.source = new AsyncByteStreamIterator(fromAsyncIterable(source));
+            this.source = new AsyncByteSourceIterator(fromAsyncIterable(source));
         }
     }
     public async throw(value?: any) { return await this.source.throw(value); }
@@ -70,7 +70,7 @@ interface AsyncIterableByteStreamIterator extends AsyncIterableIterator<Uint8Arr
     next(value: { cmd: 'peek' | 'read', size?: number | null }): Promise<IteratorResult<Uint8Array>>;
 }
 
-class ByteStreamIterator {
+class ByteSourceIterator {
     constructor(protected source: IterableByteStreamIterator) {}
     public throw(value?: any) { return this.source.throw && this.source.throw(value) || ITERATOR_DONE; }
     public return(value?: any) { return this.source.return && this.source.return(value) || ITERATOR_DONE; }
@@ -78,7 +78,7 @@ class ByteStreamIterator {
     public read(size?: number | null): Uint8Array | null { return this.source.next({ cmd: 'read', size }).value; }
 }
 
-class AsyncByteStreamIterator {
+class AsyncByteSourceIterator {
     constructor(protected source: AsyncIterableByteStreamIterator) {}
     public async throw(value?: any) { return this.source.throw && await this.source.throw(value) || ITERATOR_DONE; }
     public async return(value?: any) { return this.source.return && await this.source.return(value) || ITERATOR_DONE; }

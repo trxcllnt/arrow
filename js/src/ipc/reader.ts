@@ -23,7 +23,7 @@ import { Footer } from './metadata/file';
 import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
 import { ArrayBufferViewInput } from '../util/buffer';
-import { ByteStream, AsyncByteStream } from '../io/stream';
+import { ByteSource, AsyncByteSource } from '../io/stream';
 import { ArrowJSONInput, FileHandle } from '../io/interfaces';
 import { toReadableDOMStream } from '../io/adapters/stream.dom';
 import { toReadableNodeStream } from '../io/adapters/stream.node';
@@ -63,10 +63,10 @@ abstract class AbstractRecordBatchReader<T extends { [key: string]: DataType } =
 
         if (                              isArrowJSON(source)) { return openJSON<T>(source, autoClose); }
         if (                             isFileHandle(source)) { return openFileHandle<T>(source, autoClose); }
-        if (isReadableDOMStream<ArrayBufferViewInput>(source)) { return openAsyncByteStream<T>(new AsyncByteStream(source), autoClose); }
-        if (                     isReadableNodeStream(source)) { return openAsyncByteStream<T>(new AsyncByteStream(source), autoClose); }
-        if (    isAsyncIterable<ArrayBufferViewInput>(source)) { return openAsyncByteStream<T>(new AsyncByteStream(source), autoClose); }
-                                                                 return      openByteStream<T>(new      ByteStream(source), autoClose);
+        if (isReadableDOMStream<ArrayBufferViewInput>(source)) { return openAsyncByteStream<T>(new AsyncByteSource(source), autoClose); }
+        if (                     isReadableNodeStream(source)) { return openAsyncByteStream<T>(new AsyncByteSource(source), autoClose); }
+        if (    isAsyncIterable<ArrayBufferViewInput>(source)) { return openAsyncByteStream<T>(new AsyncByteSource(source), autoClose); }
+                                                                 return      openByteStream<T>(new      ByteSource(source), autoClose);
     }
 
     // @ts-ignore
@@ -138,7 +138,7 @@ function openJSON<T extends { [key: string]: DataType }>(source: ArrowJSONInput,
     return new RecordBatchJSONReader<T>(new ArrowJSON(source)).open(autoClose);
 }
 
-function openByteStream<T extends { [key: string]: DataType }>(source: ByteStream, autoClose?: boolean) {
+function openByteStream<T extends { [key: string]: DataType }>(source: ByteSource, autoClose?: boolean) {
     let bytes = source.peek((magicLength + 7) & ~7);
     return bytes
         ? checkForMagicArrowString(bytes)
@@ -147,7 +147,7 @@ function openByteStream<T extends { [key: string]: DataType }>(source: ByteStrea
         : new RecordBatchStreamReader<T>(function*(): any {}()).open(autoClose);
 }
 
-async function openAsyncByteStream<T extends { [key: string]: DataType }>(source: AsyncByteStream, autoClose?: boolean) {
+async function openAsyncByteStream<T extends { [key: string]: DataType }>(source: AsyncByteSource, autoClose?: boolean) {
     let bytes = await source.peek((magicLength + 7) & ~7);
     return await (bytes
         ? checkForMagicArrowString(bytes)

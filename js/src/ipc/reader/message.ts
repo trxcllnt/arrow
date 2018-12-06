@@ -20,7 +20,7 @@ import ByteBuffer = flatbuffers.ByteBuffer;
 import { MessageHeader } from '../../enum';
 import { Message } from '../metadata/message';
 import { isFileHandle } from '../../util/compat';
-import { ByteStream, AsyncByteStream } from '../../io/stream';
+import { ByteSource, AsyncByteSource } from '../../io/stream';
 import { toUint8Array, ArrayBufferViewInput } from '../../util/buffer';
 import { ITERATOR_DONE, FileHandle, ReadableDOMStream } from '../../io/interfaces';
 import { ArrowJSON, AsyncArrowFile, ArrowStream, AsyncArrowStream } from '../../io';
@@ -32,7 +32,7 @@ export const invalidMessageBodyLength = (expected: number, actual: number) => `E
 
 export class MessageReader implements IterableIterator<Message> {
     protected source: ArrowStream;
-    constructor(source: ArrowStream | ByteStream | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
+    constructor(source: ArrowStream | ByteSource | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
         this.source = source instanceof ArrowStream ? source : new ArrowStream(source);
     }
     public [Symbol.iterator](): IterableIterator<Message> { return this as IterableIterator<Message>; }
@@ -89,7 +89,7 @@ export class MessageReader implements IterableIterator<Message> {
 
 export class AsyncMessageReader implements AsyncIterableIterator<Message> {
     protected source: AsyncArrowStream;
-    constructor(source: AsyncArrowStream | AsyncByteStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
+    constructor(source: AsyncArrowStream | AsyncByteSource | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
         this.source = source instanceof AsyncArrowStream ? source
