@@ -31,8 +31,8 @@ import { BufferRegion, FieldNode } from '../ipc/metadata/message';
 const utf8Encoder = new TextEncoder('utf-8');
 
 export interface VectorLoader extends Visitor {
-    visitMany <T extends DataType>(fields: Field[]): Data<T>[];
-    visit     <T extends DataType>(node: T,       ): Data<T>;
+    visitMany <T extends DataType>(nodes: (Field<T> | T)[]): Data<T>[];
+    visit     <T extends DataType>(node: T                ): Data<T>;
 }
 
 export class VectorLoader extends Visitor {
@@ -48,7 +48,9 @@ export class VectorLoader extends Visitor {
         this.buffers = buffers;
     }
 
-    public visitMany(fields: Field[]) { return fields.map((field) => this.visit(field.type)); }
+    public visitMany<T extends DataType>(nodes: (Field<T> | T)[]): Data<T>[] {
+        return nodes.map((node) => this.visit(node instanceof Field ? node.type : node));
+    }
 
     public visitNull                 <T extends type.Null>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.Null(type, 0, length, nullCount, this.readNullBitmap(type, nullCount));                                                                                }
     public visitBool                 <T extends type.Bool>                (type: T, { length, nullCount } = this.nextFieldNode()) { return            Data.Bool(type, 0, length, nullCount, this.readNullBitmap(type, nullCount), this.readData(type));                                                           }

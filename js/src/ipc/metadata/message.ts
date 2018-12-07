@@ -76,7 +76,7 @@ export class Message<T extends MessageHeader = any> {
     public get type() { return this.headerType; }
     // @ts-ignore
     protected _createHeader: MessageHeaderDecoder;
-    public header() { return this._createHeader ? this._createHeader<T>() : null; }
+    public header() { return this._createHeader<T>(); }
     public isSchema(): this is Message<MessageHeader.Schema> { return this.headerType === MessageHeader.Schema; }
     public isRecordBatch(): this is Message<MessageHeader.RecordBatch> { return this.headerType === MessageHeader.RecordBatch; }
     public isDictionaryBatch(): this is Message<MessageHeader.DictionaryBatch> { return this.headerType === MessageHeader.DictionaryBatch; }

@@ -336,9 +336,9 @@ describe(`Table`, () => {
 //     });
 // });
 
-function leftPad(str: string, fill: string, n: number) {
-    return (new Array(n + 1).join(fill) + str).slice(-1 * n);
-}
+// function leftPad(str: string, fill: string, n: number) {
+//     return (new Array(n + 1).join(fill) + str).slice(-1 * n);
+// }
 
 type TestDataSchema = { f32: Float32; i32: Int32; dictionary: Dictionary<Utf8, Int8>; };
 

@@ -80,9 +80,10 @@ import { Row, ChunkedVector } from './column';
 
 export class BaseVector<T extends DataType = any> extends Vector<T> {
 
+    // @ts-ignore
     public readonly data: Data<T>;
-    public readonly stride: number;
-    public readonly numChildren: number;
+    public readonly stride: number = 1;
+    public readonly numChildren: number = 0;
     protected _children?: Vector[];
 
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
@@ -101,10 +102,10 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
     // @ts-ignore
     protected bindDataAccessors(data: Data<T>) {
         const type = this.type;
-        this['get'] = getVisitor.getVisitFn(type).bind(this, this);
-        this['indexOf'] = indexOfVisitor.getVisitFn(type).bind(this, this);
-        this['toArray'] = toArrayVisitor.getVisitFn(type).bind(this, this);
-        this[Symbol.iterator] = iteratorVisitor.getVisitFn(type).bind(this, this);
+        this['get'] = getVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
+        this['indexOf'] = indexOfVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
+        this['toArray'] = toArrayVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
+        this[Symbol.iterator] = iteratorVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
         super.bindDataAccessors(data);
     }
 
