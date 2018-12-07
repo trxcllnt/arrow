@@ -17,7 +17,7 @@
 
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
-import { ArrayBufferViewConstructor  } from '../interfaces';
+import { ArrayBufferViewConstructor } from '../interfaces';
 import { isPromise, isIterable, isAsyncIterable, isIteratorResult } from './compat';
 
 type ReadResult<T = any> = import('whatwg-streams').ReadResult<T>;
@@ -40,6 +40,20 @@ function collapseContiguousByteRanges(chunks: Uint8Array[]) {
 /**
  * @ignore
  */
+export function memcpy(target: ArrayBufferView, source: ArrayBufferView, targetByteOffset = 0, sourceByteLength = source.byteLength) {
+    const targetByteLength = target.byteLength;
+    const T = ((sourceByteLength + targetByteLength) % 8 === 0) ? Float64Array :
+              ((sourceByteLength + targetByteLength) % 4 === 0) ? Float32Array :
+              ((sourceByteLength + targetByteLength) % 2 === 0) ? Uint16Array  : Uint8Array;
+    const dst = new T(target.buffer, target.byteOffset, targetByteLength / T.BYTES_PER_ELEMENT);
+    const src = new T(source.buffer, source.byteOffset, Math.min(sourceByteLength, targetByteLength) / T.BYTES_PER_ELEMENT);
+    dst.set(src, targetByteOffset / T.BYTES_PER_ELEMENT);
+    return dst;
+}
+
+/**
+ * @ignore
+ */
 export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Uint8Array, Uint8Array[]] {
     // collapse chunks that share the same underlying ArrayBuffer and whose byte ranges overlap,
     // to avoid unnecessarily copying the bytes to do this buffer join. This is a common case during
@@ -55,7 +69,7 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
             if (sliced.length < source.length) {
                 chunks[index] = source.subarray(sliced.length);
             } else if (sliced.length === source.length) { index++; }
-            buffer ? buffer.set(sliced, offset) : (buffer = sliced);
+            buffer ? memcpy(buffer, sliced, offset) : (buffer = sliced);
             break;
         }
         (buffer || (buffer = new Uint8Array(length))).set(sliced, offset);

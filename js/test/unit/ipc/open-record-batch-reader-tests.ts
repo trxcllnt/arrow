@@ -21,9 +21,8 @@ import * as Path from 'path';
 
 import { FileHandle } from '../../../src/io/interfaces';
 import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { RecordBatchJSONReader } from '../../../src/ipc/reader/json';
-import { RecordBatchFileReader, AsyncRecordBatchFileReader } from '../../../src/ipc/reader/file';
-import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from '../../../src/ipc/reader/stream';
+import { RecordBatchFileReader, AsyncRecordBatchFileReader } from '../../../src/ipc/reader';
+import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from '../../../src/ipc/reader';
 
 /* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
@@ -99,11 +98,11 @@ function testJSONDataSource() {
 
     const syncBufferSource = () => simpleJSONData;
 
-    it(`should return a ${RecordBatchJSONReader.name} when created with a JSON object`, () => {
+    it(`should return a ${RecordBatchStreamReader.name} when created with a JSON object`, () => {
         const reader = RecordBatchReader.open(syncBufferSource());
         expect(reader.isSync()).toEqual(true);
         expect(reader.isAsync()).toEqual(false);
-        expect(reader).toBeInstanceOf(RecordBatchJSONReader);
+        expect(reader).toBeInstanceOf(RecordBatchStreamReader);
     });
 }
 

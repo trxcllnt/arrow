@@ -23,7 +23,9 @@ import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
 import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { RecordBatchStreamReader } from '../../../src/ipc/reader/stream';
+import { RecordBatchFileReader } from '../../../src/ipc/reader';
+import { RecordBatchStreamReader } from '../../../src/ipc/reader';
+import { AsyncRecordBatchStreamReader } from '../../../src/ipc/reader';
 
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
 const simpleStreamData = fs.readFileSync(simpleStreamPath);
@@ -85,14 +87,14 @@ describe('RecordBatchStreamReader', () => {
         });
     });
 
-    function testSimpleRecordBatchStreamReader(reader: RecordBatchStreamReader) {
+    function testSimpleRecordBatchStreamReader(reader: RecordBatchFileReader | RecordBatchStreamReader) {
 
         let r: IteratorResult<RecordBatch>;
 
         reader = reader.open();
 
         expect(reader.isStream()).toBe(true);
-        expect(reader.readSchema()).toBeInstanceOf(Schema);
+        expect(reader.schema).toBeInstanceOf(Schema);
 
         r = reader.next();
         expect(r.done).toBe(false);
@@ -163,10 +165,10 @@ describe('AsyncRecordBatchStreamReader', () => {
         });
     });
 
-    async function testSimpleAsyncRecordBatchStreamReader(reader: RecordBatchReader) {
+    async function testSimpleAsyncRecordBatchStreamReader(reader: RecordBatchFileReader | AsyncRecordBatchStreamReader) {
         reader = await reader.open();
         expect(reader.isStream()).toBe(true);
-        expect(await reader.readSchema()).toBeInstanceOf(Schema);
+        expect(reader.schema).toBeInstanceOf(Schema);
         await testSimpleAsyncRecordBatchIterator(reader as AsyncIterator<RecordBatch>);
     }
 });

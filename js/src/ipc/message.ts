@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { MessageHeader } from '../enum';
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
-import { MessageHeader } from '../../enum';
-import { Message } from '../metadata/message';
-import { isFileHandle } from '../../util/compat';
-import { ByteSource, AsyncByteSource } from '../../io/stream';
-import { toUint8Array, ArrayBufferViewInput } from '../../util/buffer';
-import { ITERATOR_DONE, FileHandle, ReadableDOMStream } from '../../io/interfaces';
-import { ArrowJSON, AsyncArrowFile, ArrowStream, AsyncArrowStream } from '../../io';
+import { Message } from './metadata/message';
+import { isFileHandle } from '../util/compat';
+import { AsyncRandomAccessFile } from '../io/file';
+import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
+import { ReadableByteStream, AsyncReadableByteStream } from '../io/stream';
+import { ArrowJSON, ArrowJSONLike, ITERATOR_DONE, FileHandle, ReadableDOMStream } from '../io/interfaces';
 
 export const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
 export const nullMessage              = (type: MessageHeader) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`;
@@ -31,9 +31,9 @@ export const invalidMessageMetadata   = (expected: number, actual: number) => `E
 export const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
 
 export class MessageReader implements IterableIterator<Message> {
-    protected source: ArrowStream;
-    constructor(source: ArrowStream | ByteSource | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
-        this.source = source instanceof ArrowStream ? source : new ArrowStream(source);
+    protected source: ReadableByteStream;
+    constructor(source: ReadableByteStream | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
+        this.source = source instanceof ReadableByteStream ? source : new ReadableByteStream(source);
     }
     public [Symbol.iterator](): IterableIterator<Message> { return this as IterableIterator<Message>; }
     public next(): IteratorResult<Message> {
@@ -53,14 +53,14 @@ export class MessageReader implements IterableIterator<Message> {
         return r.value;
     }
     public readMessageBody(bodyLength: number): Uint8Array {
-        let bb = this.source.read(bodyLength);
-        if (bb && (bb.capacity() < bodyLength)) {
-            throw new Error(invalidMessageBodyLength(bodyLength, bb.capacity()));
+        if (bodyLength <= 0) { return new Uint8Array(0); }
+        const buf = toUint8Array(this.source.read(bodyLength));
+        if (buf.byteLength < bodyLength) {
+            throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
-        const body = toUint8Array(bb);
         // Work around bugs in fs.ReadStream's internal Buffer pooling
         // see: https://github.com/nodejs/node/issues/24817
-        return body.byteOffset % 8 === 0 ? body : body.slice();
+        return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
     public readSchema() {
         const type = MessageHeader.Schema;
@@ -72,30 +72,30 @@ export class MessageReader implements IterableIterator<Message> {
         return schema;
     }
     protected readMetadataLength(): IteratorResult<number> {
-        const bb = this.source.read(PADDING);
+        const buf = this.source.read(PADDING);
+        const bb = buf && new ByteBuffer(buf);
         const len = +(bb && bb.readInt32(0))!;
         return { done: len <= 0, value: len };
     }
     protected readMetadata(metadataLength: number): IteratorResult<Message> {
-        let bb;
-        if (!(bb = this.source.read(metadataLength))) { return ITERATOR_DONE; }
-        if (bb.capacity() < metadataLength) {
-            throw new Error(invalidMessageMetadata(metadataLength, bb.capacity()));
+        const buf = this.source.read(metadataLength);
+        if (!buf) { return ITERATOR_DONE; }
+        if (buf.byteLength < metadataLength) {
+            throw new Error(invalidMessageMetadata(metadataLength, buf.byteLength));
         }
-        const m = Message.decode(bb);
-        return { done: !m, value: m };
+        return { done: false, value: Message.decode(buf) };
     }
 }
 
 export class AsyncMessageReader implements AsyncIterableIterator<Message> {
-    protected source: AsyncArrowStream;
-    constructor(source: AsyncArrowStream | AsyncByteSource | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
+    protected source: AsyncReadableByteStream;
+    constructor(source: AsyncReadableByteStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
-        this.source = source instanceof AsyncArrowStream ? source
+        this.source = source instanceof AsyncReadableByteStream ? source
             : (isFileHandle(source) && typeof byteLength === 'number')
-            ? new AsyncArrowFile(source, byteLength)
-            : new AsyncArrowStream(source);
+            ? new AsyncRandomAccessFile(source, byteLength)
+            : new AsyncReadableByteStream(source);
     }
     public [Symbol.asyncIterator](): AsyncIterableIterator<Message> { return this as AsyncIterableIterator<Message>; }
     public async next(): Promise<IteratorResult<Message>> {
@@ -115,14 +115,14 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
         return r.value;
     }
     public async readMessageBody(bodyLength: number): Promise<Uint8Array> {
-        let bb = await this.source.read(bodyLength);
-        if (bb && (bb.capacity() < bodyLength)) {
-            throw new Error(invalidMessageBodyLength(bodyLength, bb.capacity()));
+        if (bodyLength <= 0) { return new Uint8Array(0); }
+        const buf = toUint8Array(await this.source.read(bodyLength));
+        if (buf.byteLength < bodyLength) {
+            throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
-        const body = toUint8Array(bb);
         // Work around bugs in fs.ReadStream's internal Buffer pooling
         // see: https://github.com/nodejs/node/issues/24817
-        return body.byteOffset % 8 === 0 ? body : body.slice();
+        return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
     public async readSchema() {
         const type = MessageHeader.Schema;
@@ -134,28 +134,30 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
         return schema;
     }
     protected async readMetadataLength(): Promise<IteratorResult<number>> {
-        const bb = await this.source.read(PADDING);
+        const buf = await this.source.read(PADDING);
+        const bb = buf && new ByteBuffer(buf);
         const len = +(bb && bb.readInt32(0))!;
         return { done: len <= 0, value: len };
     }
     protected async readMetadata(metadataLength: number): Promise<IteratorResult<Message>> {
-        let bb;
-        if (!(bb = await this.source.read(metadataLength))) { return ITERATOR_DONE; }
-        if (bb.capacity() < metadataLength) {
-            throw new Error(invalidMessageMetadata(metadataLength, bb.capacity()));
+        const buf = await this.source.read(metadataLength);
+        if (!buf) { return ITERATOR_DONE; }
+        if (buf.byteLength < metadataLength) {
+            throw new Error(invalidMessageMetadata(metadataLength, buf.byteLength));
         }
-        const m = Message.decode(bb);
-        return { done: !m, value: m };
+        return { done: false, value: Message.decode(buf) };
     }
 }
 
 export class JSONMessageReader extends MessageReader {
     private _schema = false;
+    private _json: ArrowJSON;
     private _body: any[] = [];
     private _batchIndex = 0;
     private _dictionaryIndex = 0;
-    constructor(private _json: ArrowJSON) {
+    constructor(source: ArrowJSON | ArrowJSONLike) {
         super(new Uint8Array(0));
+        this._json = source instanceof ArrowJSON ? source : new ArrowJSON(source);
     }
     public next() {
         const { _json, _batchIndex, _dictionaryIndex } = this;

@@ -22,16 +22,10 @@ import { RecordBatch } from './recordbatch';
 import { DataType, Row, Struct } from './type';
 import { ChunkedVector, Column } from './column';
 import { Vector as TVector } from './interfaces';
-import { ReadableDOMStream } from './io/interfaces';
-import { RecordBatchJSONReader } from './ipc/reader/json';
-import { RecordBatchReader, TOpenRecordBatchReaderArgs } from './ipc/reader';
-import { RecordBatchFileReader, AsyncRecordBatchFileReader } from './ipc/reader/file';
-import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from './ipc/reader/stream';
 import {
-    ArrowJSON, ArrowJSONInput,
-    ArrowStream, AsyncArrowStream,
-    ArrowFile, AsyncArrowFile, FileHandle,
-} from './io/interfaces';
+    RecordBatchReader,
+    OpenArg0, OpenArg1, OpenArg2, OpenArg3, OpenArg4, OpenArgs
+} from './ipc/reader';
 
 // import { Col, Predicate } from './predicate';
 // import { read, readAsync } from './ipc/reader/arrow';
@@ -55,30 +49,25 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
 
     public static empty<T extends { [key: string]: DataType; } = any>() { return new Table<T>(new Schema([]), []); }
 
-    public static from<T extends { [key: string]: DataType } = any>(source: ArrowJSON | RecordBatchJSONReader<T> | ArrowJSONInput                                      ): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: ArrowFile | RecordBatchFileReader<T>                                                       ): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: ArrowStream | RecordBatchStreamReader<T>                                                   ): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(...sources: Array<ArrayBufferView | Iterable<ArrayBufferView>>                                     ): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: AsyncArrowFile | AsyncRecordBatchFileReader<T>                                             ): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: AsyncArrowStream | AsyncRecordBatchStreamReader<T>                                         ): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FileHandle | PromiseLike<FileHandle>                                                       ): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: TOpenRecordBatchReaderArgs<T>) {
-    
-        if (arguments.length > 1) {
-            source = [...arguments];
-        }
+    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg0): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg1): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg2): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg3): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg4): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(...sources: (ArrayBufferView | Iterable<ArrayBufferView>)[]): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(...xs: any[]) {
 
-        if (source == null) return Table.empty<T>();
+        const source = xs.length > 1 ? xs : xs[0];
 
-        const reader = RecordBatchReader.open<T>(source as any);
+        if (!source) { return Table.empty<T>(); }
 
-        if (isPromise<RecordBatchReader<T>>(reader)) {
-            return (async () => await Table.from<T>(await reader as any))();
-        } else if (reader.isSync()) {
-            return new Table<T>(reader.schema, [...reader]);
-        } else {
-            return (async () => {
+        const reader = RecordBatchReader.open<T>(source) as RecordBatchReader<T>;
+
+        return !isPromise<RecordBatchReader<T>>(reader)
+            ? toTable(reader) : (async () => toTable(await reader))();
+
+        function toTable(reader: RecordBatchReader<T>): Table<T> | Promise<Table<T>> {
+            return reader.isSync() ? new Table<T>(reader.schema, [...reader]) : (async () => {
                 const recordBatches: RecordBatch[] = [];
                 for await (let recordBatch of reader) {
                     recordBatches.push(recordBatch);
@@ -88,7 +77,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         }
     }
 
-    static async fromAsync<T extends { [key: string]: DataType; } = any>(...sources: TOpenRecordBatchReaderArgs<T>[]): Promise<Table<T>> {
+    static async fromAsync<T extends { [key: string]: DataType; } = any>(...sources: OpenArgs[]): Promise<Table<T>> {
         return await Table.from<T>(...sources as any[]);
     }
     static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
@@ -146,7 +135,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         return this.batchesUnion.get(index)!;
     }
     public getColumn<R extends keyof T>(name: R): Vector<T[R]> | null {
-        return this.getColumnAt<T[R]>(this.getColumnIndex(name));
+        return this.getColumnAt(this.getColumnIndex(name)) as Vector<T[R]> | null;
     }
     public getColumnAt<T extends DataType = any>(index: number): Vector<T> | null {
         if (index < 0 || index >= this.numCols) {

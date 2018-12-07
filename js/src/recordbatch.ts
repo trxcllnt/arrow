@@ -16,7 +16,7 @@
 // under the License.
 
 import { Data } from './data';
-import { Schema } from './schema';
+import { Schema, Field } from './schema';
 import { Vector } from './vector';
 import { StructVector } from './vector';
 import { DataType, Struct } from './type';
@@ -25,22 +25,21 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
 
     private impl: StructVector<T>;
     public readonly schema: Schema;
-    public readonly numCols: number;
 
-    constructor(schema: Schema, numRows: number, childData: Data[]);
-    constructor(schema: Schema, data: Data<Struct<T>>, children?: Vector[]);
+    constructor(schema: Schema<T>, numRows: number, childData: Data[]);
+    constructor(schema: Schema<T>, data: Data<Struct<T>>, children?: Vector[]);
     constructor(...args: any[]) {
         super();
         this.schema = args[0];
         let data: Data<Struct<T>>;
         let children: Vector[] | undefined;
         if (typeof args[1] === 'number') {
-            const [, numRows, childData] = args as [Schema, number, Data[]];
-            data = Data.Struct(new Struct(this.schema.fields), 0, numRows, 0, null, childData);
+            const fields = this.schema.fields as Field<T[keyof T]>[];
+            const [, numRows, childData] = args as [Schema<T>, number, Data[]];
+            data = Data.Struct(new Struct<T>(fields), 0, numRows, 0, null, childData);
         } else {
-            [, data, children] = (args as [Schema, Data<Struct<T>>, Vector[]?]);
+            [, data, children] = (args as [Schema<T>, Data<Struct<T>>, Vector[]?]);
         }
-        this.numCols = this.schema.fields.length;
         this.impl = new StructVector(data, children);
     }
 
@@ -51,6 +50,7 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     public get type() { return this.impl.type; }
     public get data() { return this.impl.data; }
     public get length() { return this.impl.length; }
+    public get numCols() { return this.schema.fields.length; }
     public get rowProxy() { return this.impl.rowProxy; }
     public get nullCount() { return this.impl.nullCount; }
     public get numChildren() { return this.impl.numChildren; }
@@ -68,10 +68,10 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     public [Symbol.iterator]() { return this.impl[Symbol.iterator](); }
 
     public slice(begin?: number, end?: number): RecordBatch<T> {
-        return this.impl.slice.call(this, begin, end);
+        return this.impl.slice.call(this, begin, end) as RecordBatch<T>;
     }
 
-    public concat(...others: Vector<Struct<T>>[]) {
+    public concat(...others: Vector<Struct<T>>[]): Vector<Struct<T>> {
         return this.impl.concat(...others.map((x) => x instanceof RecordBatch ? x.impl : x) as Vector<Struct<T>>[]);
     }
 

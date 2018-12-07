@@ -23,8 +23,8 @@ import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
 import { Schema } from '../../../src/schema';
 import { RecordBatch } from '../../../src/recordbatch';
 import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { RecordBatchFileReader } from '../../../src/ipc/reader/file';
-import { RecordBatchStreamReader } from '../../../src/ipc/reader/stream';
+import { RecordBatchFileReader } from '../../../src/ipc/reader';
+import { RecordBatchStreamReader } from '../../../src/ipc/reader';
 
 const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
 const simpleFileData = fs.readFileSync(simpleFilePath);
@@ -78,7 +78,7 @@ describe('RecordBatchFileReader', () => {
 
         reader = reader.open();
         expect(reader.isFile()).toBe(true);
-        expect(reader.readSchema()).toBeInstanceOf(Schema);
+        expect(reader.schema).toBeInstanceOf(Schema);
 
         r = reader.next();
         expect(r.done).toBe(false);
@@ -151,7 +151,7 @@ describe('AsyncRecordBatchFileReader', () => {
     async function testSimpleAsyncRecordBatchFileReader(reader: RecordBatchReader) {
         reader = await reader.open();
         expect(reader.isFile()).toBe(true);
-        expect(await reader.readSchema()).toBeInstanceOf(Schema);
+        expect(reader.schema).toBeInstanceOf(Schema);
         await testSimpleAsyncRecordBatchIterator(reader as AsyncIterator<RecordBatch>);
     }
 });
