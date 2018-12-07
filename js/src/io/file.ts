@@ -16,12 +16,12 @@
 // under the License.
 
 import { FileHandle } from './interfaces';
-import { ByteSource, AsyncByteSource } from './stream';
+import { ReadableByteStream, AsyncReadableByteStream } from './stream';
 
 /**
  * @ignore
  */
-export class RandomAccessFile extends ByteSource {
+export class RandomAccessFile extends ReadableByteStream {
     public size: number;
     public position: number = 0;
     protected buffer: Uint8Array | null;
@@ -61,7 +61,7 @@ export class RandomAccessFile extends ByteSource {
 /**
  * @ignore
  */
-export class AsyncRandomAccessFile extends AsyncByteSource {
+export class AsyncRandomAccessFile extends AsyncReadableByteStream {
     public size: number;
     public position: number = 0;
     protected file: FileHandle | null;
@@ -69,6 +69,9 @@ export class AsyncRandomAccessFile extends AsyncByteSource {
         super();
         this.file = file;
         this.size = byteLength;
+        if ((typeof byteLength) !== 'number') {
+            (async () => this.size = (await file.stat()).size)();
+        }
     }
     public async readInt32(position: number) {
         const { buffer, byteOffset } = await this.readAt(position, 4);

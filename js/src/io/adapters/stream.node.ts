@@ -105,8 +105,8 @@ async function* _fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIte
         buffer = buffers = <any> null;
         return new Promise<T>((resolve, reject) => {
             while (events.length > 0) {
-                const [ev, fn] = events.pop() || []!;
-                if (ev && fn) { stream.off(ev, fn); }
+                const xs = events.pop()!;
+                xs && stream.off(xs[0], xs[1]);
             }
             const destroy = (stream as any).destroy || ((err: T, cb: any) => cb(err));
             destroy.call(stream, err, (e: T) => e != null ? reject(e) : resolve(err));

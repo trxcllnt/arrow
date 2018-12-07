@@ -223,16 +223,21 @@ class AdaptiveByteReader<T extends ArrayBufferViewInput> {
     // This strategy plucked from the example in the streams spec:
     // https://streams.spec.whatwg.org/#example-manual-read-bytes
     private async readFromBYOBReader(size: number) {
-        return await readInto(this.getBYOBReader(), new ArrayBuffer(size), 0);
+        return await readInto(this.getBYOBReader(), new ArrayBuffer(size), 0, size);
     }
 }
 
-async function readInto<T extends ArrayBufferViewInput>(reader: ReadableStreamBYOBReader<T>, buffer: ArrayBufferLike, offset: number): Promise<ReadResult<Uint8Array>> {
-    const total = buffer.byteLength;
-    if (offset >= total) {
-        return { done: false, value: new Uint8Array(buffer, 0, total) };
+async function readInto<T extends ArrayBufferViewInput>(reader: ReadableStreamBYOBReader<T>, buffer: ArrayBufferLike, offset: number, size: number): Promise<ReadResult<Uint8Array>> {
+
+    if (offset >= size) {
+        return { done: false, value: new Uint8Array(buffer, 0, size) };
     }
-    const r = await reader.read(new Uint8Array(buffer, offset, total - offset));
-    r.done && (r.value = new Uint8Array(r.value.buffer, 0, offset + r.value.byteLength));
-    return r.done ? r : await readInto(reader, r.value.buffer, offset + r.value.byteLength);
+
+    const { done, value } = await reader.read(new Uint8Array(buffer, offset, size - offset));
+
+    if (((offset += value.byteLength) < size) && !done) {
+        return await readInto(reader, value.buffer, offset, size);
+    }
+
+    return { done, value: new Uint8Array(value.buffer, 0, offset) };
 }
