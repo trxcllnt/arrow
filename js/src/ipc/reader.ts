@@ -191,7 +191,7 @@ export class AsyncRecordBatchFileReader<T extends { [key: string]: DataType } = 
     public [Symbol.iterator](): IterableIterator<RecordBatch<T>> { throw new Error(`AsyncRecordBatchFileReader is not Iterable`); }
 }
 
-abstract class AbstractRecordBatchReaderImpl<T extends { [key: string]: DataType } = any> {
+abstract class RecordBatchReaderImplBase<T extends { [key: string]: DataType } = any> {
 
     // @ts-ignore
     public schema: Schema;
@@ -246,7 +246,7 @@ abstract class AbstractRecordBatchReaderImpl<T extends { [key: string]: DataType
 }
 
 class RecordBatchStreamReaderImpl<T extends { [key: string]: DataType } = any>
-    extends AbstractRecordBatchReaderImpl<T>
+    extends RecordBatchReaderImplBase<T>
         implements IRecordBatchReaderImpl<T>, IterableIterator<RecordBatch<T>> {
 
     constructor(protected reader: MessageReader, dictionaries = new Map<number, Vector>()) {
@@ -311,7 +311,7 @@ class RecordBatchStreamReaderImpl<T extends { [key: string]: DataType } = any>
 }
 
 class AsyncRecordBatchStreamReaderImpl<T extends { [key: string]: DataType } = any>
-    extends AbstractRecordBatchReaderImpl<T>
+    extends RecordBatchReaderImplBase<T>
         implements IRecordBatchReaderImpl<T>, AsyncIterableIterator<RecordBatch<T>> {
 
     constructor(protected reader: AsyncMessageReader, dictionaries = new Map<number, Vector>()) {
