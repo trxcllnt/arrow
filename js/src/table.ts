@@ -20,11 +20,11 @@ import { Schema, Field } from './schema';
 import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
 import { DataType, Row, Struct } from './type';
+import { Vector as VType } from './interfaces';
 import { ChunkedVector, Column } from './column';
-import { Vector as TVector } from './interfaces';
 import {
     RecordBatchReader,
-    OpenArg0, OpenArg1, OpenArg2, OpenArg3, OpenArg4, OpenArgs
+    FromArg0, FromArg1, FromArg2, FromArg3, FromArg4, FromArgs
 } from './ipc/reader';
 
 // import { Col, Predicate } from './predicate';
@@ -49,40 +49,45 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
 
     public static empty<T extends { [key: string]: DataType; } = any>() { return new Table<T>(new Schema([]), []); }
 
-    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg0): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg1): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg2): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg3): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: OpenArg4): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(...sources: (ArrayBufferView | Iterable<ArrayBufferView>)[]): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(...xs: any[]) {
-
-        const source = xs.length > 1 ? xs : xs[0];
+    public static from<T extends { [key: string]: DataType } = any>(): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg0): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg1): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source?: any) {
 
         if (!source) { return Table.empty<T>(); }
 
-        const reader = RecordBatchReader.open<T>(source) as RecordBatchReader<T>;
+        let reader = RecordBatchReader.from<T>(source) as RecordBatchReader<T> | Promise<RecordBatchReader<T>>;
 
-        return !isPromise<RecordBatchReader<T>>(reader)
-            ? toTable(reader) : (async () => toTable(await reader))();
-
-        function toTable(reader: RecordBatchReader<T>): Table<T> | Promise<Table<T>> {
-            return reader.isSync() ? new Table<T>(reader.schema, [...reader]) : (async () => {
-                const recordBatches: RecordBatch[] = [];
-                for await (let recordBatch of reader) {
-                    recordBatches.push(recordBatch);
-                }
-                return new Table<T>(reader.schema, recordBatches);
-            })();
+        if (isPromise<RecordBatchReader<T>>(reader)) {
+            return (async () => await Table.from(await reader))();
         }
+        if (reader.isSync() && (reader = reader.open())) {
+            return !reader.schema ? Table.empty<T>() : new Table<T>(reader.schema, [...reader]);
+        }
+        return (async (opening) => {
+            const reader = await opening;
+            const schema = reader.schema;
+            const batches: RecordBatch[] = [];
+            if (schema) {
+                for await (let batch of reader) {
+                    batches.push(batch);
+                }
+                return new Table<T>(schema, batches);
+            }
+            return Table.empty<T>();
+        })(reader.open());
     }
 
-    static async fromAsync<T extends { [key: string]: DataType; } = any>(...sources: OpenArgs[]): Promise<Table<T>> {
-        return await Table.from<T>(...sources as any[]);
+    static async fromAsync<T extends { [key: string]: DataType; } = any>(source: FromArgs): Promise<Table<T>> {
+        return await Table.from<T>(source as any);
     }
     static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
         const schema = new Schema(struct.type.children);
-        const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as TVector<Struct<T>>[];
+        const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as VType<Struct<T>>[];
         return new Table<T>(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
     }
 

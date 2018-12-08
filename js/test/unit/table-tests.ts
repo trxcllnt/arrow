@@ -80,15 +80,15 @@ const test_data = [
 // }
 
 describe(`Table`, () => {
-    // test(`can create an empty table`, () => {
-    //     expect(Table.empty().length).toEqual(0);
-    // });
-    // test(`Table.from([]) creates an empty table`, () => {
-    //     expect(Table.from([]).length).toEqual(0);
-    // });
-    // test(`Table.from() creates an empty table`, () => {
-    //     expect(Table.from().length).toEqual(0);
-    // });
+    test(`can create an empty table`, () => {
+        expect(Table.empty().length).toEqual(0);
+    });
+    test(`Table.from([]) creates an empty table`, () => {
+        expect(Table.from([]).length).toEqual(0);
+    });
+    test(`Table.from() creates an empty table`, () => {
+        expect(Table.from().length).toEqual(0);
+    });
     for (let datum of test_data) {
         describe(datum.name, () => {
             test(`has the correct length`, () => {
