@@ -42,11 +42,11 @@ import FixedSizeBinary = Schema_.org.apache.arrow.flatbuf.FixedSizeBinary;
 import FixedSizeList = Schema_.org.apache.arrow.flatbuf.FixedSizeList;
 import Map_ = Schema_.org.apache.arrow.flatbuf.Map;
 
-export interface TypeSerializer extends Visitor {
+export interface TypeAssembler extends Visitor {
     visit<T extends type.DataType>(node: T, builder: Builder): number | undefined;
 }
 
-export class TypeSerializer extends Visitor {
+export class TypeAssembler extends Visitor {
     public visit<T extends type.DataType>(node: T, builder: Builder): number | undefined {
         return (node == null || builder == null) ? undefined : super.visit(node, builder);
     }
