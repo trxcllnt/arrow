@@ -73,3 +73,5 @@ else modulePath = path.join(target, format);
 
 export let Arrow: typeof import('../src/Arrow') = require(path.resolve(`./targets`, modulePath, `Arrow`));
 export default Arrow;
+
+import './jest-extensions';
