@@ -18,9 +18,9 @@
 import { Data } from '../data';
 import { Type } from '../enum';
 import { Visitor } from '../visitor';
+import { Vector } from '../interfaces';
 import { iterateBits } from '../util/bit';
 import { instance as getVisitor } from './get';
-import { Vector } from '../interfaces';
 import {
     DataType, Dictionary,
     Bool, Null, Utf8, Binary, Decimal, FixedSizeBinary, List, FixedSizeList, Map_, Struct,
@@ -115,7 +115,7 @@ function vectorIterator<T extends DataType>(vector: Vector<T>): IterableIterator
         (type.TType === Type.Time && (type as Time).bitWidth !== 64) ||
         (type.TType === Type.Float && (type as Float).precision > 0 /* Precision.HALF */)
     )) {
-        return vector.values.subarray(0, length);
+        return vector.values.subarray(0, length)[Symbol.iterator]();
     }
 
     // Otherwise, iterate manually
