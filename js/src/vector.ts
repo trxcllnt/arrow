@@ -67,7 +67,7 @@ export abstract class Vector<T extends DataType = any> {
     public abstract isValid(index: number): boolean;
     public abstract get(index: number): T['TValue'] | null;
     public abstract indexOf(value: T['TValue'] | null, fromIndex?: number): number;
-    
+
     public abstract toArray(): T['TArray'];
     public abstract [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
     public abstract slice(begin?: number, end?: number): Vector<T>;

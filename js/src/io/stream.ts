@@ -178,7 +178,7 @@ export class WritableByteStream<T extends ArrayBufferViewInput> extends Streamab
 
 type RejectResult = { action: 'reject'; result: any; };
 type ResolveResult<T> = { action: 'resolve'; result: IteratorResult<T>; };
-type Resolution<T> = { resolve: (value?: T | PromiseLike<T>) => void; reject: (reason?: any) => void; }
+type Resolution<T> = { resolve: (value?: T | PromiseLike<T>) => void; reject: (reason?: any) => void; };
 /**
  * @ignore
  */

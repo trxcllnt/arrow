@@ -78,7 +78,7 @@ export abstract class Streamable<TResult> {
     public cancel(reason?: any) { return Promise.resolve(this._readableDOMStream && this._readableDOMStream.cancel(reason)); }
     public pipeTo(writable: WritableDOMStream<TResult>, options?: PipeOptions) { return this._getReadableDOMStream().pipeTo(writable, options); }
     public pipeThrough<R extends ReadableDOMStream<any>>(duplex: WritableReadableDOMStreamPair<WritableDOMStream<TResult>, R>, options?: PipeOptions) {
-        return this._getReadableDOMStream().pipeThrough(duplex, options)
+        return this._getReadableDOMStream().pipeThrough(duplex, options);
     }
 
     private _readableNodeStream?: ReadableNodeStream;

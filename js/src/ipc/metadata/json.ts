@@ -27,7 +27,7 @@ import {
 import Type = Schema_.org.apache.arrow.flatbuf.Type;
 import { DictionaryBatch, RecordBatch, FieldNode, BufferRegion } from './message';
 import { TimeUnit, Precision, IntervalUnit, UnionMode, DateUnit } from '../../enum';
-    
+
 export function schemaFromJSON(_schema: any, dictionaryTypes: Map<number, Dictionary> = new Map()) {
     return new Schema(
         schemaFieldsFromJSON(_schema, dictionaryTypes),

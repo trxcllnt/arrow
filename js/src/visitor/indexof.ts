@@ -15,11 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Row } from '../type';
 import { Data } from '../data';
 import { Type } from '../enum';
 import { Visitor } from '../visitor';
 import { Vector } from '../interfaces';
-import { Row } from '../type';
 import { getBool, iterateBits } from '../util/bit';
 import {
     DataType, Dictionary,

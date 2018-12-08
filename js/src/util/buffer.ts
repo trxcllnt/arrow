@@ -169,7 +169,7 @@ export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>
              : (source instanceof SharedArrayBuffer) ? wrap(source) // if SharedArrayBuffer, wrap in an AsyncIterableIterator
           : isIterable<ArrayBufferViewInput>(source) ? emit(source) // If Iterable, wrap in an AsyncIterableIterator and compose the `next` values
     : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source) // If not an AsyncIterable, treat as a sentinel and wrap in an AsyncIterableIterator
-                                                     : source // otherwise if AsyncIterable, use it
+                                                     : source; // otherwise if AsyncIterable, use it
 
     yield* pump((async function* (it) {
         let r: IteratorResult<any> = <any> null;

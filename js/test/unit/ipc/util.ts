@@ -27,7 +27,7 @@ export async function* readableDOMStreamToAsyncIterator<T>(stream: ReadableDOMSt
             // Read from the stream
             const { done, value } = await reader.read();
             // Exit if we're done
-            if (done) break;
+            if (done) { break; }
             // Else yield the chunk
             yield value;
         }

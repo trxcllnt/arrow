@@ -324,7 +324,7 @@ export class Union<T extends Unions = Unions> extends DataType<T> {
     public readonly typeIdToChildIndex: Record<Type, number>;
     constructor(public readonly mode: UnionMode,
                 public readonly typeIds: ArrowType[],
-                public readonly children: Field[]) {
+                public readonly children: Field<any>[]) {
         super(Type.Union as T, children);
         this.typeIdToChildIndex = (typeIds || []).reduce((typeIdToChildIndex, typeId, idx) => {
             return (typeIdToChildIndex[typeId] = idx) && typeIdToChildIndex || typeIdToChildIndex;
