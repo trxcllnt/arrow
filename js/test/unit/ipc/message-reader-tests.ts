@@ -15,100 +15,43 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
-import { nodeToDOMStream } from './util';
-
-import { Message } from '../../../src/ipc/metadata/message';
-import { MessageReader, AsyncMessageReader } from '../../../src/ipc/message';
+import { MessageReader, AsyncMessageReader } from '../../Arrow';
+import { nodeToDOMStream, chunkedIterable, asyncChunkedIterable } from './util';
+import {
+    simpleStreamSyncMessageReaderTest,
+    simpleStreamAsyncMessageReaderTest,
+} from './validate';
 
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
+const simpleStreamData = fs.readFileSync(simpleStreamPath);
 
 describe('MessageReader', () => {
-
     it('should read all messages from an Arrow Buffer stream', () => {
-        simpleStreamSyncMessageReaderTest(new MessageReader(fs.readFileSync(simpleStreamPath)));
+        simpleStreamSyncMessageReaderTest(new MessageReader(simpleStreamData));
     });
-
-    function simpleStreamSyncMessageReaderTest(reader: MessageReader) {
-        let r: IteratorResult<Message>;
-
-        r = reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isSchema()).toBe(true);
-        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        r = reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isRecordBatch()).toBe(true);
-        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        r = reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isRecordBatch()).toBe(true);
-        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        r = reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isRecordBatch()).toBe(true);
-        expect(reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        expect(reader.next().done).toBe(true);
-
-        reader.return();
-    }
+    it('should read all messages from an Iterable that yields buffers of Arrow messages in memory', () => {
+        simpleStreamSyncMessageReaderTest(new MessageReader(chunkedIterable(simpleStreamData)));
+    });
 });
 
 describe('AsyncMessageReader', () => {
-
-    it('should read all messages from a NodeJS ReadableStream', async () => {
-        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(fs.createReadStream(simpleStreamPath)));
-    });
-
     it('should read all messages from a whatwg ReadableStream', async () => {
         await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(
             nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
     });
-
     it('should read all messages from a whatwg ReadableByteStream', async () => {
         await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(
             nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
     });
-
-    async function simpleStreamAsyncMessageReaderTest(reader: AsyncMessageReader) {
-        let r: IteratorResult<Message>;
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isSchema()).toBe(true);
-        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isRecordBatch()).toBe(true);
-        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isRecordBatch()).toBe(true);
-        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        r = await reader.next();
-        expect(r.done).toBe(false);
-        expect(r.value).toBeInstanceOf(Message);
-        expect(r.value.isRecordBatch()).toBe(true);
-        expect(await reader.readMessageBody(r.value.bodyLength)).toBeInstanceOf(Uint8Array);
-
-        expect((await reader.next()).done).toBe(true);
-
-        await reader.return();
-    }
+    it('should read all messages from a NodeJS ReadableStream', async () => {
+        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(fs.createReadStream(simpleStreamPath)));
+    });
+    it('should read all messages from a Promise<Buffer> of Arrow messages in memory', async () => {
+        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader((async () => simpleStreamData)()));
+    });
+    it('should read all messages from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
+        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(asyncChunkedIterable(simpleStreamData)));
+    });
 });

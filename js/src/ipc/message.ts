@@ -23,12 +23,12 @@ import { isFileHandle } from '../util/compat';
 import { AsyncRandomAccessFile } from '../io/file';
 import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
 import { ReadableByteStream, AsyncReadableByteStream } from '../io/stream';
-import { ArrowJSON, ArrowJSONLike, ITERATOR_DONE, FileHandle, ReadableDOMStream } from '../io/interfaces';
+import { ArrowJSON, ArrowJSONLike, ITERATOR_DONE, FileHandle } from '../io/interfaces';
 
-export const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
-export const nullMessage              = (type: MessageHeader) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`;
-export const invalidMessageMetadata   = (expected: number, actual: number) => `Expected to read ${expected} metadata bytes, but only read ${actual}.`;
-export const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
+const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
+const nullMessage              = (type: MessageHeader) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`;
+const invalidMessageMetadata   = (expected: number, actual: number) => `Expected to read ${expected} metadata bytes, but only read ${actual}.`;
+const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
 
 export class MessageReader implements IterableIterator<Message> {
     protected source: ReadableByteStream;
@@ -89,7 +89,7 @@ export class MessageReader implements IterableIterator<Message> {
 
 export class AsyncMessageReader implements AsyncIterableIterator<Message> {
     protected source: AsyncReadableByteStream;
-    constructor(source: AsyncReadableByteStream | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
+    constructor(source: AsyncReadableByteStream | NodeJS.ReadableStream | ReadableStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
         this.source = source instanceof AsyncReadableByteStream ? source

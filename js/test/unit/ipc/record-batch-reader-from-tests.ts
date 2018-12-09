@@ -19,28 +19,31 @@ import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
 
-import { FileHandle } from '../../../src/io/interfaces';
-import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { RecordBatchFileReader, AsyncRecordBatchFileReader } from '../../../src/ipc/reader';
-import { RecordBatchStreamReader, AsyncRecordBatchStreamReader } from '../../../src/ipc/reader';
+import {
+    RecordBatchReader,
+    RecordBatchFileReader,
+    RecordBatchStreamReader,
+    AsyncRecordBatchFileReader,
+    AsyncRecordBatchStreamReader
+} from '../../Arrow';
 
 /* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
 
-const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
 const simpleJSONPath = Path.resolve(__dirname, `../../data/json/simple.json`);
+const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
 const simpleFileData = fs.readFileSync(simpleFilePath) as Uint8Array;
-const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath));
 const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
+const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath));
 
-describe('RecordBatchReader#open', () => {
-    testFileDataSource();
-    testJSONDataSource();
-    testStreamDataSource();
+describe('RecordBatchReader.from', () => {
+    testFromFile();
+    testFromJSON();
+    testFromStream();
 });
 
-function testFileDataSource() {
+function testFromFile() {
 
     const syncBufferSource = () => simpleFileData;
     const asyncBufferSource = () => (async () => simpleFileData)();
@@ -48,19 +51,19 @@ function testFileDataSource() {
     const syncIteratorSource = () => (function* () { yield simpleFileData; })();
     const asyncIteratorSource = () => async function* () { yield simpleFileData; }();
 
-    it(`should return a ${RecordBatchFileReader.name} when created with a Uint8Array`, () => {
+    it(`should return a RecordBatchFileReader when created with a Uint8Array`, () => {
         const reader = RecordBatchReader.from(syncBufferSource());
         expect(reader.isSync()).toEqual(true);
         expect(reader.isAsync()).toEqual(false);
         expect(reader).toBeInstanceOf(RecordBatchFileReader);
     });
-    it(`should return a ${RecordBatchFileReader.name} when created with an Iterable`, () => {
+    it(`should return a RecordBatchFileReader when created with an Iterable`, () => {
         const reader = RecordBatchReader.from(syncIteratorSource());
         expect(reader.isSync()).toEqual(true);
         expect(reader.isAsync()).toEqual(false);
         expect(reader).toBeInstanceOf(RecordBatchFileReader);
     });
-    it(`should return a ${RecordBatchFileReader.name} when created with a Promise<Uint8Array> and should resolve asynchronously`, async () => {
+    it(`should return a RecordBatchFileReader when created with a Promise<Uint8Array> and should resolve asynchronously`, async () => {
         const pending = RecordBatchReader.from(asyncBufferSource());
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;
@@ -68,7 +71,7 @@ function testFileDataSource() {
         expect(reader.isAsync()).toEqual(false);
         expect(reader).toBeInstanceOf(RecordBatchFileReader);
     });
-    it(`should return a ${RecordBatchFileReader.name} when created with an AsyncIterable and should resolve asynchronously`, async () => {
+    it(`should return a RecordBatchFileReader when created with an AsyncIterable and should resolve asynchronously`, async () => {
         const pending = RecordBatchReader.from(asyncIteratorSource());
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;
@@ -76,7 +79,7 @@ function testFileDataSource() {
         expect(reader.isAsync()).toEqual(false);
         expect(reader).toBeInstanceOf(RecordBatchFileReader);
     });
-    it(`should return an ${AsyncRecordBatchFileReader.name} when created with a Promise<FileHandle> and should resolve asynchronously`, async () => {
+    it(`should return an AsyncRecordBatchFileReader when created with a Promise<fs.promises.FileHandle> and should resolve asynchronously`, async () => {
         const pending = RecordBatchReader.from(asyncFileInputSource());
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;
@@ -84,8 +87,8 @@ function testFileDataSource() {
         expect(reader.isAsync()).toEqual(true);
         expect(reader).toBeInstanceOf(AsyncRecordBatchFileReader);
     });
-    it(`should return an ${AsyncRecordBatchFileReader.name} when created with a FileHandle and should resolve asynchronously`, async () => {
-        const pending = RecordBatchReader.from((await asyncFileInputSource()) as FileHandle);
+    it(`should return an AsyncRecordBatchFileReader when created with an fs.promises.FileHandle and should resolve asynchronously`, async () => {
+        const pending = RecordBatchReader.from((await asyncFileInputSource()) as import('fs').promises.FileHandle);
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;
         expect(reader.isSync()).toEqual(false);
@@ -94,11 +97,11 @@ function testFileDataSource() {
     });
 }
 
-function testJSONDataSource() {
+function testFromJSON() {
 
     const syncBufferSource = () => simpleJSONData;
 
-    it(`should return a ${RecordBatchStreamReader.name} when created with a JSON object`, () => {
+    it(`should return a RecordBatchStreamReader when created with a JSON object`, () => {
         const reader = RecordBatchReader.from(syncBufferSource());
         expect(reader.isSync()).toEqual(true);
         expect(reader.isAsync()).toEqual(false);
@@ -106,7 +109,7 @@ function testJSONDataSource() {
     });
 }
 
-function testStreamDataSource() {
+function testFromStream() {
 
     const syncBufferSource = () => simpleStreamData;
     const asyncBufferSource = () => (async () => simpleStreamData)();
@@ -114,19 +117,19 @@ function testStreamDataSource() {
     const syncIteratorSource = () => (function* () { yield simpleStreamData; })();
     const asyncIteratorSource = () => async function* () { yield simpleStreamData; }();
 
-    it(`should return a ${RecordBatchStreamReader.name} when created with a Uint8Array`, () => {
+    it(`should return a RecordBatchStreamReader when created with a Uint8Array`, () => {
         const reader = RecordBatchReader.from(syncBufferSource());
         expect(reader.isSync()).toEqual(true);
         expect(reader.isAsync()).toEqual(false);
         expect(reader).toBeInstanceOf(RecordBatchStreamReader);
     });
-    it(`should return a ${RecordBatchStreamReader.name} when created with an Iterable`, () => {
+    it(`should return a RecordBatchStreamReader when created with an Iterable`, () => {
         const reader = RecordBatchReader.from(syncIteratorSource());
         expect(reader.isSync()).toEqual(true);
         expect(reader.isAsync()).toEqual(false);
         expect(reader).toBeInstanceOf(RecordBatchStreamReader);
     });
-    it(`should return a ${RecordBatchStreamReader.name} when created with a Promise<Uint8Array> and should resolve asynchronously`, async () => {
+    it(`should return a RecordBatchStreamReader when created with a Promise<Uint8Array> and should resolve asynchronously`, async () => {
         const pending = RecordBatchReader.from(asyncBufferSource());
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;
@@ -134,7 +137,7 @@ function testStreamDataSource() {
         expect(reader.isAsync()).toEqual(false);
         expect(reader).toBeInstanceOf(RecordBatchStreamReader);
     });
-    it(`should return an ${AsyncRecordBatchStreamReader.name} when created with an AsyncIterable and should resolve asynchronously`, async () => {
+    it(`should return an AsyncRecordBatchStreamReader when created with an AsyncIterable and should resolve asynchronously`, async () => {
         const pending = RecordBatchReader.from(asyncIteratorSource());
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;
@@ -142,7 +145,7 @@ function testStreamDataSource() {
         expect(reader.isAsync()).toEqual(true);
         expect(reader).toBeInstanceOf(AsyncRecordBatchStreamReader);
     });
-    it(`should return an ${AsyncRecordBatchStreamReader.name} when created with a Promise<FileHandle> and should resolve asynchronously`, async () => {
+    it(`should return an AsyncRecordBatchStreamReader when created with a Promise<fs.promises.FileHandle> and should resolve asynchronously`, async () => {
         const pending = RecordBatchReader.from(asyncFileInputSource());
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;
@@ -150,7 +153,7 @@ function testStreamDataSource() {
         expect(reader.isAsync()).toEqual(true);
         expect(reader).toBeInstanceOf(AsyncRecordBatchStreamReader);
     });
-    it(`should return an ${AsyncRecordBatchStreamReader.name} when created with a FileHandle and should resolve asynchronously`, async () => {
+    it(`should return an AsyncRecordBatchStreamReader when created with an fs.promises.FileHandle and should resolve asynchronously`, async () => {
         const pending = RecordBatchReader.from(await asyncFileInputSource());
         expect(pending).toBeInstanceOf(Promise);
         const reader = await pending;

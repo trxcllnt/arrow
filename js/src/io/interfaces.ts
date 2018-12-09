@@ -15,36 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Readable, Writable } from 'stream';
+// import { Readable, Writable } from 'stream';
 
 export const ITERATOR_DONE: any = Object.freeze({ done: true, value: void (0) });
 
 export type FileHandle = import('fs').promises.FileHandle;
-export type ReadableNodeStream = import('stream').Readable;
-export type WritableNodeStream = import('stream').Writable;
+// export type ReadableNodeStream = import('stream').Readable;
 export type ReadableNodeStreamOptions = import('stream').ReadableOptions;
 
-export type ReadableDOMStream<R = any> = import('whatwg-streams').ReadableStream<R>;
-export type ReadableDOMStreamReader<R = any> = import('whatwg-streams').ReadableStreamDefaultReader<R>;
-export type ReadableDOMStreamBYOBReader<R = any> = import('whatwg-streams').ReadableStreamBYOBReader<R>;
-export type ReadableDOMStreamController<R = any> = import('whatwg-streams').ReadableStreamDefaultController<R>;
 export type ReadableDOMStreamOptions = { type?: 'bytes', autoAllocateChunkSize?: number };
-export type ReadableDOMStreamSource<R = any> = import('whatwg-streams').ReadableStreamSource<R>;
-
-export type WritableDOMStream<R = any> = import('whatwg-streams').WritableStream<R>;
-export type WritableDOMStreamSink<R = any> = import('whatwg-streams').WritableStreamSink<R>;
-export type WritableDOMStreamController<R = any> = import('whatwg-streams').WritableStreamDefaultController<R>;
-
-export type PipeOptions = import('whatwg-streams').PipeOptions;
-export type WritableReadableDOMStreamPair<
-    T extends WritableDOMStream<any>,
-    U extends ReadableDOMStream<any>
-> = import('whatwg-streams').WritableReadablePair<T, U>;
-
-export const ReadableNodeStream: typeof import('stream').Readable = Readable;
-export const WritableNodeStream: typeof import('stream').Writable = Writable;
-export const ReadableDOMStream: typeof import('whatwg-streams').ReadableStream = (<any> global).ReadableStream;
-export const WritableDOMStream: typeof import('whatwg-streams').WritableStream = (<any> global).WritableStream;
 
 export type ArrowJSONLike = { schema: any; batches?: any[]; dictionaries?: any[]; };
 
@@ -58,35 +37,25 @@ export class ArrowJSON {
     public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
 }
 
-export abstract class Streamable<TResult> {
+export abstract class Streamable<T> {
 
-    public abstract asReadableNodeStream(options?: ReadableNodeStreamOptions): ReadableNodeStream;
-    public abstract asReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableDOMStream<TResult>;
+    public abstract asReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
+    public abstract asReadableNodeStream(options?: ReadableNodeStreamOptions): import('stream').Readable;
 
     public pipe<R extends NodeJS.WritableStream>(writable: R, options?: { end?: boolean; }) {
         return this._getReadableNodeStream().pipe(writable, options);
     }
-
-    public getReader(): ReadableDOMStreamReader<TResult>;
-    public getReader(readerOptions?: { mode: 'byob' }): ReadableDOMStreamBYOBReader<TResult>;
-    public getReader(readerOptions?: { mode: 'byob' }) {
-        const rds = this._readableDOMStream || (this._readableDOMStream = this.asReadableDOMStream());
-        return readerOptions ? rds.getReader(readerOptions) : rds.getReader();
-    }
-
-    public tee() { return this._getReadableDOMStream().tee(); }
-    public get locked() { return this._readableDOMStream ? this._readableDOMStream.locked : false; }
-    public cancel(reason?: any) { return Promise.resolve(this._readableDOMStream && this._readableDOMStream.cancel(reason)); }
-    public pipeTo(writable: WritableDOMStream<TResult>, options?: PipeOptions) { return this._getReadableDOMStream().pipeTo(writable, options); }
-    public pipeThrough<R extends ReadableDOMStream<any>>(duplex: WritableReadableDOMStreamPair<WritableDOMStream<TResult>, R>, options?: PipeOptions) {
+    public pipeTo(writable: WritableStream<T>, options?: PipeOptions) { return this._getReadableDOMStream().pipeTo(writable, options); }
+    public pipeThrough<R extends ReadableStream<any>>(duplex: { writable: WritableStream<T>, readable: R }, options?: PipeOptions) {
         return this._getReadableDOMStream().pipeThrough(duplex, options);
     }
 
-    private _readableNodeStream?: ReadableNodeStream;
-    private _readableDOMStream?: ReadableDOMStream<TResult>;
+    private _readableDOMStream?: ReadableStream<T>;
     private _getReadableDOMStream() {
         return this._readableDOMStream || (this._readableDOMStream = this.asReadableDOMStream());
     }
+
+    private _readableNodeStream?: import('stream').Readable;
     private _getReadableNodeStream() {
         return this._readableNodeStream || (this._readableNodeStream = this.asReadableNodeStream());
     }

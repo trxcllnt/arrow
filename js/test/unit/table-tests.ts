@@ -17,8 +17,10 @@
 
 import '../jest-extensions';
 
-import { Table } from '../../src/Arrow';
-import { Struct, Float32, Int32, Dictionary, Utf8, Int8 } from '../../src/type';
+import {
+    Table,
+    Struct, Float32, Int32, Dictionary, Utf8, Int8
+} from '../Arrow';
 
 // const { predicate, Table } = Arrow;
 

@@ -20,23 +20,22 @@ import { Vector } from '../vector';
 import { MessageHeader } from '../enum';
 import { Footer } from './metadata/file';
 import { Schema, Field } from '../schema';
+import streamAdapters from '../io/adapters';
 import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
 import * as metadata from './metadata/message';
-import { toReadableDOMStream } from '../io/adapters/stream.dom';
-import { toReadableNodeStream } from '../io/adapters/stream.node';
 import { ArrayBufferViewInput, toUint8Array } from '../util/buffer';
 import { RandomAccessFile, AsyncRandomAccessFile } from '../io/file';
 import { VectorLoader, JSONVectorLoader } from '../visitor/vectorloader';
-import { ReadableByteStream, AsyncReadableByteStream, AsyncWritableByteStream } from '../io/stream';
+import { ReadableByteStream, AsyncReadableByteStream } from '../io/stream';
+import { ArrowJSON, ArrowJSONLike, FileHandle, Streamable, ITERATOR_DONE } from '../io/interfaces';
 import { isPromise, isArrowJSON, isFileHandle, isAsyncIterable, isReadableDOMStream, isReadableNodeStream } from '../util/compat';
-import { ArrowJSON, ArrowJSONLike, FileHandle, Streamable, ITERATOR_DONE, ReadableDOMStream, WritableDOMStream } from '../io/interfaces';
 import { MessageReader, AsyncMessageReader, checkForMagicArrowString, magicLength, magicAndPadding, magicX2AndPadding, JSONMessageReader } from './message';
 
 export type FromArg0 = ArrowJSONLike;
 export type FromArg1 = ArrayBufferViewInput | Iterable<ArrayBufferViewInput>;
 export type FromArg2 = PromiseLike<FromArg1>;
-export type FromArg3 = NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput>;
+export type FromArg3 = NodeJS.ReadableStream | ReadableStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput>;
 export type FromArg4 = FileHandle | PromiseLike<FileHandle>;
 export type FromArgs = FromArg0 | FromArg3 | FromArg1 | FromArg2 | FromArg4;
 
@@ -46,6 +45,7 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
 
     public get closed() { return this.impl.closed; }
     public get schema() { return this.impl.schema; }
+    public get autoClose() { return this.impl.autoClose; }
     public get dictionaries() { return this.impl.dictionaries; }
     public get numDictionaries() { return this.impl.numDictionaries; }
     public get numRecordBatches() { return this.impl.numRecordBatches; }
@@ -60,13 +60,18 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
     public abstract [Symbol.iterator](): IterableIterator<RecordBatch<T>>;
     public abstract [Symbol.asyncIterator](): AsyncIterableIterator<RecordBatch<T>>;
 
-    public asReadableDOMStream() { return toReadableDOMStream(this); }
-    public asReadableNodeStream() { return toReadableNodeStream(this, { objectMode: true }); }
+    public asReadableDOMStream() { return streamAdapters.toReadableDOMStream(this); }
+    public asReadableNodeStream() { return streamAdapters.toReadableNodeStream(this, { objectMode: true }); }
 
     public isSync(): this is RecordBatchFileReader<T> | RecordBatchStreamReader<T> { return this.impl.isSync(); }
     public isFile(): this is RecordBatchFileReader<T> | AsyncRecordBatchFileReader<T> { return this.impl.isFile(); }
     public isStream(): this is RecordBatchStreamReader<T> | AsyncRecordBatchStreamReader<T> { return this.impl.isStream(); }
     public isAsync(): this is AsyncRecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T> { return this.impl.isAsync(); }
+
+    public static asNodeStream(): import('stream').Duplex { throw new Error(`"asNodeStream" not available in this environment`); }
+    public static asDOMStream<T extends { [key: string]: DataType }>(): { writable: WritableStream<Uint8Array>, readable: ReadableStream<RecordBatch<T>> } {
+        throw new Error(`"asDOMStream" not available in this environment`);
+    }
 
     public static from<T extends RecordBatchReader>(source: T): T;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg0): RecordBatchStreamReader<T>;
@@ -120,14 +125,6 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
         }
         return new AsyncRecordBatchStreamReader<T>(file);
     }
-    public static createDOMTransformStream<T extends { [key: string]: DataType } = any>() {
-        const duplex = new AsyncWritableByteStream();
-        const source = new AsyncReadableByteStream(duplex[Symbol.asyncIterator]());
-        return {
-            writable: new WritableDOMStream(duplex),
-            readable: new AsyncRecordBatchStreamReader<T>(source).asReadableDOMStream()
-        };
-    }
 }
 
 export class RecordBatchFileReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
@@ -170,7 +167,7 @@ export class RecordBatchStreamReader<T extends { [key: string]: DataType } = any
 export class AsyncRecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
     // @ts-ignore
     protected impl: AsyncRecordBatchStreamReaderImpl<T>;
-    constructor(source: AsyncReadableByteStream | FileHandle | NodeJS.ReadableStream | ReadableDOMStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>, byteLength?: number) {
+    constructor(source: AsyncReadableByteStream | FileHandle | NodeJS.ReadableStream | ReadableStream<ArrayBufferView> | AsyncIterable<ArrayBufferView>, byteLength?: number) {
         super(new AsyncRecordBatchStreamReaderImpl(new AsyncMessageReader(source as FileHandle, byteLength)));
     }
     public async close() { await this.impl.close(); return this; }
@@ -537,6 +534,7 @@ interface IRecordBatchReaderImpl<T extends { [key: string]: DataType } = any> {
 
     closed: boolean;
     schema: Schema<T>;
+    autoClose: boolean;
     numDictionaries: number;
     numRecordBatches: number;
     dictionaries: Map<number, Vector>;

@@ -56,7 +56,6 @@
     "@types/flatbuffers": "1.9.0",
     "@types/node": "10.12.12",
     "@types/text-encoding-utf-8": "1.0.1",
-    "@types/whatwg-streams": "0.0.7",
     "command-line-args": "5.0.2",
     "command-line-usage": "5.0.5",
     "flatbuffers": "1.10.2",

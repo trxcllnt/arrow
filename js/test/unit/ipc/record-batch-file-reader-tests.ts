@@ -18,45 +18,30 @@
 import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
+import { nodeToDOMStream } from './util';
 import { toArray } from 'ix/asynciterable/toarray';
-import { nodeToDOMStream, readableDOMStreamToAsyncIterator } from './util';
+import { chunkedIterable, asyncChunkedIterable } from './util';
+import {
+    testSimpleRecordBatchFileReader,
+    testSimpleAsyncRecordBatchFileReader,
+} from './validate';
 
-import { Schema } from '../../../src/schema';
-import { RecordBatch } from '../../../src/recordbatch';
-import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { RecordBatchFileReader } from '../../../src/ipc/reader';
-import { RecordBatchStreamReader } from '../../../src/ipc/reader';
-import { AsyncRecordBatchFileReader } from '../../../src/ipc/reader';
+import {
+    RecordBatchReader,
+    RecordBatchFileReader,
+    AsyncRecordBatchFileReader 
+} from '../../Arrow';
 
 const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
 const simpleFileData = fs.readFileSync(simpleFilePath);
 
-function* iterableSource(buffer: Uint8Array) {
-    let offset = 0, size = 0;
-    while (offset < buffer.byteLength) {
-        size = yield buffer.subarray(offset, offset +=
-            (isNaN(+size) ? buffer.byteLength - offset : size));
-    }
-}
-
-async function* asyncIterableSource(buffer: Uint8Array) {
-    let offset = 0, size = 0;
-    while (offset < buffer.byteLength) {
-        size = yield buffer.subarray(offset, offset +=
-            (isNaN(+size) ? buffer.byteLength - offset : size));
-    }
-}
-
 describe('RecordBatchFileReader', () => {
-
-    it('should read all messages from a Buffer of Arrow data in memory', () => {
+    it('should read all RecordBatches from a Buffer of Arrow data in memory', () => {
         testSimpleRecordBatchFileReader(RecordBatchReader.from(simpleFileData));
     });
-
-    it('should read all messages from an Iterable that yields buffers of Arrow messages in memory', () => {
-        testSimpleRecordBatchFileReader(RecordBatchReader.from(iterableSource(simpleFileData)));
+    it('should read all RecordBatches from an Iterable that yields buffers of Arrow messages in memory', () => {
+        testSimpleRecordBatchFileReader(RecordBatchReader.from(chunkedIterable(simpleFileData)));
     });
-
     it('should allow random access to record batches after iterating when autoClose=false', () => {
         const reader = RecordBatchReader.from(simpleFileData) as RecordBatchFileReader;
         const schema = reader.open(false).schema;
@@ -72,69 +57,32 @@ describe('RecordBatchFileReader', () => {
         expect(reader.closed).toBe(true);
         expect(reader.schema).toBeUndefined();
     });
-
-    describe('asReadableDOMStream', () => {
-        it('should yield all RecordBatches', async () => {
-            const source = simpleFileData;
-            const reader = RecordBatchReader.from(source).open();
-            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    describe('asReadableNodeStream', () => {
-        it('should yield all RecordBatches', async () => {
-            const reader = RecordBatchReader.from(simpleFileData).open();
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    function testSimpleRecordBatchFileReader(reader: RecordBatchFileReader | RecordBatchStreamReader) {
-        reader = reader.open();
-        expect(reader.isStream()).toBe(true);
-        expect(reader.schema).toBeInstanceOf(Schema);
-        const batches = [...reader];
-        expect(batches.length).toEqual(3);
-        batches.forEach((b, i) => {
-            try {
-                expect(b).toBeInstanceOf(RecordBatch);
-            } catch (e) { throw new Error(`${i}: ${e}`); }
-        });
-        return reader;
-    }
 });
 
 describe('AsyncRecordBatchFileReader', () => {
 
-    it('should read all messages from a NodeJS ReadableStream', async () => {
-        const source = fs.createReadStream(simpleFilePath);
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(source));
+    it('should read all RecordBatches from an fs.ReadStream', async () => {
+        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(fs.createReadStream(simpleFilePath)));
     });
 
-    it('should read all messages from a NodeJS Promise<FileHandle>', async () => {
-        const source = fs.promises.open(simpleFilePath, 'r');
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(source));
+    it('should read all RecordBatches from a Promise<fs.promises.FileHandle>', async () => {
+        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(fs.promises.open(simpleFilePath, 'r')));
     });
 
-    it('should read all messages from a NodeJS FileHandle', async () => {
-        const source = await fs.promises.open(simpleFilePath, 'r');
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(source));
+    it('should read all RecordBatches from an fs.promises.FileHandle', async () => {
+        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(await fs.promises.open(simpleFilePath, 'r')));
     });
 
-    it('should read all messages from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
-        const source = asyncIterableSource(simpleFileData);
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(source));
+    it('should read all RecordBatches from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
+        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(asyncChunkedIterable(simpleFileData)));
     });
 
-    it('should read all messages from a whatwg ReadableStream', async () => {
-        const source = nodeToDOMStream(fs.createReadStream(simpleFilePath));
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(source));
+    it('should read all RecordBatches from a whatwg ReadableStream', async () => {
+        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(nodeToDOMStream(fs.createReadStream(simpleFilePath))));
     });
 
-    it('should read all messages from a whatwg ReadableByteStream', async () => {
-        const source = nodeToDOMStream(fs.createReadStream(simpleFilePath), { type: 'bytes' });
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(source));
+    it('should read all RecordBatches from a whatwg ReadableByteStream', async () => {
+        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(nodeToDOMStream(fs.createReadStream(simpleFilePath), { type: 'bytes' })));
     });
 
     it('should allow random access to record batches after iterating when autoClose=false', async () => {
@@ -153,41 +101,4 @@ describe('AsyncRecordBatchFileReader', () => {
         expect(reader.closed).toBe(true);
         expect(reader.schema).toBeUndefined();
     });
-
-    describe('asReadableDOMStream', () => {
-        it('should yield all RecordBatches', async () => {
-            const source = fs.createReadStream(simpleFilePath);
-            const reader = await RecordBatchReader.from(source);
-            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    describe('asReadableNodeStream', () => {
-        it('should yield all RecordBatches', async () => {
-            const source = fs.createReadStream(simpleFilePath);
-            const reader = await RecordBatchReader.from(source);
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    async function testSimpleAsyncRecordBatchFileReader(reader: RecordBatchReader) {
-        reader = await reader.open();
-        expect(reader.isFile()).toBe(true);
-        expect(reader.schema).toBeInstanceOf(Schema);
-        await testSimpleAsyncRecordBatchIterator(reader as AsyncIterableIterator<RecordBatch>);
-        return reader;
-    }
 });
-
-async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterableIterator<RecordBatch>) {
-    const batches = await toArray(iterator);
-    expect(batches.length).toEqual(3);
-    batches.forEach((b, i) => {
-        try {
-            expect(b).toBeInstanceOf(RecordBatch);
-        } catch (e) { throw new Error(`${i}: ${e}`); }
-    });
-    await iterator.return!();
-}

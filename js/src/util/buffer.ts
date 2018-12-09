@@ -20,8 +20,6 @@ import ByteBuffer = flatbuffers.ByteBuffer;
 import { ArrayBufferViewConstructor } from '../interfaces';
 import { isPromise, isIterable, isAsyncIterable, isIteratorResult } from './compat';
 
-type ReadResult<T = any> = import('whatwg-streams').ReadResult<T>;
-
 function collapseContiguousByteRanges(chunks: Uint8Array[]) {
     for (let x, y, i = 0; ++i < chunks.length;) {
         x = chunks[i - 1];
@@ -79,8 +77,8 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
 }
 
 export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined  |
-                        ReadResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> |
-                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> ;
+                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> |
+          ReadableStreamReadResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> ;
 
 /**
  * @ignore

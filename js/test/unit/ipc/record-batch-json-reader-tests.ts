@@ -18,70 +18,17 @@
 import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
-import { toArray } from 'ix/asynciterable/toarray';
-import { readableDOMStreamToAsyncIterator } from './util';
-
-import { Schema } from '../../../src/schema';
-import { RecordBatch } from '../../../src/recordbatch';
-import { ArrowJSONLike } from '../../../src/io/interfaces';
-import { RecordBatchReader }  from '../../../src/ipc/reader';
-import { RecordBatchStreamReader } from '../../../src/ipc/reader';
+import { RecordBatchReader } from '../../Arrow';
+import { testSimpleRecordBatchJSONReader } from './validate';
 
 /* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
 
 const simpleJSONPath = Path.resolve(__dirname, `../../data/json/simple.json`);
-const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as ArrowJSONLike;
+const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
 
 describe('RecordBatchJSONReader', () => {
-
-    it('should read all messages from Arrow JSON data', () => {
+    it('should read all RecordBatches from Arrow JSON data', () => {
         testSimpleRecordBatchJSONReader(RecordBatchReader.from(simpleJSONData));
     });
-
-    describe('asReadableDOMStream', () => {
-        it('should yield all RecordBatches', async () => {
-            const reader = RecordBatchReader.from(simpleJSONData);
-            const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    describe('asReadableNodeStream', () => {
-        it('should yield all RecordBatches', async () => {
-            const reader = RecordBatchReader.from(simpleJSONData);
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    function testSimpleRecordBatchJSONReader(reader: RecordBatchStreamReader) {
-
-        reader = reader.open();
-        expect(reader.isStream()).toBe(true);
-        expect(reader.schema).toBeInstanceOf(Schema);
-
-        const batches = [...reader];
-
-        expect(batches.length).toEqual(3);
-
-        batches.forEach((b, i) => {
-            try {
-                expect(b).toBeInstanceOf(RecordBatch)
-            } catch (e) { throw new Error(`${i}: ${e}`); }
-        });
-
-        return reader;
-    }
 });
-
-async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterableIterator<RecordBatch>) {
-    const batches = await toArray(iterator);
-    expect(batches.length).toEqual(3);
-    batches.forEach((b, i) => {
-        try {
-            expect(b).toBeInstanceOf(RecordBatch)
-        } catch (e) { throw new Error(`${i}: ${e}`); }
-    });
-    await iterator.return!();
-}

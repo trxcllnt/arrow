@@ -15,17 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { toReadableDOMStream } from './adapters/stream.dom';
-import { toReadableNodeStream } from './adapters/stream.node';
-import { fromReadableDOMStream } from './adapters/stream.dom';
-import { fromReadableNodeStream } from './adapters/stream.node';
-import { fromIterable, fromAsyncIterable } from './adapters/iterable';
+import streamAdapters from './adapters';
 import { ArrayBufferViewInput, memcpy, toUint8Array } from '../util/buffer';
 import { isAsyncIterable, isReadableDOMStream, isReadableNodeStream, isPromise } from '../util/compat';
-import {
-    Streamable, ITERATOR_DONE, WritableDOMStreamSink,
-    ReadableDOMStream, ReadableDOMStreamOptions, ReadableNodeStreamOptions,
-} from './interfaces';
+import { Streamable, ITERATOR_DONE, ReadableDOMStreamOptions, ReadableNodeStreamOptions } from './interfaces';
 
 /**
  * @ignore
@@ -35,7 +28,7 @@ export class ReadableByteStream {
     private source: ByteSourceIterator;
     constructor(source?: Iterable<ArrayBufferViewInput> | ArrayBufferViewInput) {
         if (source) {
-            this.source = new ByteSourceIterator(fromIterable(source));
+            this.source = new ByteSourceIterator(streamAdapters.fromIterable(source));
         }
     }
     public throw(value?: any) { return this.source.throw(value); }
@@ -50,15 +43,15 @@ export class ReadableByteStream {
 export class AsyncReadableByteStream {
     // @ts-ignore
     private source: AsyncByteSourceIterator;
-    constructor(source?: PromiseLike<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | ReadableDOMStream<ArrayBufferViewInput> | NodeJS.ReadableStream | null) {
+    constructor(source?: PromiseLike<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | ReadableStream<ArrayBufferViewInput> | NodeJS.ReadableStream | null) {
         if (isReadableDOMStream<ArrayBufferViewInput>(source)) {
-            this.source = new AsyncByteSourceIterator(fromReadableDOMStream(source));
+            this.source = new AsyncByteSourceIterator(streamAdapters.fromReadableDOMStream(source));
         } else if (isReadableNodeStream(source)) {
-            this.source = new AsyncByteSourceIterator(fromReadableNodeStream(source));
+            this.source = new AsyncByteSourceIterator(streamAdapters.fromReadableNodeStream(source));
         } else if (isAsyncIterable<ArrayBufferViewInput>(source)) {
-            this.source = new AsyncByteSourceIterator(fromAsyncIterable(source));
+            this.source = new AsyncByteSourceIterator(streamAdapters.fromAsyncIterable(source));
         } else if (isPromise<ArrayBufferViewInput>(source)) {
-            this.source = new AsyncByteSourceIterator(fromAsyncIterable(source));
+            this.source = new AsyncByteSourceIterator(streamAdapters.fromAsyncIterable(source));
         }
     }
     public async throw(value?: any) { return await this.source.throw(value); }
@@ -94,31 +87,35 @@ class AsyncByteSourceIterator {
 /**
  * @ignore
  */
-export class WritableByteStream<T extends ArrayBufferViewInput> extends Streamable<Uint8Array> implements WritableDOMStreamSink<T> {
+export class WritableByteStream<T extends ArrayBufferViewInput> extends Streamable<Uint8Array>
+    implements UnderlyingSink<T>, Partial<NodeJS.WritableStream> {
 
+    // @ts-ignore
+    public buffer: Uint8Array;
     private closed = false;
-    private bytesWritten = 0;
+    private byteLength = 0;
     private chunks: (Uint8Array | number)[] = [];
     private duplex?: AsyncWritableByteStream<Uint8Array> | null;
 
     public align(alignment: number) {
         if (this._isOpen() && alignment > 1) {
             const a = alignment - 1;
-            const p = this.bytesWritten;
+            const p = this.byteLength;
             const remainder = ((p + a) & ~a) - p;
             this.chunks.push(remainder);
-            this.bytesWritten += remainder;
+            this.byteLength += remainder;
             this.duplex && this.duplex.write(new Uint8Array(remainder));
         }
     }
-    public write(value?: T | null) {
+    public write(value?: any, ...args: any[]): any {
         if (this._isOpen() && value == null) {
-            return this.close();
+            return Boolean(this.close(...args));
         }
         const chunk = toUint8Array(value);
         this.chunks.push(chunk);
-        this.bytesWritten += chunk.byteLength;
-        this.duplex && this.duplex.write(chunk);
+        this.byteLength += chunk.byteLength;
+        return this.duplex ? this.duplex.write(chunk, ...args) || true
+            : !Boolean(args.forEach((x) => typeof x === 'function' && x()));
     }
     public abort(reason: any) {
         this._isOpen();
@@ -126,20 +123,25 @@ export class WritableByteStream<T extends ArrayBufferViewInput> extends Streamab
         this.duplex = null;
         this.close();
     }
-    public close() {
-        if (this._isOpen() && (this.closed = true)) {
+    public close(...args: any[]) {
+        if (!this.closed && (this.closed = true)) {
+            this.buffer = this.toUint8Array();
             this.chunks = [];
-            this.bytesWritten = 0;
+            this.byteLength = 0;
             const { duplex: sink } = this;
-            this.duplex = null;
-            sink && sink.close();
+            (this.duplex = null) || sink && sink.close();
         }
+        args.forEach((x) => typeof x === 'function' && x());
     }
-    public destroy() { this.close(); }
-    public finalize(alignment = 4) {
-        this.align(alignment);
+    public end(...args: any[]) { this.close(...args); }
+    public final(...args: any[]) { this.close(...args); }
+    public destroy(...args: any[]) { this.close(...args); }
+    public throw(_?: any) { this.abort(_); return ITERATOR_DONE; };
+    public return(_?: any) { this.close(); return ITERATOR_DONE; };
+    public toUint8Array(...args: any[]) {
+        this.align(4);
         let byteOffset = 0;
-        let bytes = new Uint8Array(this.bytesWritten);
+        let bytes = new Uint8Array(this.byteLength);
         for (let chunkOrNBytes of this.chunks) {
             if (typeof chunkOrNBytes !== 'number') {
                 memcpy(bytes, chunkOrNBytes, byteOffset);
@@ -147,7 +149,7 @@ export class WritableByteStream<T extends ArrayBufferViewInput> extends Streamab
             }
             byteOffset += chunkOrNBytes;
         }
-        this.close();
+        this.close(...args);
         return bytes;
     }
     public asReadableDOMStream(options?: ReadableDOMStreamOptions) {
@@ -182,7 +184,8 @@ type Resolution<T> = { resolve: (value?: T | PromiseLike<T>) => void; reject: (r
 /**
  * @ignore
  */
-export class AsyncWritableByteStream<T extends ArrayBufferViewInput> extends Streamable<Uint8Array> implements WritableDOMStreamSink<T>, AsyncIterableIterator<Uint8Array> {
+export class AsyncWritableByteStream<T extends ArrayBufferViewInput> extends Streamable<Uint8Array>
+    implements UnderlyingSink<T>, Partial<NodeJS.WritableStream>, AsyncIterableIterator<Uint8Array> {
 
     private closed = false;
     private bytesWritten = 0;
@@ -191,14 +194,14 @@ export class AsyncWritableByteStream<T extends ArrayBufferViewInput> extends Str
 
     public align(alignment: number) {
         this._isOpen();
-        const val = alignment - 1;
+        const a = alignment - 1;
         const pos = this.bytesWritten;
-        const remainder = ((pos + val) & ~val) - pos;
+        const remainder = ((pos + a) & ~a) - pos;
         this.write(new ArrayBuffer(remainder) as T);
     }
-    public write(value?: T | null) {
+    public write(value?: any, ...args: any[]): any {
         if (this._isOpen() && value == null) {
-            return this.close();
+            return Boolean(this.close(...args));
         }
         const chunk = toUint8Array(value);
         const result = { done: false, value: chunk };
@@ -206,30 +209,37 @@ export class AsyncWritableByteStream<T extends ArrayBufferViewInput> extends Str
         this.resolvers.length > 0 ?
             this.resolvers.shift()!.resolve(result) :
             this.queue.push({ result, action: 'resolve' });
+        args.forEach((x) => typeof x === 'function' && x());
+        return this.resolvers.length < 0;
     }
     public abort(result: any) {
         this._isOpen() && this.resolvers.length > 0 ?
             this.resolvers.shift()!.reject(result) :
             this.queue.push({ result, action: 'reject' });
     }
-    public close() {
-        if (this._isOpen() && (this.closed = true)) {
+    public close(...args: any[]) {
+        if (!this.closed && (this.closed = true)) {
             const { resolvers } = this;
             while (resolvers.length > 0) {
                 resolvers.shift()!.resolve(ITERATOR_DONE);
             }
         }
+        args.forEach((x) => typeof x === 'function' && x());
     }
-    public destroy() { this.close(); }
-    public [Symbol.asyncIterator]() {
-        const self = this;
-        return {
-            [Symbol.asyncIterator]() { return this; },
-            async next(value?: any) { return await self.next(value); },
-            async throw(_value?: any) { self.close(); return ITERATOR_DONE; },
-            async return(_value?: any) { self.close(); return ITERATOR_DONE; },
-        } as AsyncIterableIterator<Uint8Array>;
+
+    public [Symbol.asyncIterator]() { return this; }
+    public asReadableDOMStream(options?: ReadableDOMStreamOptions) {
+        return streamAdapters.toReadableDOMStream(this, options);
     }
+    public asReadableNodeStream(options?: ReadableNodeStreamOptions) {
+        return streamAdapters.toReadableNodeStream(this, options);
+    }
+
+    public end(...args: any[]) { this.close(...args); }
+    public final(...args: any[]) { this.close(...args); }
+    public destroy(...args: any[]) { this.close(...args); }
+    public throw(_?: any) { this.abort(_); return ITERATOR_DONE; };
+    public return(_?: any) { this.close(); return ITERATOR_DONE; };
     public next(_?: any): Promise<IteratorResult<Uint8Array>> {
         if (this.queue.length > 0) {
             const { action, result } = this.queue.shift()!;
@@ -240,8 +250,7 @@ export class AsyncWritableByteStream<T extends ArrayBufferViewInput> extends Str
             this.resolvers.push({ resolve, reject });
         });
     }
-    public asReadableDOMStream(options?: ReadableDOMStreamOptions) { return toReadableDOMStream(this, options); }
-    public asReadableNodeStream(options?: ReadableNodeStreamOptions) { return toReadableNodeStream(this, options); }
+
     protected _isOpen() {
         if (this.closed) {
             throw new Error('AsyncWritableByteStream is closed');
