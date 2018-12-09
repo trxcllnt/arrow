@@ -18,6 +18,7 @@
 import * as fs from 'fs';
 import * as Path from 'path';
 import {
+    nodeToDOMStream,
     convertNodeToDOMStream,
     readableDOMStreamToAsyncIterator
 } from './util';
@@ -36,7 +37,7 @@ import {
     require('../../../src/Arrow.dom');
 
     /* tslint:disable */
-    const { nodeToWeb, concatStream } = require('web-stream-tools').default;
+    const { concatStream } = require('web-stream-tools').default;
 
     /* tslint:disable */
     const { parse: bignumJSONParse } = require('json-bignum');
@@ -116,8 +117,8 @@ import {
         it('should read all RecordBatches from a NodeJS ReadableStream that yields multiple tables', async () => {
 
             const source = concatStream([
-                nodeToWeb(fs.createReadStream(simpleStreamPath)),
-                nodeToWeb(fs.createReadStream(simpleStreamPath))
+                nodeToDOMStream(fs.createReadStream(simpleStreamPath)),
+                nodeToDOMStream(fs.createReadStream(simpleStreamPath))
             ]);
     
             let reader = await (await RecordBatchReader.from(source)).open(false);
