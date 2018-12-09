@@ -50,3 +50,4 @@ const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.
 /** @ignore */ export const isReadableNodeStream =          (x: any): x is NodeJS.ReadableStream => hasFuncs(x, 'read', 'pipe', 'unpipe', 'pause', 'resume', 'wrap');
 /** @ignore */ export const isFileHandle         =          (x: any): x is FileHandle            => hasFuncs(x, 'stat') && hasProps(x, ['fd', 'number']);
 /** @ignore */ export const isFSReadStream       =          (x: any): x is FSReadStream          => isReadableNodeStream(x) && hasProps(x, ['bytesRead', 'number']);
+/** @ignore */ export const isFetchResponse      =          (x: any): x is Response              => hasProps(x, ['body'], ['bodyUsed', 'boolean'], ['ok', 'boolean']);

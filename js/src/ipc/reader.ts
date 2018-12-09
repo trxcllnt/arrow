@@ -29,14 +29,14 @@ import { RandomAccessFile, AsyncRandomAccessFile } from '../io/file';
 import { VectorLoader, JSONVectorLoader } from '../visitor/vectorloader';
 import { ReadableByteStream, AsyncReadableByteStream } from '../io/stream';
 import { ArrowJSON, ArrowJSONLike, FileHandle, Streamable, ITERATOR_DONE } from '../io/interfaces';
-import { isPromise, isArrowJSON, isFileHandle, isAsyncIterable, isReadableDOMStream, isReadableNodeStream } from '../util/compat';
+import { isPromise, isArrowJSON, isFileHandle, isFetchResponse, isAsyncIterable, isReadableDOMStream, isReadableNodeStream } from '../util/compat';
 import { MessageReader, AsyncMessageReader, checkForMagicArrowString, magicLength, magicAndPadding, magicX2AndPadding, JSONMessageReader } from './message';
 
 export type FromArg0 = ArrowJSONLike;
-export type FromArg1 = ArrayBufferViewInput | Iterable<ArrayBufferViewInput>;
-export type FromArg2 = PromiseLike<FromArg1>;
+export type FromArg1 = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
+export type FromArg2 = PromiseLike<Iterable<ArrayBufferViewInput> | ArrayBufferViewInput>;
 export type FromArg3 = NodeJS.ReadableStream | ReadableStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput>;
-export type FromArg4 = FileHandle | PromiseLike<FileHandle>;
+export type FromArg4 = Response | FileHandle | PromiseLike<FileHandle> | PromiseLike<Response>;
 export type FromArgs = FromArg0 | FromArg3 | FromArg1 | FromArg2 | FromArg4;
 
 export abstract class RecordBatchReader<T extends { [key: string]: DataType } = any> extends Streamable<RecordBatch<T>> {
@@ -88,8 +88,10 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
             return RecordBatchReader.fromFileHandle<T>(source);
         } else if (isPromise<FromArg1>(source)) {
             return (async () => await RecordBatchReader.from<T>(await source))();
-        } else if (isPromise<FileHandle>(source)) {
+        } else if (isPromise<FileHandle | Response>(source)) {
             return (async () => await RecordBatchReader.from<T>(await source))();
+        } else if (isFetchResponse(source) && (source = source.body)) {
+            return RecordBatchReader.fromAsyncByteStream<T>(new AsyncReadableByteStream(source));
         } else if (isReadableNodeStream(source) || isReadableDOMStream(source) || isAsyncIterable(source)) {
             return RecordBatchReader.fromAsyncByteStream<T>(new AsyncReadableByteStream(source));
         }

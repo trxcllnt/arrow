@@ -44,13 +44,13 @@ describe('RecordBatchStreamReader', () => {
             yield* chunkedIterable(simpleStreamData);
         }());
 
-        let reader = RecordBatchReader.from(source);
+        let reader = RecordBatchReader.from(source).open(false);
 
-        reader = testSimpleRecordBatchStreamReader(reader.open(false));
+        reader = testSimpleRecordBatchStreamReader(reader);
         expect(reader.schema).toBeInstanceOf(Schema);
         expect(reader.reset().schema).toBeUndefined();
 
-        reader = testSimpleRecordBatchStreamReader(reader.open(false));
+        reader = testSimpleRecordBatchStreamReader(reader);
         expect(reader.close().schema).toBeUndefined();
         expect(reader.open().schema).toBeUndefined();
     });
@@ -85,13 +85,13 @@ describe('AsyncRecordBatchStreamReader', () => {
             yield* asyncChunkedIterable(simpleStreamData);
         }());
 
-        let reader = await RecordBatchReader.from(source);
+        let reader = await (await RecordBatchReader.from(source)).open(false);
 
-        reader = await testSimpleAsyncRecordBatchStreamReader(await reader.open(false));
+        reader = await testSimpleAsyncRecordBatchStreamReader(reader);
         expect(reader.schema).toBeInstanceOf(Schema);
         expect(reader.reset().schema).toBeUndefined();
 
-        reader = await testSimpleAsyncRecordBatchStreamReader(await reader.open(false));
+        reader = await testSimpleAsyncRecordBatchStreamReader(reader);
         expect((await reader.close()).schema).toBeUndefined();
         expect((await reader.open()).schema).toBeUndefined();
     });
