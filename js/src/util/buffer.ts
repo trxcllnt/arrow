@@ -199,3 +199,18 @@ function decodeUtf8(chunk: string) {
     }
     return bytes;
 }
+
+/**
+ * @ignore
+ */
+export function rebaseValueOffsets(offset: number, length: number, valueOffsets: Int32Array) {
+    // If we have a non-zero offset, create a new offsets array with the values
+    // shifted by the start offset, such that the new start offset is 0
+    if (offset !== 0) {
+        valueOffsets = valueOffsets.slice(0, length + 1);
+        for (let i = -1; ++i <= length;) {
+            valueOffsets[i] += offset;
+        }
+    }
+    return valueOffsets;
+}
