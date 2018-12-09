@@ -1,6 +1,5 @@
 import { DataType } from './type';
 import { Duplex, Readable } from 'stream';
-// import { Readable, Transform } from 'stream';
 import streamAdapters from './io/adapters';
 import { RecordBatch } from './recordbatch';
 import { RecordBatchReader } from './ipc/reader';
@@ -10,7 +9,6 @@ import { isIterable, isAsyncIterable } from './util/compat';
 type ReadableNodeStreamOptions = import('stream').ReadableOptions;
 
 streamAdapters.toReadableNodeStream = toReadableNodeStream;
-// RecordBatchReader.asNodeStream = recordBatchReaderTransform;
 RecordBatchReader.asNodeStream = recordBatchReaderAsNodeStream;
 
 export * from './Arrow.dom';
