@@ -102,6 +102,7 @@
     "tslint": "5.11.0",
     "typedoc": "0.12",
     "typescript": "3.2.1",
+    "web-stream-tools": "0.0.1",
     "webpack": "4.27.1",
     "xml2js": "0.4.19"
   },
@@ -145,8 +146,8 @@
       "^.+\\.tsx?$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "/node_modules/",
-      "/(es2015|esnext)/umd/"
+      "/(es2015|esnext)/umd/",
+      "/node_modules/(?!web-stream-tools).+\\.js$"
     ],
     "testRegex": "(.*(-|\\.)(test|spec)s?)\\.(ts|tsx|js)$",
     "preset": "ts-jest/presets/js-with-babel",

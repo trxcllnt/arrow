@@ -17,9 +17,9 @@ function recordBatchReaderAsDOMStream<T extends { [key: string]: DataType } = an
     let reader: RecordBatchReader<T> | null = null;
 
     const readable = new ReadableStream<RecordBatch<T>>({
-        async start(observer) { await next(observer, reader || await open()); },
-        async pull(observer) { reader ? await next(observer, reader) : observer.close(); },
-        async cancel() { (reader && (await reader.close())) && false || (reader = null); },
+        async start(controller) { await next(controller, reader || (reader = await open())); },
+        async pull(controller) { reader ? await next(controller, reader) : controller.close(); },
+        async cancel() { (reader && (await reader.close()) || true) && (reader = null); },
     });
 
     return { writable: new WritableStream<Uint8Array>(duplex), readable };
@@ -28,13 +28,13 @@ function recordBatchReaderAsDOMStream<T extends { [key: string]: DataType } = an
         return await (await RecordBatchReader.from(duplex)).open();
     }
 
-    async function next(sink: ReadableStreamDefaultController<RecordBatch<T>>, reader: RecordBatchReader<T>) {
-        let size = sink.desiredSize;
+    async function next(controller: ReadableStreamDefaultController<RecordBatch<T>>, reader: RecordBatchReader<T>) {
+        let size = controller.desiredSize;
         let r: IteratorResult<RecordBatch<T>> | null = null;
         while ((size == null || size-- > 0) && !(r = await reader.next()).done) {
-            sink.enqueue(r.value);
+            controller.enqueue(r.value);
         }
-        r && r.done && sink.close();
+        r && r.done && controller.close();
     }
 }
 
@@ -45,54 +45,43 @@ function toReadableDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?
 }
 
 function iterableAsReadableDOMStream<T>(source: Iterable<T>, options?: ReadableDOMStreamOptions) {
-    let it: Iterator<T>;
+
+    let it: Iterator<T> | null = null;
+
     return new ReadableStream<T>({
         ...options as any,
-        cancel: close.bind(null, 'return'),
-        start() { it = source[Symbol.iterator](); },
-        pull(sink) {
-            try {
-                let size = sink.desiredSize;
-                let r: IteratorResult<T> | null = null;
-                while ((size == null || size-- > 0) && !(r = it.next()).done) {
-                    sink.enqueue(r.value);
-                }
-                r && r.done && [close('return'), sink.close()];
-            } catch (e) {
-                close('throw', e);
-                sink.error(e);
-            }
-        }
+        start(controller) { next(controller, it || (it = source[Symbol.iterator]())); },
+        pull(controller) { it ? (next(controller, it)) : controller.close(); },
+        cancel() { (it && (it.return && it.return()) || true) && (it = null); }
     });
-    function close(signal: 'throw' | 'return', value?: any) {
-        if (it && typeof it[signal] === 'function') {
-            it[signal]!(value);
+
+    function next(controller: ReadableStreamDefaultController<T>, it: Iterator<T>) {
+        let size = controller.desiredSize;
+        let r: IteratorResult<T> | null = null;
+        while ((size == null || size-- > 0) && !(r = it.next()).done) {
+            controller.enqueue(r.value);
         }
+        r && r.done && controller.close();
     }
 }
 
 function asyncIterableAsReadableDOMStream<T>(source: AsyncIterable<T>, options?: ReadableDOMStreamOptions) {
-    let it: AsyncIterator<T>;
+
+    let it: AsyncIterator<T> | null = null;
+
     return new ReadableStream<T>({
         ...options as any,
-        cancel: close.bind(null, 'return'),
-        async start() { it = source[Symbol.asyncIterator](); },
-        async pull(controller) {
-            try {
-                let size = controller.desiredSize;
-                let r: IteratorResult<T> | null = null;
-                while ((size == null || size-- > 0) && !(r = await it.next()).done) {
-                    controller.enqueue(r.value);
-                }
-                r && r.done && (await Promise.all([close('return'), controller.close()]));
-            } catch (e) {
-                await Promise.all([close('throw', e), controller.error(e)]);
-            }
-        }
+        async start(controller) { await next(controller, it || (it = source[Symbol.asyncIterator]())); },
+        async pull(controller) { it ? (await next(controller, it)) : controller.close(); },
+        async cancel() { (it && (it.return && await it.return()) || true) && (it = null); },
     });
-    async function close(signal: 'throw' | 'return', value?: any) {
-        if (it && typeof it[signal] === 'function') {
-            await it[signal]!(value);
+
+    async function next(controller: ReadableStreamDefaultController<T>, it: AsyncIterator<T>) {
+        let size = controller.desiredSize;
+        let r: IteratorResult<T> | null = null;
+        while ((size == null || size-- > 0) && !(r = await it.next()).done) {
+            controller.enqueue(r.value);
         }
+        r && r.done && controller.close();
     }
 }

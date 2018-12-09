@@ -18,13 +18,15 @@
 import * as fs from 'fs';
 import * as Path from 'path';
 import {
-    // nodeToDOMStream,
     convertNodeToDOMStream,
     readableDOMStreamToAsyncIterator
 } from './util';
 
-import { RecordBatchReader } from '../../Arrow';
-import { testSimpleAsyncRecordBatchIterator } from './validate';
+import { Schema, RecordBatchReader } from '../../Arrow';
+import {
+    testSimpleAsyncRecordBatchIterator,
+    testSimpleAsyncRecordBatchStreamReader
+} from './validate';
 
 (() => {
 
@@ -32,6 +34,9 @@ import { testSimpleAsyncRecordBatchIterator } from './validate';
 
     /* tslint:disable */
     require('../../../src/Arrow.dom');
+
+    /* tslint:disable */
+    const { nodeToWeb, concatStream } = require('web-stream-tools').default;
 
     /* tslint:disable */
     const { parse: bignumJSONParse } = require('json-bignum');
@@ -107,6 +112,23 @@ import { testSimpleAsyncRecordBatchIterator } from './validate';
             const reader = await RecordBatchReader.from(await fs.promises.open(simpleStreamPath, 'r'));
             const iterator = readableDOMStreamToAsyncIterator(reader.asReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+        it('should read all RecordBatches from a NodeJS ReadableStream that yields multiple tables', async () => {
+
+            const source = concatStream([
+                nodeToWeb(fs.createReadStream(simpleStreamPath)),
+                nodeToWeb(fs.createReadStream(simpleStreamPath))
+            ]);
+    
+            let reader = await (await RecordBatchReader.from(source)).open(false);
+
+            reader = await testSimpleAsyncRecordBatchStreamReader(reader);
+            expect(reader.schema).toBeInstanceOf(Schema);
+            expect(reader.reset().schema).toBeUndefined();
+    
+            reader = await testSimpleAsyncRecordBatchStreamReader(reader);
+            expect((await reader.close()).schema).toBeUndefined();
+            expect((await reader.open()).schema).toBeUndefined();
         });
     });
 })();
