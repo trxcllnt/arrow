@@ -354,13 +354,22 @@ async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
 
     function cleanup<T extends Error | null | void>(events: Event[], err?: T) {
         buffer = buffers = <any> null;
-        return new Promise<T>((resolve, reject) => {
+        return new Promise<T>(async (resolve, reject) => {
             while (events.length > 0) {
-                const xs = events.pop()!;
-                xs && stream.off(xs[0], xs[1]);
+                (stream as any).off(...(events.pop() || []));
             }
-            const destroy = (stream as any).destroy || ((err: T, cb: any) => cb(err));
-            destroy.call(stream, err, (e: T) => e != null ? reject(e) : resolve(err));
+            const [evt, fn, closed] = onEvent(stream, 'close');
+            const destroyed = new Promise((resolve, reject) => {
+                const destroy = (stream as any).destroy || ((e: T, cb: any) => cb(e));
+                destroy.call(stream, err, (e: T) => e != null ? reject(e) : resolve());
+            });
+            try {
+                await Promise.race([closed, destroyed]);
+                err = undefined;
+            } catch (e) { err = e || err; } finally {
+                stream.off(evt, fn);
+                err != null ? reject(err) : resolve();
+            }
         });
     }
 }

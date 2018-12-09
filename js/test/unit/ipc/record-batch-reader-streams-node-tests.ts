@@ -17,8 +17,11 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import { RecordBatchReader } from '../../Arrow';
-import { testSimpleAsyncRecordBatchIterator } from './validate';
+import { Schema, RecordBatchReader } from '../../Arrow';
+import {
+    testSimpleAsyncRecordBatchIterator,
+    testSimpleAsyncRecordBatchStreamReader
+} from './validate';
 
 (() => {
 
@@ -26,7 +29,8 @@ import { testSimpleAsyncRecordBatchIterator } from './validate';
 
     /* tslint:disable */
     require('../../../src/Arrow.node');
-
+    /* tslint:disable */
+    const concatStream = require('multistream');
     /* tslint:disable */
     const { parse: bignumJSONParse } = require('json-bignum');
 
@@ -99,6 +103,23 @@ import { testSimpleAsyncRecordBatchIterator } from './validate';
             const reader = await RecordBatchReader.from(await fs.promises.open(simpleStreamPath, 'r'));
             const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
+        });
+        it('should read all RecordBatches from a NodeJS ReadableStream that yields multiple tables', async () => {
+
+            const source = concatStream([
+                () => fs.createReadStream(simpleStreamPath),
+                () => fs.createReadStream(simpleStreamPath)
+            ]);
+    
+            let reader = await (await RecordBatchReader.from(source)).open(false);
+
+            reader = await testSimpleAsyncRecordBatchStreamReader(reader);
+            expect(reader.schema).toBeInstanceOf(Schema);
+            expect(reader.reset().schema).toBeUndefined();
+    
+            reader = await testSimpleAsyncRecordBatchStreamReader(reader);
+            expect((await reader.close()).schema).toBeUndefined();
+            expect((await reader.open()).schema).toBeUndefined();
         });
     });
 })();
