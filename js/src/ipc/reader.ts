@@ -28,9 +28,9 @@ import { toReadableNodeStream } from '../io/adapters/stream.node';
 import { ArrayBufferViewInput, toUint8Array } from '../util/buffer';
 import { RandomAccessFile, AsyncRandomAccessFile } from '../io/file';
 import { VectorLoader, JSONVectorLoader } from '../visitor/vectorloader';
-import { ReadableByteStream, AsyncReadableByteStream } from '../io/stream';
-import { ArrowJSON, ArrowJSONLike, FileHandle, Streamable, ITERATOR_DONE, ReadableDOMStream } from '../io/interfaces';
+import { ReadableByteStream, AsyncReadableByteStream, AsyncWritableByteStream } from '../io/stream';
 import { isPromise, isArrowJSON, isFileHandle, isAsyncIterable, isReadableDOMStream, isReadableNodeStream } from '../util/compat';
+import { ArrowJSON, ArrowJSONLike, FileHandle, Streamable, ITERATOR_DONE, ReadableDOMStream, WritableDOMStream } from '../io/interfaces';
 import { MessageReader, AsyncMessageReader, checkForMagicArrowString, magicLength, magicAndPadding, magicX2AndPadding, JSONMessageReader } from './message';
 
 export type FromArg0 = ArrowJSONLike;
@@ -119,6 +119,14 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
             }
         }
         return new AsyncRecordBatchStreamReader<T>(file);
+    }
+    public static createDOMTransformStream<T extends { [key: string]: DataType } = any>() {
+        const duplex = new AsyncWritableByteStream();
+        const source = new AsyncReadableByteStream(duplex[Symbol.asyncIterator]());
+        return {
+            writable: new WritableDOMStream(duplex),
+            readable: new AsyncRecordBatchStreamReader<T>(source).asReadableDOMStream()
+        };
     }
 }
 

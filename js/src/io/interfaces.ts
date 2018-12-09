@@ -27,6 +27,7 @@ export type ReadableNodeStreamOptions = import('stream').ReadableOptions;
 export type ReadableDOMStream<R = any> = import('whatwg-streams').ReadableStream<R>;
 export type ReadableDOMStreamReader<R = any> = import('whatwg-streams').ReadableStreamDefaultReader<R>;
 export type ReadableDOMStreamBYOBReader<R = any> = import('whatwg-streams').ReadableStreamBYOBReader<R>;
+export type ReadableDOMStreamController<R = any> = import('whatwg-streams').ReadableStreamDefaultController<R>;
 export type ReadableDOMStreamOptions = { type?: 'bytes', autoAllocateChunkSize?: number };
 export type ReadableDOMStreamSource<R = any> = import('whatwg-streams').ReadableStreamSource<R>;
 

@@ -170,6 +170,14 @@ describe('AsyncRecordBatchStreamReader', () => {
         });
     });
 
+    describe('createDOMTransformStream', () => {
+        it.only('should transform all messages from a whatwg ReadableStream', async () => {
+            const source = nodeToDOMStream(fs.createReadStream(simpleStreamPath));
+            const batches = source.pipeThrough(RecordBatchReader.createDOMTransformStream());
+            await testSimpleAsyncRecordBatchIterator(readableDOMStreamToAsyncIterator(batches));
+        });
+    });
+
     async function testSimpleAsyncRecordBatchStreamReader(reader: RecordBatchFileReader | AsyncRecordBatchStreamReader) {
         reader = await reader.open();
         expect(reader.isStream()).toBe(true);

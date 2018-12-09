@@ -221,8 +221,16 @@ export class AsyncWritableByteStream<T extends ArrayBufferViewInput> extends Str
         }
     }
     public destroy() { this.close(); }
-    public [Symbol.asyncIterator]() { return this; }
-    public next(): Promise<IteratorResult<Uint8Array>> {
+    public [Symbol.asyncIterator]() {
+        const self = this;
+        return {
+            [Symbol.asyncIterator]() { return this; },
+            async next(value?: any) { return await self.next(value); },
+            async throw(_value?: any) { self.close(); return ITERATOR_DONE; },
+            async return(_value?: any) { self.close(); return ITERATOR_DONE; },
+        } as AsyncIterableIterator<Uint8Array>;
+    }
+    public next(_?: any): Promise<IteratorResult<Uint8Array>> {
         if (this.queue.length > 0) {
             const { action, result } = this.queue.shift()!;
             return (Promise[action] as any)(result) as Promise<IteratorResult<Uint8Array>>;
