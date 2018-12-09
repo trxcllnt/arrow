@@ -19,7 +19,7 @@ import { Vector } from './vector';
 import { Schema, Field } from './schema';
 import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
-import { DataType, Row, Struct } from './type';
+import { DataType, RowLike, Struct } from './type';
 import { Vector as VType } from './interfaces';
 import { ChunkedVector, Column } from './column';
 import {
@@ -42,7 +42,7 @@ export interface DataFrame<T extends { [key: string]: DataType; } = any> {
     // filter(predicate: Predicate): DataFrame<T>;
     // scan(next: NextFunc, bind?: BindFunc): void;
     // countBy(col: (Col|string)): CountByResult;
-    [Symbol.iterator](): IterableIterator<Row<T>>;
+    [Symbol.iterator](): IterableIterator<RowLike<T>>;
 }
 
 export class Table<T extends { [key: string]: DataType; } = any> implements DataFrame<T> {
@@ -157,7 +157,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         return this.schema.fields.findIndex((f) => f.name === name);
     }
     public [Symbol.iterator]() {
-        return this.batchesUnion[Symbol.iterator]() as IterableIterator<Row<T>>;
+        return this.batchesUnion[Symbol.iterator]() as IterableIterator<RowLike<T>>;
     }
     // public filter(predicate: Predicate): DataFrame {
     //     return new FilteredDataFrame(this.batches, predicate);

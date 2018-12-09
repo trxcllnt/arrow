@@ -18,7 +18,7 @@
 import { Field } from './schema';
 import { Vector } from './vector';
 import { clampRange } from './util/vector';
-import { DataType, Row as RowType } from './type';
+import { DataType, RowLike } from './type';
 import { MapVector, StructVector } from './vector';
 
 type SearchContinuation<T extends ChunkedVector> = (column: T, chunkIndex: number, valueIndex: number) => any;
@@ -215,7 +215,7 @@ const rowParentDescriptor = { writable: false, enumerable: false, configurable: 
 const row = { parent: rowParentDescriptor, rowIndex: rowIndexDescriptor };
 
 export class Row<T extends { [key: string]: DataType }> implements Iterable<T[keyof T]['TValue']> {
-    static new<T extends { [key: string]: DataType }>(schemaOrFields: T | Field[], fieldsAreEnumerable = false): RowType<T> & Row<T> {
+    static new<T extends { [key: string]: DataType }>(schemaOrFields: T | Field[], fieldsAreEnumerable = false): RowLike<T> & Row<T> {
         let schema: T, fields: Field[];
         if (Array.isArray(schemaOrFields)) {
             fields = schemaOrFields;
@@ -224,7 +224,7 @@ export class Row<T extends { [key: string]: DataType }> implements Iterable<T[ke
             fieldsAreEnumerable = true;
             fields = Object.keys(schema).map((x) => new Field(x, schema[x]));
         }
-        return new Row<T>(fields, fieldsAreEnumerable) as RowType<T> & Row<T>;
+        return new Row<T>(fields, fieldsAreEnumerable) as RowLike<T> & Row<T>;
     }
     // @ts-ignore
     private parent: TParent;
@@ -244,7 +244,7 @@ export class Row<T extends { [key: string]: DataType }> implements Iterable<T[ke
             columnDescriptor.get = false as any;
         });
     }
-    *[Symbol.iterator](this: RowType<T>) {
+    *[Symbol.iterator](this: RowLike<T>) {
         for (let i = -1, n = this.length; ++i < n;) {
             yield this[i];
         }
@@ -262,7 +262,7 @@ export class Row<T extends { [key: string]: DataType }> implements Iterable<T[ke
         const bound = Object.create(this, row);
         rowIndexDescriptor.value = null;
         rowParentDescriptor.value = null;
-        return bound as RowType<T>;
+        return bound as RowLike<T>;
     }
 }
 

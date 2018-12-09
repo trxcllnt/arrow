@@ -37,8 +37,13 @@ argv.coverage && jestArgv.push(`--coverage`);
 const debugArgv = [`--runInBand`, `--env`, `node-debug`];
 const jest = require.resolve(path.join(`..`, `node_modules`, `.bin`, `jest`));
 const testOptions = {
-    env: { ...process.env },
     stdio: [`ignore`, `inherit`, `inherit`],
+    env: {
+        ...process.env,
+        // prevent the user-land `readable-stream` module from
+        // patching node's streams -- they're better now
+        READABLE_STREAM: "disable"
+    },
 };
 
 const testTask = ((cache, execArgv, testOptions) => memoizeTask(cache, function test(target, format, debug = false) {

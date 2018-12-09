@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Row } from '../type';
+import { RowLike } from '../type';
 import { Data } from '../data';
 import { Type } from '../enum';
 import { Visitor } from '../visitor';
@@ -179,7 +179,7 @@ function listIndexOf<
     return -1;
 }
 
-function indexOfNested<T extends { [key: string]: DataType }>(vector: Vector<Map_<T> | Struct<T>>, searchElement?: Row<T> | null, fromIndex?: number): number {
+function indexOfNested<T extends { [key: string]: DataType }>(vector: Vector<Map_<T> | Struct<T>>, searchElement?: RowLike<T> | null, fromIndex?: number): number {
     if (searchElement === undefined) { return -1; }
     if (searchElement === null) { return indexOfNull(vector, fromIndex); }
     searching:

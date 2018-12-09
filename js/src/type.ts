@@ -32,7 +32,7 @@ export type TimeBitWidth = 32 | 64;
 export type IntBitWidth = 8 | 16 | 32 | 64;
 export type IsSigned = { 'true': true; 'false': false };
 
-export type Row<T extends { [key: string]: DataType; }> =
+export type RowLike<T extends { [key: string]: DataType; }> =
       { readonly length: number }
     & ( Iterable<T[keyof T]['TValue']> )
     & { [P in keyof T]: T[P]['TValue'] }
@@ -307,7 +307,7 @@ export class List<T extends DataType = any> extends DataType<Type.List, { [0]: T
     })(List.prototype);
 }
 
-export interface Struct<T extends { [key: string]: DataType; } = any> extends DataType<Type.Struct> { TArray: IterableArrayLike<Row<T>>; TValue: Row<T>; dataTypes: T; }
+export interface Struct<T extends { [key: string]: DataType; } = any> extends DataType<Type.Struct> { TArray: IterableArrayLike<RowLike<T>>; TValue: RowLike<T>; dataTypes: T; }
 export class Struct<T extends { [key: string]: DataType; } = any> extends DataType<Type.Struct, T> {
     constructor(public children: Field<T[keyof T]>[]) {
         super(Type.Struct, children);
@@ -379,7 +379,7 @@ export class FixedSizeList<T extends DataType = any> extends DataType<Type.Fixed
 }
 
 /* tslint:disable:class-name */
-export interface Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map> { TArray: Uint8Array; TValue: Row<T>; dataTypes: T; }
+export interface Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map> { TArray: Uint8Array; TValue: RowLike<T>; dataTypes: T; }
 export class Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map, T> {
     constructor(public readonly children: Field<T[keyof T]>[],
                 public readonly keysSorted: boolean = false) {
