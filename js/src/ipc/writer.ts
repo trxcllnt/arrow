@@ -32,21 +32,30 @@ export type OpenArgs = FileHandle | NodeJS.WritableStream | WritableStream<Uint8
 
 export class RecordBatchWriter<T extends { [key: string]: DataType } = any> extends Streamable<Uint8Array> implements UnderlyingSink<RecordBatch<T>> {
 
-    constructor() { super(); }
+    public static throughNode(): import('stream').Duplex { throw new Error(`"throughNode" not available in this environment`); }
+    public static throughDOM<T extends { [key: string]: DataType }>(): { writable: WritableStream<RecordBatch<T>>, readable: ReadableStream<Uint8Array> } {
+        throw new Error(`"throughDOM" not available in this environment`);
+    }
+
+    constructor(sink?: AsyncWritableByteStream<Uint8Array>) {
+        super();
+        this.sink = sink || new AsyncWritableByteStream<Uint8Array>()
+    }
 
     protected started = false;
     protected schema: Schema | null = null;
-    protected sink: AsyncWritableByteStream<Uint8Array> = new AsyncWritableByteStream<Uint8Array>();
+    protected sink: AsyncWritableByteStream<Uint8Array>;
 
     public [Symbol.asyncIterator]() { return this.sink[Symbol.asyncIterator](); }
-    public asReadableDOMStream(options?: ReadableDOMStreamOptions) { return this.sink.asReadableDOMStream(options); }
-    public asReadableNodeStream(options?: import('stream').ReadableOptions) { return this.sink.asReadableNodeStream(options); }
+    public toReadableDOMStream(options?: ReadableDOMStreamOptions) { return this.sink.toReadableDOMStream(options); }
+    public toReadableNodeStream(options?: import('stream').ReadableOptions) { return this.sink.toReadableNodeStream(options); }
 
     public close() { return this.reset().sink.close(); }
     public abort(reason?: any) { return this.reset().sink.abort(reason); }
-    public reset(schema?: Schema<T> | null) {
+    public reset(sink: AsyncWritableByteStream<Uint8Array> = this.sink, schema?: Schema<T>) {
         this.started = false;
         this.schema = <any> schema;
+        this.sink = sink || new AsyncWritableByteStream();
         return this;
     }
 

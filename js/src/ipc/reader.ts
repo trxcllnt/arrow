@@ -60,16 +60,16 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
     public abstract [Symbol.iterator](): IterableIterator<RecordBatch<T>>;
     public abstract [Symbol.asyncIterator](): AsyncIterableIterator<RecordBatch<T>>;
 
-    public asReadableDOMStream() { return streamAdapters.toReadableDOMStream(this); }
-    public asReadableNodeStream() { return streamAdapters.toReadableNodeStream(this, { objectMode: true }); }
+    public toReadableDOMStream() { return streamAdapters.toReadableDOMStream(this); }
+    public toReadableNodeStream() { return streamAdapters.toReadableNodeStream(this, { objectMode: true }); }
 
     public isSync(): this is RecordBatchFileReader<T> | RecordBatchStreamReader<T> { return this.impl.isSync(); }
     public isFile(): this is RecordBatchFileReader<T> | AsyncRecordBatchFileReader<T> { return this.impl.isFile(); }
     public isStream(): this is RecordBatchStreamReader<T> | AsyncRecordBatchStreamReader<T> { return this.impl.isStream(); }
     public isAsync(): this is AsyncRecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T> { return this.impl.isAsync(); }
 
-    public static asNodeStream(): import('stream').Duplex { throw new Error(`"asNodeStream" not available in this environment`); }
-    public static asDOMStream<T extends { [key: string]: DataType }>(): { writable: WritableStream<Uint8Array>, readable: ReadableStream<RecordBatch<T>> } {
+    public static throughNode(): import('stream').Duplex { throw new Error(`"asNodeStream" not available in this environment`); }
+    public static throughDOM<T extends { [key: string]: DataType }>(): { writable: WritableStream<Uint8Array>, readable: ReadableStream<RecordBatch<T>> } {
         throw new Error(`"asDOMStream" not available in this environment`);
     }
 

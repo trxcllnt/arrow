@@ -3,28 +3,30 @@ import { Duplex, Readable } from 'stream';
 import streamAdapters from './io/adapters';
 import { RecordBatch } from './recordbatch';
 import { RecordBatchReader } from './ipc/reader';
-import { AsyncWritableByteStream } from './io/stream';
+import { RecordBatchWriter } from './ipc/writer';
 import { isIterable, isAsyncIterable } from './util/compat';
+import { AsyncReadableByteStream, AsyncWritableByteStream } from './io/stream';
 
 type ReadableOptions = import('stream').ReadableOptions;
 
 streamAdapters.toReadableNodeStream = toReadableNodeStream;
-RecordBatchReader.asNodeStream = recordBatchReaderAsNodeStream;
+RecordBatchReader.throughNode = recordBatchReaderThroughNodeStream;
+RecordBatchWriter.throughNode = recordBatchWriterThroughNodeStream;
 
 export * from './Arrow.dom';
 
-function recordBatchReaderAsNodeStream<T extends { [key: string]: DataType } = any>() {
+function recordBatchReaderThroughNodeStream<T extends { [key: string]: DataType } = any>() {
 
     let blocked = false;
-    let duplex = new AsyncWritableByteStream();
+    let through = new AsyncWritableByteStream();
     let reader: RecordBatchReader<T> | null = null;
 
     return new Duplex({
         allowHalfOpen: false,
         readableObjectMode: true,
         writableObjectMode: false,
-        write(...args: any[]) { duplex.write(...args); },
-        final(...args: any[]) { duplex.final(...args); },
+        write(...args: any[]) { through.write(...args); },
+        final(...args: any[]) { through.final(...args); },
         read(size: number): void {
             blocked || (blocked = !!(async () => (
                 await next(this, size, reader || (reader = await open()))
@@ -34,13 +36,13 @@ function recordBatchReaderAsNodeStream<T extends { [key: string]: DataType } = a
             blocked = true;
             (async () => await (reader && reader.close()))()
                 .catch((error) => (args[0] = error))
-                .then(() => duplex.destroy(...args))
+                .then(() => through.destroy(...args))
                 .then(() => reader = null);
         }
     });
 
     async function open() {
-        return await (await RecordBatchReader.from(duplex)).open();
+        return await (await RecordBatchReader.from(through)).open();
     }
 
     async function next(sink: Readable, size: number, reader: RecordBatchReader<T>): Promise<any> {
@@ -54,9 +56,47 @@ function recordBatchReaderAsNodeStream<T extends { [key: string]: DataType } = a
     }
 }
 
-/**
- * @ignore
- */
+function recordBatchWriterThroughNodeStream<T extends { [key: string]: DataType } = any>() {
+
+    let blocked = false;
+    let through = new AsyncWritableByteStream();
+    let writer = new RecordBatchWriter<T>(through);
+    let reader = new AsyncReadableByteStream(through);
+
+    return new Duplex({
+        allowHalfOpen: false,
+        writableObjectMode: true,
+        readableObjectMode: false,
+        final(...args: any[]) { through.close(...args); },
+        write(x: any, ...xs: any[]) { writer.write(x, ...xs); },
+        read(size: number): void {
+            blocked || (blocked = !!(async () => (
+                await next(this, size, reader)
+            ))());
+        },
+        destroy(...args: any[]) {
+            blocked = true;
+            (async () => await writer.close())()
+                .catch((error) => (args[0] = error))
+                .then(() => through.destroy(...args))
+                .then(() => writer = reader = <any> null);
+        }
+    });
+
+    async function next(dst: Readable, size: number, src: AsyncReadableByteStream): Promise<any> {
+        let buf: Uint8Array | null = null;
+        while (dst.readable && (buf = await src.read(size))) {
+            if (!dst.push(buf)) { return blocked = false; }
+            if (size != null && (size -= buf.byteLength) <= 0) {
+                return blocked = false;
+            }
+        }
+        if ((!buf || !dst.readable) && (blocked = dst.push(null) || true)) {
+            src.return && await src.return();
+        }
+    }
+}
+
 function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableOptions): Readable {
     if (isAsyncIterable<T>(source)) { return asyncIterableAsReadableNodeStream(source, options); }
     if (isIterable<T>(source)) { return iterableAsReadableNodeStream(source, options); }
