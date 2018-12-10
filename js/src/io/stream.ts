@@ -138,10 +138,10 @@ export class AsyncWritableByteStream<T extends ArrayBufferViewInput> extends Str
     }
 
     public [Symbol.asyncIterator]() { return this; }
-    public asReadableDOMStream(options?: ReadableDOMStreamOptions) {
+    public toReadableDOMStream(options?: ReadableDOMStreamOptions) {
         return streamAdapters.toReadableDOMStream(this, options);
     }
-    public asReadableNodeStream(options?: import('stream').ReadableOptions) {
+    public toReadableNodeStream(options?: import('stream').ReadableOptions) {
         return streamAdapters.toReadableNodeStream(this, options);
     }
 

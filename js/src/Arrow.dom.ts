@@ -2,18 +2,20 @@ import { DataType } from './type';
 import streamAdapters from './io/adapters';
 import { RecordBatch } from './recordbatch';
 import { RecordBatchReader } from './ipc/reader';
-import { AsyncWritableByteStream } from './io/stream';
+import { RecordBatchWriter } from './ipc/writer';
 import { ReadableDOMStreamOptions } from './io/interfaces';
 import { isIterable, isAsyncIterable } from './util/compat';
+import { AsyncReadableByteStream, AsyncWritableByteStream } from './io/stream';
 
 streamAdapters.toReadableDOMStream = toReadableDOMStream;
-RecordBatchReader.asDOMStream = recordBatchReaderAsDOMStream;
+RecordBatchReader.throughDOM = recordBatchReaderThroughDOMStream;
+RecordBatchWriter.throughDOM = recordBatchWriterThroughDOMStream;
 
 export * from './Arrow';
 
-function recordBatchReaderAsDOMStream<T extends { [key: string]: DataType } = any>() {
+function recordBatchReaderThroughDOMStream<T extends { [key: string]: DataType } = any>() {
 
-    let duplex = new AsyncWritableByteStream();
+    let through = new AsyncWritableByteStream();
     let reader: RecordBatchReader<T> | null = null;
 
     const readable = new ReadableStream<RecordBatch<T>>({
@@ -22,10 +24,10 @@ function recordBatchReaderAsDOMStream<T extends { [key: string]: DataType } = an
         async cancel() { (reader && (await reader.close()) || true) && (reader = null); },
     });
 
-    return { writable: new WritableStream<Uint8Array>(duplex), readable };
+    return { writable: new WritableStream<Uint8Array>(through), readable };
 
     async function open() {
-        return await (await RecordBatchReader.from(duplex)).open();
+        return await (await RecordBatchReader.from(through)).open();
     }
 
     async function next(controller: ReadableStreamDefaultController<RecordBatch<T>>, reader: RecordBatchReader<T>) {
@@ -35,6 +37,36 @@ function recordBatchReaderAsDOMStream<T extends { [key: string]: DataType } = an
             controller.enqueue(r.value);
         }
         r && r.done && controller.close();
+    }
+}
+
+function recordBatchWriterThroughDOMStream<T extends { [key: string]: DataType } = any>(
+    writableStrategy?: QueuingStrategy<RecordBatch<T>>,
+    readableStrategy: { highWaterMark?: number, size?: any } = { highWaterMark: 2 ** 16 }
+) {
+
+    const through = new AsyncWritableByteStream();
+    const writer = new RecordBatchWriter<T>(through);
+    const reader = new AsyncReadableByteStream(through);
+    const readable = new ReadableStream({
+        type: 'bytes',
+        async pull(controller) { await next(controller, reader); },
+        async start(controller) { await next(controller, reader); },
+        async cancel() { (reader && (await reader.return()) || true); },
+    }, { highWaterMark: 2 ** 16, ...readableStrategy });
+
+    return { writable: new WritableStream<RecordBatch<T>>(writer, writableStrategy), readable };
+
+    async function next(controller: ReadableStreamDefaultController<Uint8Array>, reader: AsyncReadableByteStream) {
+        let buf: Uint8Array | null = null;
+        let size = controller.desiredSize;
+        while (buf = await reader.read(size)) {
+            controller.enqueue(buf);
+            if (size != null && (size -= buf.byteLength) <= 0) {
+                return;
+            }
+        }
+        controller.close();
     }
 }
 

@@ -17,7 +17,12 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import { RecordBatchReader, RecordBatchWriter } from '../../Arrow';
+import {
+    RecordBatchReader,
+    RecordBatchWriter,
+    AsyncWritableByteStream
+} from '../../Arrow';
+
 import {
     testSimpleAsyncRecordBatchStreamReader,
 } from './validate';
@@ -27,12 +32,13 @@ const simpleStreamData = fs.readFileSync(simpleStreamPath);
 
 describe('RecordBatchStreamWriter', () => {
     it('should write RecordBatches to a stream', async () => {
-        let writer = new RecordBatchWriter();
+        let sink = new AsyncWritableByteStream();
+        let writer = new RecordBatchWriter(sink);
         let reader = RecordBatchReader.from(simpleStreamData);
         for (const batch of reader) {
             writer.write(batch);
         }
         writer.close();
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(writer[Symbol.asyncIterator]()));
+        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(sink));
     });
 });

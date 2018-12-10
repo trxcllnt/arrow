@@ -41,17 +41,17 @@ import {
     const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
     const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
 
-    describe(`RecordBatchReader.asNodeStream`, () => {
+    describe(`RecordBatchReader.throughNode`, () => {
         it('should read all Arrow file format messages from an fs.ReadStream', async () => {
             const stream = fs
                 .createReadStream(simpleFilePath)
-                .pipe(RecordBatchReader.asNodeStream());
+                .pipe(RecordBatchReader.throughNode());
             await testSimpleAsyncRecordBatchIterator(stream[Symbol.asyncIterator]());
         });
         it('should read all Arrow stream format messages from an fs.ReadStream', async () => {
             const stream = fs
                 .createReadStream(simpleStreamPath)
-                .pipe(RecordBatchReader.asNodeStream());
+                .pipe(RecordBatchReader.throughNode());
             await testSimpleAsyncRecordBatchIterator(stream[Symbol.asyncIterator]());
         });
     });
@@ -59,7 +59,7 @@ import {
     describe('RecordBatchJSONReader', () => {
         it('asReadableNodeStream should yield all RecordBatches', async () => {
             const reader = RecordBatchReader.from(simpleJSONData);
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            const iterator = reader.toReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
     });
@@ -67,7 +67,7 @@ import {
     describe('RecordBatchFileReader', () => {
         it('asReadableNodeStream should yield all RecordBatches', async () => {
             const reader = RecordBatchReader.from(simpleFileData).open();
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            const iterator = reader.toReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
     });
@@ -75,7 +75,7 @@ import {
     describe('RecordBatchStreamReader', () => {
         it('asReadableNodeStream should yield all RecordBatches', async () => {
             const reader = RecordBatchReader.from(simpleStreamData);
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            const iterator = reader.toReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
     });
@@ -83,12 +83,12 @@ import {
     describe('AsyncRecordBatchFileReader', () => {
         it('asReadableNodeStream should read all RecordBatches from an fs.ReadStream', async () => {
             const reader = await RecordBatchReader.from(fs.createReadStream(simpleFilePath));
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            const iterator = reader.toReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
         it('asReadableNodeStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
             const reader = await RecordBatchReader.from(await fs.promises.open(simpleFilePath, 'r'));
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            const iterator = reader.toReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
     });
@@ -96,12 +96,12 @@ import {
     describe('AsyncRecordBatchStreamReader', () => {
         it('asReadableNodeStream should read all RecordBatches from an fs.ReadStream', async () => {
             const reader = await RecordBatchReader.from(fs.createReadStream(simpleStreamPath));
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            const iterator = reader.toReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
         it('asReadableNodeStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
             const reader = await RecordBatchReader.from(await fs.promises.open(simpleStreamPath, 'r'));
-            const iterator = reader.asReadableNodeStream()[Symbol.asyncIterator]();
+            const iterator = reader.toReadableNodeStream()[Symbol.asyncIterator]();
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
         it('should read all RecordBatches from a NodeJS ReadableStream that yields multiple tables', async () => {

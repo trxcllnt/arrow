@@ -35,8 +35,8 @@ export class ArrowJSON {
 
 export abstract class Streamable<T> {
 
-    public abstract asReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
-    public abstract asReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
+    public abstract toReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
+    public abstract toReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
 
     public pipe<R extends NodeJS.WritableStream>(writable: R, options?: { end?: boolean; }) {
         return this._getReadableNodeStream().pipe(writable, options);
@@ -48,11 +48,11 @@ export abstract class Streamable<T> {
 
     private _readableDOMStream?: ReadableStream<T>;
     private _getReadableDOMStream() {
-        return this._readableDOMStream || (this._readableDOMStream = this.asReadableDOMStream());
+        return this._readableDOMStream || (this._readableDOMStream = this.toReadableDOMStream());
     }
 
     private _readableNodeStream?: import('stream').Readable;
     private _getReadableNodeStream() {
-        return this._readableNodeStream || (this._readableNodeStream = this.asReadableNodeStream());
+        return this._readableNodeStream || (this._readableNodeStream = this.toReadableNodeStream());
     }
 }
