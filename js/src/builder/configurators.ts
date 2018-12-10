@@ -11,7 +11,7 @@ const extra = (x: number, to: number) => (x % to === 0 ? 0 : to - x % to);
 
 export const utf8Encoder = TextEncoder.prototype.encode.bind(new TextEncoder());
 
-export const HashSet = <TKey = any, TValue = any>() => {
+export const HashMap = <TKey = any, TValue = any>() => {
     const hashMap = Object.create(null);
 
     return (key: TKey, value: TValue): TValue | void => {

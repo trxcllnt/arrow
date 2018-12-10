@@ -1,36 +1,39 @@
 import { Data } from '../data';
-import { Binary, Int } from '../type';
+import { Int, Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64 } from '../type';
 import { identityTransform, equalToNull, EncodeBinary, utf8Encoder, HashMap, Project, IsNull, GetKey } from './configurators';
 
-export class DictionaryEncodeBinaryBuilder<T, TKey extends Int>
+export class DictionaryEncodeIntBuilder<T extends number, TKey extends Int>
 {
     private _keysCtor : new () => TKey;
+    private _dataCtor : new () => Uint8 | Uint16 | Uint32 | Uint64 | Int8 | Int16 | Int32 | Int64;
     private _project : Project<T, T>;
     private _isNull  : IsNull<T>;
-    private _hashSet : GetKey<T, number>;
+    private _hashMap : GetKey<T, number>;
     private _encoder : EncodeBinary<T>;
 
     public constructor(
         keysCtor: new () => TKey,
+        dataCtor: new () => Uint8 | Uint16 | Uint32 | Uint64 | Int8 | Int16 | Int32 | Int64,
         project : Project<T, T>         = identityTransform,
         isNull  : IsNull<T>             = equalToNull,
-        hashSet : GetKey<T, number>     = HashMap(),
+        hashMap : GetKey<T, number>     = HashMap(),
         encoder : EncodeBinary<T>       = utf8Encoder)
     {
         this._keysCtor = keysCtor;
+        this._dataCtor = dataCtor;
         this._project = project;
         this._isNull = isNull;
-        this._hashSet = hashSet;
+        this._hashMap = hashMap;
         this._encoder = encoder;
     }
 
-    public encode(source: Iterable<T>) : { dictData : Data<Binary>, keysData : Data<TKey> } {
-        const indices = [-1], offsets = [0];
+    public encode(source: Iterable<T>) : { dictData : Data<Int>, keysData : Data<TKey> } {
+        const indices = [-1];
 
         let null_count = 0;
         let key: number | void | boolean;
         let validity = [] as number[];
-        let data = [] as number[];
+        let data = [] as T[];
 
         let sourceIndex = 0;
         let indexValue = 0;
@@ -49,21 +52,21 @@ export class DictionaryEncodeBinaryBuilder<T, TKey extends Int>
                 indices[sourceIndex] = -1;
                 validity[validityIndex] &= ~(1 << (sourceIndex % 8));
             }
-            else if ((key = this._hashSet(value, indexValue)) !== undefined) {
+            else if ((key = this._hashMap(value, indexValue)) !== undefined) {
                 // else if a dictionary key exists, write the key into the current position in keys
                 indices[sourceIndex] = key as number;
             }
             else {
-                // otherwise, increment the key, encode the values as binary, and add the offsets
+                // otherwise, increment the key, encode the values as Floats
                 indices[sourceIndex] = key = indexValue++;
-                offsets[sourceIndex] = data.push(...(this._encoder(value, key, sourceIndex) as number[]));
+                data.push(...(this._encoder(value, key, sourceIndex) as T[]));
             }
 
             sourceIndex++;
         }
 
         let validityUint8Array = null_count > 0 ? new Uint8Array(validity) : new Uint8Array(0);
-        const dictData = Data.Binary(new Binary(), 0, offsets.length - 1, 0, null, new Uint8Array(data), offsets);
+        const dictData = Data.Int(new this._dataCtor(), 0, data.length, 0, null, data);
         const keysData = Data.Int(new this._keysCtor(), 0, indices.length, null_count, validityUint8Array, indices);
 
         return { dictData, keysData };
