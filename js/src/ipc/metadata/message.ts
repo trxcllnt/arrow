@@ -23,9 +23,11 @@ import { Schema, Field } from '../../schema';
 import { toUint8Array } from '../../util/buffer';
 import { ArrayBufferViewInput } from '../../util/buffer';
 import { MessageHeader, MetadataVersion } from '../../enum';
+import { instance as typeAssembler } from '../../visitor/typeassembler';
 import { fieldFromJSON, schemaFromJSON, recordBatchFromJSON, dictionaryBatchFromJSON } from './json';
 
 import Long = flatbuffers.Long;
+import Builder = flatbuffers.Builder;
 import ByteBuffer = flatbuffers.ByteBuffer;
 import _Int = Schema_.org.apache.arrow.flatbuf.Int;
 import Type = Schema_.org.apache.arrow.flatbuf.Type;
@@ -33,7 +35,9 @@ import _Field = Schema_.org.apache.arrow.flatbuf.Field;
 import _Schema = Schema_.org.apache.arrow.flatbuf.Schema;
 import _Buffer = Schema_.org.apache.arrow.flatbuf.Buffer;
 import _Message = Message_.org.apache.arrow.flatbuf.Message;
+import _KeyValue = Schema_.org.apache.arrow.flatbuf.KeyValue;
 import _FieldNode = Message_.org.apache.arrow.flatbuf.FieldNode;
+import _Endianness = Schema_.org.apache.arrow.flatbuf.Endianness;
 import _RecordBatch = Message_.org.apache.arrow.flatbuf.RecordBatch;
 import _DictionaryBatch = Message_.org.apache.arrow.flatbuf.DictionaryBatch;
 import _DictionaryEncoding = Schema_.org.apache.arrow.flatbuf.DictionaryEncoding;
@@ -68,6 +72,37 @@ export class Message<T extends MessageHeader = any> {
         return message;
     }
 
+    static encode<T extends MessageHeader>(message: Message<T>) {
+        let b = new Builder(), headerOffset = -1;
+        if (message.isSchema()) {
+            headerOffset = Schema.encode(b, message.header() as Schema);
+        } else if (message.isRecordBatch()) {
+            headerOffset = RecordBatch.encode(b, message.header() as RecordBatch);
+        } else if (message.isDictionaryBatch()) {
+            headerOffset = DictionaryBatch.encode(b, message.header() as DictionaryBatch);
+        }
+        _Message.startMessage(b);
+        _Message.addVersion(b, MetadataVersion.V4);
+        _Message.addHeader(b, headerOffset);
+        _Message.addHeaderType(b, message.headerType);
+        _Message.addBodyLength(b, new Long(message.bodyLength, 0));
+        _Message.finishMessageBuffer(b, _Message.endMessage(b));
+        return b.asUint8Array();
+    }
+
+    static from(header: Schema | RecordBatch | DictionaryBatch, bodyLength = 0) {
+        if (header instanceof Schema) {
+            return new Message(0, MetadataVersion.V4, MessageHeader.Schema, header);
+        }
+        if (header instanceof RecordBatch) {
+            return new Message(bodyLength, MetadataVersion.V4, MessageHeader.RecordBatch, header);
+        }
+        if (header instanceof DictionaryBatch) {
+            return new Message(bodyLength, MetadataVersion.V4, MessageHeader.DictionaryBatch, header);
+        }
+        throw new Error(`Unrecognized Message header: ${header}`);
+    }
+
     // @ts-ignore
     public body: Uint8Array;
     public readonly headerType: T;
@@ -81,10 +116,11 @@ export class Message<T extends MessageHeader = any> {
     public isRecordBatch(): this is Message<MessageHeader.RecordBatch> { return this.headerType === MessageHeader.RecordBatch; }
     public isDictionaryBatch(): this is Message<MessageHeader.DictionaryBatch> { return this.headerType === MessageHeader.DictionaryBatch; }
 
-    constructor(bodyLength: Long | number, version: MetadataVersion, headerType: T) {
+    constructor(bodyLength: Long | number, version: MetadataVersion, headerType: T, header?: any) {
         this.version = version;
         this.headerType = headerType;
         this.body = new Uint8Array(0);
+        header && (this._createHeader = () => header);
         this.bodyLength = typeof bodyLength === 'number' ? bodyLength : bodyLength.low;
     }
 }
@@ -107,6 +143,7 @@ export class DictionaryBatch {
     public readonly id: number;
     public readonly isDelta: boolean;
     public readonly data: RecordBatch;
+    public get length(): number { return this.data.length; }
     public get nodes(): FieldNode[] { return this.data.nodes; }
     public get buffers(): BufferRegion[] { return this.data.buffers; }
     public static getId() { return DictionaryBatch.atomicDictionaryId++; }
@@ -160,24 +197,36 @@ function decodeMessageHeader(message: _Message, type: MessageHeader) {
     }) as MessageHeaderDecoder;
 }
 
+Field.encode = encodeField;
 Field.decode = decodeField;
-Schema.decode = decodeSchema;
-RecordBatch.decode = decodeRecordBatch;
-DictionaryBatch.decode = decodeDictionaryBatch;
-FieldNode.decode = decodeFieldNode;
-BufferRegion.decode = decodeBufferRegion;
-
 Field.fromJSON = fieldFromJSON;
+
+Schema.encode = encodeSchema;
+Schema.decode = decodeSchema;
 Schema.fromJSON = schemaFromJSON;
+
+RecordBatch.encode = encodeRecordBatch;
+RecordBatch.decode = decodeRecordBatch;
 RecordBatch.fromJSON = recordBatchFromJSON;
+
+DictionaryBatch.encode = encodeDictionaryBatch;
+DictionaryBatch.decode = decodeDictionaryBatch;
 DictionaryBatch.fromJSON = dictionaryBatchFromJSON;
+
+FieldNode.encode = encodeFieldNode;
+FieldNode.decode = decodeFieldNode;
+
+BufferRegion.encode = encodeBufferRegion;
+BufferRegion.decode = decodeBufferRegion;
 
 declare module '../../schema' {
     namespace Field {
+        export { encodeField as encode };
         export { decodeField as decode };
         export { fieldFromJSON as fromJSON };
     }
     namespace Schema {
+        export { encodeSchema as encode };
         export { decodeSchema as decode };
         export { schemaFromJSON as fromJSON };
     }
@@ -185,15 +234,23 @@ declare module '../../schema' {
 
 declare module './message' {
     namespace RecordBatch {
+        export { encodeRecordBatch as encode };
         export { decodeRecordBatch as decode };
         export { recordBatchFromJSON as fromJSON };
     }
     namespace DictionaryBatch {
+        export { encodeDictionaryBatch as encode };
         export { decodeDictionaryBatch as decode };
         export { dictionaryBatchFromJSON as fromJSON };
     }
-    namespace FieldNode { export { decodeFieldNode as decode }; }
-    namespace BufferRegion { export { decodeBufferRegion as decode }; }
+    namespace FieldNode {
+        export { encodeFieldNode as encode };
+        export { decodeFieldNode as decode };
+    }
+    namespace BufferRegion {
+        export { encodeBufferRegion as encode };
+        export { decodeBufferRegion as decode };
+    }
 }
 
 function decodeSchema(_schema: _Schema, dictionaryTypes: Map<number, Dictionary>) {
@@ -369,3 +426,123 @@ function decodeFieldType(f: _Field, children?: Field[]): DataType<any> {
     }
     throw new Error(`Unrecognized type: "${Type[typeId]}" (${typeId})`);
 }
+
+function encodeSchema(b: Builder, schema: Schema) {
+
+    const fieldOffsets = schema.fields.map((f) => Field.encode(b, f));
+
+    _Schema.startFieldsVector(b, fieldOffsets.length);
+
+    const fieldsVectorOffset = _Schema.createFieldsVector(b, fieldOffsets);
+
+    const metadataOffset = !(schema.metadata && schema.metadata.size > 0) ? -1 :
+        _Schema.createCustomMetadataVector(b, [...schema.metadata].map(([k, v]) => {
+            const key = b.createString(`${k}`);
+            const val = b.createString(`${v}`);
+            _KeyValue.startKeyValue(b);
+            _KeyValue.addKey(b, key);
+            _KeyValue.addValue(b, val);
+            return _KeyValue.endKeyValue(b);
+        }));
+
+    _Schema.startSchema(b);
+    _Schema.addFields(b, fieldsVectorOffset);
+    _Schema.addEndianness(b, platformIsLittleEndian ? _Endianness.Little : _Endianness.Big);
+
+    if (metadataOffset !== -1) { _Schema.addCustomMetadata(b, metadataOffset); }
+
+    return _Schema.endSchema(b);
+}
+
+function encodeField(b: Builder, field: Field) {
+
+    let nameOffset = -1;
+    let typeOffset = -1;
+    let dictionaryOffset = -1;
+
+    let type = field.type;
+    let typeId: Type = <any> field.typeId;
+
+    if (!DataType.isDictionary(type)) {
+        typeOffset = typeAssembler.visit(type, b)!;
+    } else {
+        typeId = type.dictionary.TType;
+        dictionaryOffset = typeAssembler.visit(type, b)!;
+        typeOffset = typeAssembler.visit(type.dictionary, b)!;
+    }
+
+    const childOffsets = (type.children || []).map((f: Field) => Field.encode(b, f));
+    const childrenVectorOffset = _Field.createChildrenVector(b, childOffsets);
+
+    const metadataOffset = !(field.metadata && field.metadata.size > 0) ? -1 :
+        _Field.createCustomMetadataVector(b, [...field.metadata].map(([k, v]) => {
+            const key = b.createString(`${k}`);
+            const val = b.createString(`${v}`);
+            _KeyValue.startKeyValue(b);
+            _KeyValue.addKey(b, key);
+            _KeyValue.addValue(b, val);
+            return _KeyValue.endKeyValue(b);
+        }));
+
+    if (field.name) {
+        nameOffset = b.createString(field.name);
+    }
+
+    _Field.startField(b);
+    _Field.addType(b, typeOffset);
+    _Field.addTypeType(b, typeId);
+    _Field.addChildren(b, childrenVectorOffset);
+    _Field.addNullable(b, !!field.nullable);
+
+    if (nameOffset !== -1) { _Field.addName(b, nameOffset); }
+    if (dictionaryOffset !== -1) { _Field.addDictionary(b, dictionaryOffset); }
+    if (metadataOffset !== -1) { _Field.addCustomMetadata(b, metadataOffset); }
+
+    return _Field.endField(b);
+}
+
+function encodeRecordBatch(b: Builder, recordBatch: RecordBatch) {
+
+    const nodes = recordBatch.nodes || [];
+    const buffers = recordBatch.buffers || [];
+
+    _RecordBatch.startNodesVector(b, nodes.length);
+    nodes.slice().reverse().forEach((n) => FieldNode.encode(b, n));
+
+    const nodesVectorOffset = b.endVector();
+
+    _RecordBatch.startBuffersVector(b, buffers.length);
+    buffers.slice().reverse().forEach((b_) => BufferRegion.encode(b, b_));
+
+    const buffersVectorOffset = b.endVector();
+
+    _RecordBatch.startRecordBatch(b);
+    _RecordBatch.addLength(b, new Long(recordBatch.length, 0));
+    _RecordBatch.addNodes(b, nodesVectorOffset);
+    _RecordBatch.addBuffers(b, buffersVectorOffset);
+    return _RecordBatch.endRecordBatch(b);
+}
+
+function encodeDictionaryBatch(b: Builder, dictionaryBatch: DictionaryBatch) {
+    const dataOffset = RecordBatch.encode(b, dictionaryBatch.data);
+    _DictionaryBatch.startDictionaryBatch(b);
+    _DictionaryBatch.addId(b, new Long(dictionaryBatch.id, 0));
+    _DictionaryBatch.addIsDelta(b, dictionaryBatch.isDelta);
+    _DictionaryBatch.addData(b, dataOffset);
+    return _DictionaryBatch.endDictionaryBatch(b);
+}
+
+function encodeFieldNode(b: Builder, node: FieldNode) {
+    return _FieldNode.createFieldNode(b, new Long(node.length, 0), new Long(node.nullCount, 0));
+}
+
+function encodeBufferRegion(b: Builder, node: BufferRegion) {
+    return _Buffer.createBuffer(b, new Long(node.offset, 0), new Long(node.length, 0));
+}
+
+const platformIsLittleEndian = (function() {
+    const buffer = new ArrayBuffer(2);
+    new DataView(buffer).setInt16(0, 256, true /* littleEndian */);
+    // Int16Array uses the platform's endianness.
+    return new Int16Array(buffer)[0] === 256;
+})();

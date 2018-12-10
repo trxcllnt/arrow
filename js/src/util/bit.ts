@@ -56,11 +56,17 @@ export function setBool(bytes: Uint8Array, index: number, value: any) {
  * @ignore
  */
 export function truncateBitmap(offset: number, length: number, bitmap: Uint8Array) {
-    // If the offset is a multiple of 8 bits, it's safe to slice the bitmap
-    return (offset % 8 === 0)
-        ? bitmap.subarray(offset >> 3, (offset >> 3) + (length >> 3) + 1)
-        // Otherwise iterate each bit from the offset and return a new one
-        : packBools(iterateBits(bitmap, offset, length, null, getBool));
+    const alignedSize = (bitmap.byteLength + 7) & ~7;
+    if (offset > 0 || bitmap.byteLength < alignedSize) {
+        const bytes = new Uint8Array(alignedSize);
+        bytes.set((offset % 8 === 0)
+            // If the offset is a multiple of 8 bits, it's safe to slice the bitmap
+            ? bitmap.subarray(offset >> 3)
+            // Otherwise iterate each bit from the offset and return a new one
+            : packBools(iterateBits(bitmap, offset, length, null, getBool)));
+        return bytes;
+    }
+    return bitmap;
 }
 
 /**

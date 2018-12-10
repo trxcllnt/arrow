@@ -93,6 +93,8 @@ function* fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T):
         it && (typeof it.return === 'function') && (it.return());
     } catch (e) {
         it && (typeof it!.throw === 'function') && (it!.throw!(e));
+    } finally {
+        it && (typeof it.return === 'function') && (it.return());
     }
 }
 
@@ -137,6 +139,8 @@ async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncI
         it && (typeof it.return === 'function') && (await it.return());
     } catch (e) {
         it && (typeof it!.throw === 'function') && (await it!.throw!(e));
+    } finally {
+        it && (typeof it.return === 'function') && (await it.return());
     }
 }
 

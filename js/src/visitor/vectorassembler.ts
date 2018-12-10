@@ -63,7 +63,7 @@ export class VectorAssembler extends Visitor {
             addBuffer.call(this, nullCount <= 0
                 ? new Uint8Array(0) // placeholder validity buffer
                 : truncateBitmap(data.offset, length, data.nullBitmap)
-            ).fieldNodes.push(new FieldNode(length, nullCount));
+            ).nodes.push(new FieldNode(length, nullCount));
         }
         return super.visit(vector);
     }
@@ -87,13 +87,13 @@ export class VectorAssembler extends Visitor {
     public visitFixedSizeList        <T extends FixedSizeList>   (vector: VType<T>) { return     assembleListVector.call(this, vector); }
     public visitMap                  <T extends Map_>            (vector: VType<T>) { return   assembleNestedVector.call(this, vector); }
 
+    public get nodes() { return this._nodes; }
     public get buffers() { return this._buffers; }
     public get byteLength() { return this._byteLength; }
-    public get fieldNodes() { return this._fieldNodes; }
     public get bufferRegions() { return this._bufferRegions; }
 
     protected _byteLength = 0;
-    protected _fieldNodes: FieldNode[] = [];
+    protected _nodes: FieldNode[] = [];
     protected _buffers: ArrayBufferView[] = [];
     protected _bufferRegions: BufferRegion[] = [];
 }

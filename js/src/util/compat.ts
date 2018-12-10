@@ -47,7 +47,10 @@ const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.
 /** @ignore */ export const isArrayLike          = <T = any>(x: any): x is ArrayLike<T>          => hasProps(x, ['length', 'number']);
 /** @ignore */ export const isIteratorResult     = <T = any>(x: any): x is IteratorResult<T>     => hasProps(x, ['done'], ['value']);
 /** @ignore */ export const isReadableDOMStream  = <T = any>(x: any): x is ReadableStream<T>     => hasFuncs(x, 'tee', 'cancel', 'pipeTo', 'getReader');
+/** @ignore */ export const isWritableDOMStream  = <T = any>(x: any): x is WritableStream<T>     => hasFuncs(x, 'abort', 'getWriter');
 /** @ignore */ export const isReadableNodeStream =          (x: any): x is NodeJS.ReadableStream => hasFuncs(x, 'read', 'pipe', 'unpipe', 'pause', 'resume', 'wrap');
+/** @ignore */ export const isWritableNodeStream =          (x: any): x is NodeJS.WritableStream => hasFuncs(x, 'read', 'pipe', 'unpipe', 'pause', 'resume', 'wrap');
 /** @ignore */ export const isFileHandle         =          (x: any): x is FileHandle            => hasFuncs(x, 'stat') && hasProps(x, ['fd', 'number']);
 /** @ignore */ export const isFSReadStream       =          (x: any): x is FSReadStream          => isReadableNodeStream(x) && hasProps(x, ['bytesRead', 'number']);
 /** @ignore */ export const isFetchResponse      =          (x: any): x is Response              => hasProps(x, ['body'], ['bodyUsed', 'boolean'], ['ok', 'boolean']);
+/** @ignore */ export const isUnderlyingSink     = <T = any>(x: any): x is UnderlyingSink<T>     => hasFuncs(x, 'abort', 'close', 'start', 'write');

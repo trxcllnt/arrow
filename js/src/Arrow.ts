@@ -23,6 +23,7 @@ export * from './column';
 export * from './schema';
 export * from './vector';
 export * from './ipc/reader';
+export * from './ipc/writer';
 export * from './ipc/message';
 export * from './recordbatch';
 export * from './io/interfaces';

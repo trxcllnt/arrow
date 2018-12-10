@@ -150,3 +150,5 @@ export class TypeAssembler extends Visitor {
         return Map_.endMap(b);
     }
 }
+
+export const instance = new TypeAssembler();
