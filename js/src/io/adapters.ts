@@ -23,10 +23,7 @@ import {
     toUint8ArrayAsyncIterator
 } from '../util/buffer';
 
-import {
-    ReadableDOMStreamOptions,
-    ReadableNodeStreamOptions,
-} from './interfaces';
+import { ReadableDOMStreamOptions } from './interfaces';
 
 /**
  * @ignore
@@ -49,7 +46,7 @@ export default {
         throw new Error(`"toReadableDOMStream" not available in this environment`);
     },
     // @ts-ignore
-    toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableNodeStreamOptions): import('stream').Readable {
+    toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: import('stream').ReadableOptions): import('stream').Readable {
         throw new Error(`"toReadableNodeStream" not available in this environment`);
     },
 };

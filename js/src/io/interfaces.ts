@@ -20,12 +20,8 @@
 export const ITERATOR_DONE: any = Object.freeze({ done: true, value: void (0) });
 
 export type FileHandle = import('fs').promises.FileHandle;
-// export type ReadableNodeStream = import('stream').Readable;
-export type ReadableNodeStreamOptions = import('stream').ReadableOptions;
-
-export type ReadableDOMStreamOptions = { type?: 'bytes', autoAllocateChunkSize?: number };
-
 export type ArrowJSONLike = { schema: any; batches?: any[]; dictionaries?: any[]; };
+export type ReadableDOMStreamOptions = { type: 'bytes' | undefined, autoAllocateChunkSize?: number };
 
 /**
  * @ignore
@@ -40,7 +36,7 @@ export class ArrowJSON {
 export abstract class Streamable<T> {
 
     public abstract asReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
-    public abstract asReadableNodeStream(options?: ReadableNodeStreamOptions): import('stream').Readable;
+    public abstract asReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
 
     public pipe<R extends NodeJS.WritableStream>(writable: R, options?: { end?: boolean; }) {
         return this._getReadableNodeStream().pipe(writable, options);

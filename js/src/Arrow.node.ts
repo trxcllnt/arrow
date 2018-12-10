@@ -6,7 +6,7 @@ import { RecordBatchReader } from './ipc/reader';
 import { AsyncWritableByteStream } from './io/stream';
 import { isIterable, isAsyncIterable } from './util/compat';
 
-type ReadableNodeStreamOptions = import('stream').ReadableOptions;
+type ReadableOptions = import('stream').ReadableOptions;
 
 streamAdapters.toReadableNodeStream = toReadableNodeStream;
 RecordBatchReader.asNodeStream = recordBatchReaderAsNodeStream;
@@ -57,13 +57,13 @@ function recordBatchReaderAsNodeStream<T extends { [key: string]: DataType } = a
 /**
  * @ignore
  */
-function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableNodeStreamOptions): Readable {
+function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableOptions): Readable {
     if (isAsyncIterable<T>(source)) { return asyncIterableAsReadableNodeStream(source, options); }
     if (isIterable<T>(source)) { return iterableAsReadableNodeStream(source, options); }
     throw new Error(`toReadableNodeStream() must be called with an Iterable or AsyncIterable`);
 }
 
-function iterableAsReadableNodeStream<T>(source: Iterable<T>, options?: ReadableNodeStreamOptions) {
+function iterableAsReadableNodeStream<T>(source: Iterable<T>, options?: ReadableOptions) {
     let it: Iterator<T>, blocked = false;
     return new Readable({
         ...options,
@@ -89,7 +89,7 @@ function iterableAsReadableNodeStream<T>(source: Iterable<T>, options?: Readable
     }
 }
 
-function asyncIterableAsReadableNodeStream<T>(source: AsyncIterable<T>, options?: ReadableNodeStreamOptions) {
+function asyncIterableAsReadableNodeStream<T>(source: AsyncIterable<T>, options?: ReadableOptions) {
     let it: AsyncIterator<T>, blocked = false;
     return new Readable({
         ...options,
