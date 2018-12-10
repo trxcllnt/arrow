@@ -16,7 +16,7 @@
 // under the License.
 
 import { Data } from './data';
-import { Vector as Vector_ } from './vector';
+import { Vector } from './vector';
 import { Type, Precision, DateUnit, TimeUnit, IntervalUnit, UnionMode } from './enum';
 import { DataType, Float, Int, Date_, Interval, Time, Timestamp, Union, } from './type';
 
@@ -55,7 +55,7 @@ function getVisitFn<T extends DataType>(visitor: Visitor, node: any, throwIfNotF
     let dtype: T['TType'] = Type.NONE;
     // tslint:disable
     if      (node instanceof Data    ) { dtype = inferDType(node.type as T); }
-    else if (node instanceof Vector_ ) { dtype = inferDType(node.type as T); }
+    else if (node instanceof Vector  ) { dtype = inferDType(node.type as T); }
     else if (node instanceof DataType) { dtype = inferDType(node      as T); }
     else if (typeof (dtype = node) !== 'number') { dtype = Type[node] as any as T['TType']; }
 

@@ -15,94 +15,73 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { OptionallyAsync } from '../interfaces';
-import { ITERATOR_DONE } from './interfaces';
-import { ByteStream, AsyncByteStream } from './stream';
-
-type FileHandle = import('fs').promises.FileHandle;
+import { FileHandle } from './interfaces';
+import { ReadableByteStream, AsyncReadableByteStream } from './stream';
 
 /**
  * @ignore
  */
-export class RandomAccessFile<T = Uint8Array, U = Uint8Array> extends ByteStream<T, U> implements OptionallyAsync<RandomAccessFile<T, U>> {
-    isSync(): this is RandomAccessFile<T, U> { return true; }
-    isAsync(): this is AsyncRandomAccessFile<T, U> { return false; }
+export class RandomAccessFile extends ReadableByteStream {
     public size: number;
-    public position: number;
+    public position: number = 0;
     protected buffer: Uint8Array | null;
     constructor(buffer: Uint8Array, byteLength = buffer.byteLength) {
-        super(undefined as never);
-        this.position = 0;
+        super();
         this.buffer = buffer;
         this.size = byteLength;
     }
-    readInt32(position: number) {
+    public readInt32(position: number) {
         const { buffer, byteOffset } = this.readAt(position, 4);
-        return new Int32Array(buffer, byteOffset, 1)[0];
+        return new DataView(buffer, byteOffset).getInt32(0, true);
     }
-    seek(position: number) {
+    public seek(position: number) {
         this.position = Math.min(position, this.size);
         return position < this.size;
     }
-    read(nBytes?: number | null) { return this.next(nBytes).value; }
-    readAt(position: number, nBytes: number) {
+    public read(nBytes?: number | null) {
+        const { buffer, size, position } = this;
+        if (buffer && position < size) {
+            if (typeof nBytes !== 'number') { nBytes = Infinity; }
+            this.position = Math.min(size,
+                 position + Math.min(size - position, nBytes));
+            return buffer.subarray(position, this.position);
+        }
+        return null;
+    }
+    public readAt(position: number, nBytes: number) {
         const buf = this.buffer;
         const end = Math.min(this.size, position + nBytes);
         return buf ? buf.subarray(position, end) : new Uint8Array(nBytes);
     }
-    next(nBytes?: number | null) {
-        const { buffer, size, position } = this;
-        if (buffer && position < size) {
-            if (typeof nBytes !== 'number') { nBytes = Infinity; }
-            return {
-                done: false,
-                value: <any> buffer.subarray(
-                    this.position,
-                    this.position = Math.min(size,
-                         position + Math.min(size - position, nBytes)))
-            } as IteratorResult<T>;
-        }
-        return ITERATOR_DONE as IteratorResult<T>;
-    }
-    close() { this.buffer && (this.buffer = null); }
-    throw(value?: any) { this.close(); return super.throw(value); }
-    return(value?: any) { this.close(); return super.return(value); }
+    public close() { this.buffer && (this.buffer = null); }
+    public throw(value?: any) { this.close(); return { done: true, value }; }
+    public return(value?: any) { this.close(); return { done: true, value }; }
 }
 
 /**
  * @ignore
  */
-export class AsyncRandomAccessFile<T = Uint8Array, U = Uint8Array> extends AsyncByteStream<T, U> implements OptionallyAsync<RandomAccessFile<T, U>> {
-    isSync(): this is RandomAccessFile<T, U> { return false; }
-    isAsync(): this is AsyncRandomAccessFile<T, U> { return true; }
+export class AsyncRandomAccessFile extends AsyncReadableByteStream {
     public size: number;
-    public position: number;
+    public position: number = 0;
     protected file: FileHandle | null;
     constructor(file: FileHandle, byteLength: number) {
-        super(undefined as never);
+        super();
         this.file = file;
-        this.position = 0;
         this.size = byteLength;
+        if ((typeof byteLength) !== 'number') {
+            (async () => this.size = (await file.stat()).size)();
+        }
     }
-    async readInt32(position: number) {
+    public async readInt32(position: number) {
         const { buffer, byteOffset } = await this.readAt(position, 4);
-        return new Int32Array(buffer, byteOffset, 1)[0];
+        return new DataView(buffer, byteOffset).getInt32(0, true);
     }
-    async seek(position: number) {
+    public async seek(position: number) {
         this.position = Math.min(position, this.size);
         return position < this.size;
     }
-    async read(nBytes?: number | null) { return (await this.next(nBytes)).value; }
-    async readAt(position: number, nBytes: number) {
-        const { file, size } = this;
-        if (file && (position + nBytes) < size) {
-            const end = Math.min(size, position + nBytes);
-            const buffer = new Uint8Array(end - position);
-            return (await file.read(buffer, 0, nBytes, position)).buffer;
-        }
-        return new Uint8Array(nBytes);
-    }
-    async next(nBytes?: number | null) {
+    public async read(nBytes?: number | null) {
         const { file, size, position } = this;
         if (file && position < size) {
             if (typeof nBytes !== 'number') { nBytes = Infinity; }
@@ -112,11 +91,20 @@ export class AsyncRandomAccessFile<T = Uint8Array, U = Uint8Array> extends Async
             while ((pos += bytesRead) < end && (offset += bytesRead) < buffer.byteLength) {
                 ({ bytesRead } = await file.read(buffer, offset, buffer.byteLength - offset, pos));
             }
-            return { done: false, value: <any> buffer } as IteratorResult<T>;
+            return buffer;
         }
-        return ITERATOR_DONE as IteratorResult<T>;
+        return null;
     }
-    async throw(value?: any) { await this.close(); return await super.throw(value); }
-    async return(value?: any) { await this.close(); return await super.return(value); }
-    async close() { this.file && await this.file.close().then(() => this.file = null); }
+    public async readAt(position: number, nBytes: number) {
+        const { file, size } = this;
+        if (file && (position + nBytes) < size) {
+            const end = Math.min(size, position + nBytes);
+            const buffer = new Uint8Array(end - position);
+            return (await file.read(buffer, 0, nBytes, position)).buffer;
+        }
+        return new Uint8Array(nBytes);
+    }
+    public async close() { const f = this.file; this.file = null; f && await f.close(); }
+    public async throw(value?: any) { await this.close(); return { done: true, value }; }
+    public async return(value?: any) { await this.close(); return { done: true, value }; }
 }

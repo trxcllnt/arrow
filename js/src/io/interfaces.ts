@@ -15,39 +15,44 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Readable, Writable } from 'stream';
-
-export type ReadableNodeStream = import('stream').Readable;
-export type WritableNodeStream = import('stream').Writable;
-
-export type ReadableDOMStream<R = any> = import('whatwg-streams').ReadableStream<R>;
-export type WritableDOMStream<R = any> = import('whatwg-streams').WritableStream<R>;
-
-export const ReadableNodeStream: typeof import('stream').Readable = Readable;
-export const WritableNodeStream: typeof import('stream').Writable = Writable;
-export const ReadableDOMStream: typeof import('whatwg-streams').ReadableStream = (<any> global).ReadableStream;
-export const WritableDOMStream: typeof import('whatwg-streams').WritableStream = (<any> global).WritableStream;
+// import { Readable, Writable } from 'stream';
 
 export const ITERATOR_DONE: any = Object.freeze({ done: true, value: void (0) });
 
-/**
- * @ignore
- */
-export class IteratorBase<TResult, TSource extends Iterator<any> = Iterator<any>> implements Required<IterableIterator<TResult | null | void>> {
-    constructor(protected source: TSource) {}
-    [Symbol.iterator]() { return this as Iterator<TResult>; }
-    next(value?: any) { return (this.source && (this.source.next(value) as any) || ITERATOR_DONE) as IteratorResult<TResult>; }
-    throw(value?: any) { return (this.source && this.source.throw && (this.source.throw(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
-    return(value?: any) { return (this.source && this.source.return && (this.source.return(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
-}
+export type FileHandle = import('fs').promises.FileHandle;
+export type ArrowJSONLike = { schema: any; batches?: any[]; dictionaries?: any[]; };
+export type ReadableDOMStreamOptions = { type: 'bytes' | undefined, autoAllocateChunkSize?: number };
 
 /**
  * @ignore
  */
-export class AsyncIteratorBase<TResult, TSource extends AsyncIterator<any> = AsyncIterator<any>> implements Required<AsyncIterableIterator<TResult | null | void>> {
-    constructor(protected source: TSource) {}
-    [Symbol.asyncIterator]() { return this as AsyncIterator<TResult>; }
-    async next(value?: any) { return (this.source && (await this.source.next(value) as any) || ITERATOR_DONE) as IteratorResult<TResult>; }
-    async throw(value?: any) { return (this.source && this.source.throw && (await this.source.throw(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
-    async return(value?: any) { return (this.source && this.source.return && (await this.source.return(value) as any) || ITERATOR_DONE) as IteratorResult<any>; }
+export class ArrowJSON {
+    constructor(private _json: ArrowJSONLike) {}
+    public get schema(): any { return this._json['schema']; }
+    public get batches(): any[] { return (this._json['batches'] || []) as any[]; }
+    public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
+}
+
+export abstract class Streamable<T> {
+
+    public abstract asReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
+    public abstract asReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
+
+    public pipe<R extends NodeJS.WritableStream>(writable: R, options?: { end?: boolean; }) {
+        return this._getReadableNodeStream().pipe(writable, options);
+    }
+    public pipeTo(writable: WritableStream<T>, options?: PipeOptions) { return this._getReadableDOMStream().pipeTo(writable, options); }
+    public pipeThrough<R extends ReadableStream<any>>(duplex: { writable: WritableStream<T>, readable: R }, options?: PipeOptions) {
+        return this._getReadableDOMStream().pipeThrough(duplex, options);
+    }
+
+    private _readableDOMStream?: ReadableStream<T>;
+    private _getReadableDOMStream() {
+        return this._readableDOMStream || (this._readableDOMStream = this.asReadableDOMStream());
+    }
+
+    private _readableNodeStream?: import('stream').Readable;
+    private _getReadableNodeStream() {
+        return this._readableNodeStream || (this._readableNodeStream = this.asReadableNodeStream());
+    }
 }

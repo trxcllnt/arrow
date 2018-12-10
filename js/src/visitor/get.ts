@@ -29,7 +29,7 @@ import {
     Interval, IntervalDayTime, IntervalYearMonth,
     Time, TimeSecond, TimeMillisecond, TimeMicrosecond, TimeNanosecond,
     Timestamp, TimestampSecond, TimestampMillisecond, TimestampMicrosecond, TimestampNanosecond,
-    Union, DenseUnion, SparseUnion, 
+    Union, DenseUnion, SparseUnion,
 } from '../type';
 
 export const decodeUtf8 = ((decoder) =>
@@ -106,12 +106,16 @@ export class GetVisitor extends Visitor {
 export const instance = new GetVisitor();
 
 const getNull = <T extends Null>(_vector: Vector<T>, _index: number): T['TValue'] => null;
-const getVariableWidthBytes = (values: Uint8Array, valueOffsets: Int32Array, index: number) => (values.subarray(valueOffsets[index], valueOffsets[index + 1]));
+const getVariableWidthBytes = (values: Uint8Array, valueOffsets: Int32Array, index: number) => {
+    const { [index]: x, [index + 1]: y } = valueOffsets;
+    return x != null && y != null ? values.subarray(x, y) : null;
+};
+
 const getBool = <T extends Bool>({ offset, values }: Vector<T>, index: number): T['TValue'] => {
     const idx = offset + index;
     const byte = values[idx >> 3];
     return (byte & 1 << (idx % 8)) !== 0;
-}
+};
 
 type Numeric1X = Int8 | Int16 | Int32 | Uint8 | Uint16 | Uint32 | Float32 | Float64;
 type Numeric2X = Int64 | Uint64;
@@ -123,8 +127,11 @@ const getFloat16         = <T extends Float16>        ({ stride, values }: Vecto
 const getNumericX2       = <T extends Numeric2X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * index + 1));
 const getFixedSizeBinary = <T extends FixedSizeBinary>({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * (index + 1)));
 
-const getBinary = <T extends Binary>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] => getVariableWidthBytes(values, valueOffsets, index);
-const getUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] => decodeUtf8(getVariableWidthBytes(values, valueOffsets, index));
+const getBinary = <T extends Binary>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] | null => getVariableWidthBytes(values, valueOffsets, index);
+const getUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] | null => {
+    const bytes = getVariableWidthBytes(values, valueOffsets, index);
+    return bytes !== null ? decodeUtf8(bytes) : null;
+};
 
 const getInt = <T extends Int>(vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.bitWidth < 64
@@ -155,7 +162,7 @@ const getTimestamp            = <T extends Timestamp>(vector: Vector<T>, index: 
         case TimeUnit.MICROSECOND: return getTimestampMicrosecond(vector as Vector<TimestampMicrosecond>, index);
         case TimeUnit.NANOSECOND:  return  getTimestampNanosecond(vector as Vector<TimestampNanosecond>, index);
     }
-}
+};
 
 const getTimeSecond      = <T extends TimeSecond>     ({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
 const getTimeMillisecond = <T extends TimeMillisecond>({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
@@ -168,21 +175,21 @@ const getTime            = <T extends Time>(vector: Vector<T>, index: number): T
         case TimeUnit.MICROSECOND: return getTimeMicrosecond(vector as Vector<TimeMicrosecond>, index);
         case TimeUnit.NANOSECOND:  return  getTimeNanosecond(vector as Vector<TimeNanosecond>, index);
     }
-}
+};
 
 const getDecimal = <T extends Decimal>({ values }: Vector<T>, index: number): T['TValue'] => values.subarray(4 * index, 4 * (index + 1));
 
 const getList = <T extends List>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { valueOffsets, stride } = vector;
     return child.slice(valueOffsets[index * stride], valueOffsets[(index * stride) + 1]) as T['TValue'];
-}
+};
 
 const getNested = <
     S extends { [key: string]: DataType },
     V extends Vector<Map_<S>> | Vector<Struct<S>>
 >(vector: V, index: number): V['TValue'] => {
     return vector.rowProxy.bind(vector, index);
-}
+};
 
 const getUnion = <
     V extends Vector<Union> | Vector<DenseUnion> | Vector<SparseUnion>
@@ -190,25 +197,23 @@ const getUnion = <
     return vector.type.mode === UnionMode.Dense ?
         getDenseUnion(vector as Vector<DenseUnion>, index) :
         getSparseUnion(vector as Vector<SparseUnion>, index);
-}
+};
 
 const getDenseUnion = <T extends DenseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
     const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
     return child ? child.get(vector.valueOffsets[index]) : null;
-}
+};
 
 const getSparseUnion = <T extends SparseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
     const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
     return child ? child.get(index) : null;
-}
+};
 
 const getDictionary = <T extends Dictionary>(vector: Vector<T>, index: number): T['TValue'] => {
-    const key = vector.indices.get(index) as number;
-    const val = vector.type.dictionary.get(key);
-    return val;
-}
+    return vector.dictionary.get(vector.indices.get(index) as number);
+};
 
 const getInterval = <T extends Interval>(vector: Vector<T>, index: number): T['TValue'] =>
     (vector.type.unit === IntervalUnit.DAY_TIME)
@@ -223,9 +228,53 @@ const getIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>
     int32s[0] = interval / 12 | 0; /* years */
     int32s[1] = interval % 12 | 0; /* months */
     return int32s;
-}
+};
 
 const getFixedSizeList = <T extends FixedSizeList>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { stride } = vector;
     return child.slice(index * stride, (index + 1) * stride) as T['TValue'];
-}
+};
+
+GetVisitor.prototype.visitNull                 =                 getNull;
+GetVisitor.prototype.visitBool                 =                 getBool;
+GetVisitor.prototype.visitInt                  =                  getInt;
+GetVisitor.prototype.visitInt8                 =              getNumeric;
+GetVisitor.prototype.visitInt16                =              getNumeric;
+GetVisitor.prototype.visitInt32                =              getNumeric;
+GetVisitor.prototype.visitInt64                =            getNumericX2;
+GetVisitor.prototype.visitUint8                =              getNumeric;
+GetVisitor.prototype.visitUint16               =              getNumeric;
+GetVisitor.prototype.visitUint32               =              getNumeric;
+GetVisitor.prototype.visitUint64               =            getNumericX2;
+GetVisitor.prototype.visitFloat                =                getFloat;
+GetVisitor.prototype.visitFloat16              =              getFloat16;
+GetVisitor.prototype.visitFloat32              =              getNumeric;
+GetVisitor.prototype.visitFloat64              =              getNumeric;
+GetVisitor.prototype.visitUtf8                 =                 getUtf8;
+GetVisitor.prototype.visitBinary               =               getBinary;
+GetVisitor.prototype.visitFixedSizeBinary      =      getFixedSizeBinary;
+GetVisitor.prototype.visitDate                 =                 getDate;
+GetVisitor.prototype.visitDateDay              =              getDateDay;
+GetVisitor.prototype.visitDateMillisecond      =      getDateMillisecond;
+GetVisitor.prototype.visitTimestamp            =            getTimestamp;
+GetVisitor.prototype.visitTimestampSecond      =      getTimestampSecond;
+GetVisitor.prototype.visitTimestampMillisecond = getTimestampMillisecond;
+GetVisitor.prototype.visitTimestampMicrosecond = getTimestampMicrosecond;
+GetVisitor.prototype.visitTimestampNanosecond  =  getTimestampNanosecond;
+GetVisitor.prototype.visitTime                 =                 getTime;
+GetVisitor.prototype.visitTimeSecond           =           getTimeSecond;
+GetVisitor.prototype.visitTimeMillisecond      =      getTimeMillisecond;
+GetVisitor.prototype.visitTimeMicrosecond      =      getTimeMicrosecond;
+GetVisitor.prototype.visitTimeNanosecond       =       getTimeNanosecond;
+GetVisitor.prototype.visitDecimal              =              getDecimal;
+GetVisitor.prototype.visitList                 =                 getList;
+GetVisitor.prototype.visitStruct               =               getNested;
+GetVisitor.prototype.visitUnion                =                getUnion;
+GetVisitor.prototype.visitDenseUnion           =           getDenseUnion;
+GetVisitor.prototype.visitSparseUnion          =          getSparseUnion;
+GetVisitor.prototype.visitDictionary           =           getDictionary;
+GetVisitor.prototype.visitInterval             =             getInterval;
+GetVisitor.prototype.visitIntervalDayTime      =      getIntervalDayTime;
+GetVisitor.prototype.visitIntervalYearMonth    =    getIntervalYearMonth;
+GetVisitor.prototype.visitFixedSizeList        =        getFixedSizeList;
+GetVisitor.prototype.visitMap                  =               getNested;

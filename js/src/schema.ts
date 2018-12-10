@@ -38,7 +38,7 @@ export class Schema<T extends { [key: string]: DataType } = any> {
     public readonly dictionaries: Map<number, Dictionary>;
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
-                dictionaries?: Map<number, DataType>) {
+                dictionaries?: Map<number, Dictionary>) {
         this.fields = fields;
         this.metadata = metadata || Schema.prototype.metadata;
         this.dictionaries = dictionaries || generateDictionaryMap(fields);
@@ -47,7 +47,7 @@ export class Schema<T extends { [key: string]: DataType } = any> {
         const names = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
         const fields = this.fields.filter((f) => names[f.name]);
         const dictionaries = (fields.filter((f) => DataType.isDictionary(f.type)) as Field<Dictionary<any>>[])
-            .reduce((d, f) =>  d.set(f.type.id, this.dictionaries.get(f.type.id)!), new Map<number, DataType>());
+            .reduce((d, f) =>  d.set(f.type.id, this.dictionaries.get(f.type.id)!), new Map<number, Dictionary>());
         return new Schema<{ [P in K]: T[P] }>(fields, this.metadata, dictionaries);
     }
     public static [Symbol.toStringTag] = ((prototype: Schema) => {

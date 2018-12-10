@@ -17,8 +17,8 @@
 
 import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
-import { ArrayBufferViewConstructor  } from '../interfaces';
-import { isIteratorResult, isIterable, isAsyncIterable } from './compat';
+import { ArrayBufferViewConstructor } from '../interfaces';
+import { isPromise, isIterable, isAsyncIterable, isIteratorResult } from './compat';
 
 function collapseContiguousByteRanges(chunks: Uint8Array[]) {
     for (let x, y, i = 0; ++i < chunks.length;) {
@@ -33,6 +33,20 @@ function collapseContiguousByteRanges(chunks: Uint8Array[]) {
         chunks.splice(--i, 2, new Uint8Array(x.buffer, xOffset, yOffset - xOffset + yLen));
     }
     return chunks;
+}
+
+/**
+ * @ignore
+ */
+export function memcpy(target: ArrayBufferView, source: ArrayBufferView, targetByteOffset = 0, sourceByteLength = source.byteLength) {
+    const targetByteLength = target.byteLength;
+    const T = ((sourceByteLength + targetByteLength) % 8 === 0) ? Float64Array :
+              ((sourceByteLength + targetByteLength) % 4 === 0) ? Float32Array :
+              ((sourceByteLength + targetByteLength) % 2 === 0) ? Uint16Array  : Uint8Array;
+    const dst = new T(target.buffer, target.byteOffset, targetByteLength / T.BYTES_PER_ELEMENT);
+    const src = new T(source.buffer, source.byteOffset, Math.min(sourceByteLength, targetByteLength) / T.BYTES_PER_ELEMENT);
+    dst.set(src, targetByteOffset / T.BYTES_PER_ELEMENT);
+    return dst;
 }
 
 /**
@@ -53,7 +67,7 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
             if (sliced.length < source.length) {
                 chunks[index] = source.subarray(sliced.length);
             } else if (sliced.length === source.length) { index++; }
-            buffer ? buffer.set(sliced, offset) : (buffer = sliced);
+            buffer ? memcpy(buffer, sliced, offset) : (buffer = sliced);
             break;
         }
         (buffer || (buffer = new Uint8Array(length))).set(sliced, offset);
@@ -62,8 +76,9 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
     return [buffer || new Uint8Array(0), chunks.slice(index)];
 }
 
-export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined |
-                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined>;
+export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined  |
+                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> |
+          ReadableStreamReadResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> ;
 
 /**
  * @ignore
@@ -94,7 +109,7 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
 
 type ArrayBufferViewIteratorInput = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
 
-const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; }
+const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; };
 
 /** @ignore */
 export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewIteratorInput) {
@@ -128,17 +143,31 @@ export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor:
 type ArrayBufferViewAsyncIteratorInput = AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput> | ArrayBufferViewInput;
 
 /** @ignore */
-export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewAsyncIteratorInput) {
+export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>(ArrayCtor: ArrayBufferViewConstructor<T>, source: ArrayBufferViewAsyncIteratorInput): AsyncIterableIterator<T> {
+
+    // if a Promise, unwrap the Promise and iterate the resolved value
+    if (isPromise<ArrayBufferViewInput>(source)) {
+        return yield* toArrayBufferViewAsyncIterator(ArrayCtor, await source);
+    }
 
     const wrap = async function*<T>(x: T) { yield await x; };
-    const emit = async function*<T>(x: Iterable<T>) { yield* x; };
+    const emit = async function* <T extends Iterable<any>>(source: T) {
+        yield* pump((function*(it: Iterator<any>) {
+            let r: IteratorResult<any> = <any> null;
+            do {
+                r = it.next(yield r && r.value);
+            } while (!r.done);
+        })(source[Symbol.iterator]()));
+    };
+
     const buffers: AsyncIterable<ArrayBufferViewInput> =
-                        (typeof source === 'string') ? wrap(source)
-                      : (ArrayBuffer.isView(source)) ? wrap(source)
-                   : (source instanceof ArrayBuffer) ? wrap(source)
-             : (source instanceof SharedArrayBuffer) ? wrap(source)
-          : isIterable<ArrayBufferViewInput>(source) ? emit(source)
-    : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source as ArrayBufferViewInput) : source;
+                        (typeof source === 'string') ? wrap(source) // if string, wrap in an AsyncIterableIterator
+                      : (ArrayBuffer.isView(source)) ? wrap(source) // if TypedArray, wrap in an AsyncIterableIterator
+                   : (source instanceof ArrayBuffer) ? wrap(source) // if ArrayBuffer, wrap in an AsyncIterableIterator
+             : (source instanceof SharedArrayBuffer) ? wrap(source) // if SharedArrayBuffer, wrap in an AsyncIterableIterator
+          : isIterable<ArrayBufferViewInput>(source) ? emit(source) // If Iterable, wrap in an AsyncIterableIterator and compose the `next` values
+    : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source) // If not an AsyncIterable, treat as a sentinel and wrap in an AsyncIterableIterator
+                                                     : source; // otherwise if AsyncIterable, use it
 
     yield* pump((async function* (it) {
         let r: IteratorResult<any> = <any> null;
@@ -167,4 +196,19 @@ function decodeUtf8(chunk: string) {
         bytes[i] = chunk.charCodeAt(i);
     }
     return bytes;
+}
+
+/**
+ * @ignore
+ */
+export function rebaseValueOffsets(offset: number, length: number, valueOffsets: Int32Array) {
+    // If we have a non-zero offset, create a new offsets array with the values
+    // shifted by the start offset, such that the new start offset is 0
+    if (offset !== 0) {
+        valueOffsets = valueOffsets.slice(0, length + 1);
+        for (let i = -1; ++i <= length;) {
+            valueOffsets[i] += offset;
+        }
+    }
+    return valueOffsets;
 }

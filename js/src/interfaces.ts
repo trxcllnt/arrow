@@ -21,30 +21,6 @@ import * as type from './type';
 import * as vecs from './vector';
 import { DataType } from './type';
 
-export interface VectorLike<T extends DataType = any> {
-    length: number;
-    toArray(): T['TArray'];
-    // getByteWidth(): number;
-    isValid(index: number): boolean;
-    get(index: number): T['TValue'] | null;
-    indexOf(value: T['TValue'] | null, fromIndex?: number): number;
-    slice(begin?: number, end?: number): VectorLike<T>;
-    concat(this: VectorLike<T>, ...others: VectorLike<T>[]): VectorLike<T>;
-    getChildAt<R extends DataType = any>(index: number): Vector<R> | null;
-    [Symbol.iterator](): IterableIterator<T['TValue'] | null>;
-}
-
-export interface OptionallyAsync<T> {
-    isSync(): this is T;
-    isAsync(): this is Asyncified<T>;
-}
-
-export type Asyncified<T> = {
-    [P in keyof T]: T[P] extends (...args: any[]) => any
-        ? (...args: Parameters<T[P]>) => ReturnType<T[P]> | Promise<ReturnType<T[P]>>
-        : T[P];
-};
-
 export interface ArrayBufferViewConstructor<T extends ArrayBufferView> {
     readonly prototype: T;
     new(length: number): T;
@@ -115,7 +91,7 @@ export type VectorCtor<T extends Type | DataType | Vector> =
     T extends Vector        ? VectorCtorType<T>                  :
     T extends Type          ? VectorCtorType<Vector<T>>          :
     T extends DataType      ? VectorCtorType<Vector<T['TType']>> :
-                              VectorCtorType<vecs.Vector>
+                              VectorCtorType<vecs.BaseVector>
     ;
 
 export type DataTypeCtor<T extends Type | DataType | Vector = any> =
@@ -169,7 +145,7 @@ type TypeToVector<T extends Type> =
     T extends Type.Struct               ? vecs.StructVector               :
     T extends Type.Dictionary           ? vecs.DictionaryVector           :
     T extends Type.FixedSizeList        ? vecs.FixedSizeListVector        :
-                                          vecs.Vector
+                                          vecs.BaseVector
     ;
 
 type DataTypeToVector<T extends DataType = any> =
@@ -216,7 +192,7 @@ type DataTypeToVector<T extends DataType = any> =
     T extends type.Struct               ? vecs.StructVector<T['dataTypes']>        :
     T extends type.Dictionary           ? vecs.DictionaryVector<T['valueType']>    :
     T extends type.FixedSizeList        ? vecs.FixedSizeListVector<T['valueType']> :
-                                          vecs.Vector<T>
+                                          vecs.BaseVector<T>
     ;
 
 type TypeToDataType<T extends Type> =

@@ -19,7 +19,7 @@ import { Data } from '../data';
 import { Type } from '../enum';
 import { Visitor } from '../visitor';
 import { Vector } from '../interfaces';
-import { instance as IteratorVisitor } from './iterator';
+import { instance as iteratorVisitor } from './iterator';
 import {
     DataType, Dictionary,
     Bool, Null, Utf8, Binary, Decimal, FixedSizeBinary, List, FixedSizeList, Map_, Struct,
@@ -104,5 +104,49 @@ function arrayOfVector<T extends DataType>(vector: Vector<T>): T['TArray'] {
     }
 
     // Otherwise if nullable or not primitive, slow copy
-    return [...IteratorVisitor.visit(vector)] as T['TArray'];
+    return [...iteratorVisitor.visit(vector)] as T['TArray'];
 }
+
+ToArrayVisitor.prototype.visitNull                 = arrayOfVector;
+ToArrayVisitor.prototype.visitBool                 = arrayOfVector;
+ToArrayVisitor.prototype.visitInt                  = arrayOfVector;
+ToArrayVisitor.prototype.visitInt8                 = arrayOfVector;
+ToArrayVisitor.prototype.visitInt16                = arrayOfVector;
+ToArrayVisitor.prototype.visitInt32                = arrayOfVector;
+ToArrayVisitor.prototype.visitInt64                = arrayOfVector;
+ToArrayVisitor.prototype.visitUint8                = arrayOfVector;
+ToArrayVisitor.prototype.visitUint16               = arrayOfVector;
+ToArrayVisitor.prototype.visitUint32               = arrayOfVector;
+ToArrayVisitor.prototype.visitUint64               = arrayOfVector;
+ToArrayVisitor.prototype.visitFloat                = arrayOfVector;
+ToArrayVisitor.prototype.visitFloat16              = arrayOfVector;
+ToArrayVisitor.prototype.visitFloat32              = arrayOfVector;
+ToArrayVisitor.prototype.visitFloat64              = arrayOfVector;
+ToArrayVisitor.prototype.visitUtf8                 = arrayOfVector;
+ToArrayVisitor.prototype.visitBinary               = arrayOfVector;
+ToArrayVisitor.prototype.visitFixedSizeBinary      = arrayOfVector;
+ToArrayVisitor.prototype.visitDate                 = arrayOfVector;
+ToArrayVisitor.prototype.visitDateDay              = arrayOfVector;
+ToArrayVisitor.prototype.visitDateMillisecond      = arrayOfVector;
+ToArrayVisitor.prototype.visitTimestamp            = arrayOfVector;
+ToArrayVisitor.prototype.visitTimestampSecond      = arrayOfVector;
+ToArrayVisitor.prototype.visitTimestampMillisecond = arrayOfVector;
+ToArrayVisitor.prototype.visitTimestampMicrosecond = arrayOfVector;
+ToArrayVisitor.prototype.visitTimestampNanosecond  = arrayOfVector;
+ToArrayVisitor.prototype.visitTime                 = arrayOfVector;
+ToArrayVisitor.prototype.visitTimeSecond           = arrayOfVector;
+ToArrayVisitor.prototype.visitTimeMillisecond      = arrayOfVector;
+ToArrayVisitor.prototype.visitTimeMicrosecond      = arrayOfVector;
+ToArrayVisitor.prototype.visitTimeNanosecond       = arrayOfVector;
+ToArrayVisitor.prototype.visitDecimal              = arrayOfVector;
+ToArrayVisitor.prototype.visitList                 = arrayOfVector;
+ToArrayVisitor.prototype.visitStruct               = arrayOfVector;
+ToArrayVisitor.prototype.visitUnion                = arrayOfVector;
+ToArrayVisitor.prototype.visitDenseUnion           = arrayOfVector;
+ToArrayVisitor.prototype.visitSparseUnion          = arrayOfVector;
+ToArrayVisitor.prototype.visitDictionary           = arrayOfVector;
+ToArrayVisitor.prototype.visitInterval             = arrayOfVector;
+ToArrayVisitor.prototype.visitIntervalDayTime      = arrayOfVector;
+ToArrayVisitor.prototype.visitIntervalYearMonth    = arrayOfVector;
+ToArrayVisitor.prototype.visitFixedSizeList        = arrayOfVector;
+ToArrayVisitor.prototype.visitMap                  = arrayOfVector;

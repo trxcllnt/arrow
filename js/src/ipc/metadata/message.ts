@@ -19,26 +19,47 @@ import { flatbuffers } from 'flatbuffers';
 import * as Schema_ from '../../fb/Schema';
 import * as Message_ from '../../fb/Message';
 
-import Long = flatbuffers.Long;
-import ByteBuffer = flatbuffers.ByteBuffer;
-import _Buffer = Schema_.org.apache.arrow.flatbuf.Buffer;
-import _Schema = Schema_.org.apache.arrow.flatbuf.Schema;
-import _Message = Message_.org.apache.arrow.flatbuf.Message;
-import _FieldNode = Message_.org.apache.arrow.flatbuf.FieldNode;
-import _RecordBatch = Message_.org.apache.arrow.flatbuf.RecordBatch;
-import _DictionaryBatch = Message_.org.apache.arrow.flatbuf.DictionaryBatch;
-
-import './schema';
-import { Schema } from '../../schema';
+import { Schema, Field } from '../../schema';
 import { toUint8Array } from '../../util/buffer';
 import { ArrayBufferViewInput } from '../../util/buffer';
 import { MessageHeader, MetadataVersion } from '../../enum';
+import { instance as typeAssembler } from '../../visitor/typeassembler';
+import { fieldFromJSON, schemaFromJSON, recordBatchFromJSON, dictionaryBatchFromJSON } from './json';
+
+import Long = flatbuffers.Long;
+import Builder = flatbuffers.Builder;
+import ByteBuffer = flatbuffers.ByteBuffer;
+import _Int = Schema_.org.apache.arrow.flatbuf.Int;
+import Type = Schema_.org.apache.arrow.flatbuf.Type;
+import _Field = Schema_.org.apache.arrow.flatbuf.Field;
+import _Schema = Schema_.org.apache.arrow.flatbuf.Schema;
+import _Buffer = Schema_.org.apache.arrow.flatbuf.Buffer;
+import _Message = Message_.org.apache.arrow.flatbuf.Message;
+import _KeyValue = Schema_.org.apache.arrow.flatbuf.KeyValue;
+import _FieldNode = Message_.org.apache.arrow.flatbuf.FieldNode;
+import _Endianness = Schema_.org.apache.arrow.flatbuf.Endianness;
+import _RecordBatch = Message_.org.apache.arrow.flatbuf.RecordBatch;
+import _DictionaryBatch = Message_.org.apache.arrow.flatbuf.DictionaryBatch;
+import _DictionaryEncoding = Schema_.org.apache.arrow.flatbuf.DictionaryEncoding;
+
+import {
+    DataType, Dictionary, TimeBitWidth,
+    Utf8, Binary, Decimal, FixedSizeBinary,
+    List, FixedSizeList, Map_, Struct, Union,
+    Bool, Null, Int, Float, Date_, Time, Interval, Timestamp,
+} from '../../type';
 
 type MessageHeaderDecoder = <T extends MessageHeader>() => T extends MessageHeader.Schema ? Schema
                                                          : T extends MessageHeader.RecordBatch ? RecordBatch
                                                          : T extends MessageHeader.DictionaryBatch ? DictionaryBatch : never;
 
 export class Message<T extends MessageHeader = any> {
+
+    static fromJSON<T extends MessageHeader>(msg: any, headerType: T): Message<T> {
+        const message = new Message(0, MetadataVersion.V4, headerType);
+        message._createHeader = messageHeaderFromJSON(msg, headerType);
+        return message;
+    }
 
     static decode(buf: ArrayBufferViewInput) {
         buf = new ByteBuffer(toUint8Array(buf));
@@ -51,6 +72,37 @@ export class Message<T extends MessageHeader = any> {
         return message;
     }
 
+    static encode<T extends MessageHeader>(message: Message<T>) {
+        let b = new Builder(), headerOffset = -1;
+        if (message.isSchema()) {
+            headerOffset = Schema.encode(b, message.header() as Schema);
+        } else if (message.isRecordBatch()) {
+            headerOffset = RecordBatch.encode(b, message.header() as RecordBatch);
+        } else if (message.isDictionaryBatch()) {
+            headerOffset = DictionaryBatch.encode(b, message.header() as DictionaryBatch);
+        }
+        _Message.startMessage(b);
+        _Message.addVersion(b, MetadataVersion.V4);
+        _Message.addHeader(b, headerOffset);
+        _Message.addHeaderType(b, message.headerType);
+        _Message.addBodyLength(b, new Long(message.bodyLength, 0));
+        _Message.finishMessageBuffer(b, _Message.endMessage(b));
+        return b.asUint8Array();
+    }
+
+    static from(header: Schema | RecordBatch | DictionaryBatch, bodyLength = 0) {
+        if (header instanceof Schema) {
+            return new Message(0, MetadataVersion.V4, MessageHeader.Schema, header);
+        }
+        if (header instanceof RecordBatch) {
+            return new Message(bodyLength, MetadataVersion.V4, MessageHeader.RecordBatch, header);
+        }
+        if (header instanceof DictionaryBatch) {
+            return new Message(bodyLength, MetadataVersion.V4, MessageHeader.DictionaryBatch, header);
+        }
+        throw new Error(`Unrecognized Message header: ${header}`);
+    }
+
     // @ts-ignore
     public body: Uint8Array;
     public readonly headerType: T;
@@ -59,25 +111,21 @@ export class Message<T extends MessageHeader = any> {
     public get type() { return this.headerType; }
     // @ts-ignore
     protected _createHeader: MessageHeaderDecoder;
-    public header() { return this._createHeader ? this._createHeader<T>() : null; }
+    public header() { return this._createHeader<T>(); }
     public isSchema(): this is Message<MessageHeader.Schema> { return this.headerType === MessageHeader.Schema; }
     public isRecordBatch(): this is Message<MessageHeader.RecordBatch> { return this.headerType === MessageHeader.RecordBatch; }
     public isDictionaryBatch(): this is Message<MessageHeader.DictionaryBatch> { return this.headerType === MessageHeader.DictionaryBatch; }
 
-    constructor(bodyLength: Long | number, version: MetadataVersion, headerType: T) {
+    constructor(bodyLength: Long | number, version: MetadataVersion, headerType: T, header?: any) {
         this.version = version;
         this.headerType = headerType;
         this.body = new Uint8Array(0);
+        header && (this._createHeader = () => header);
         this.bodyLength = typeof bodyLength === 'number' ? bodyLength : bodyLength.low;
     }
 }
 
 export class RecordBatch {
-
-    static decode(batch: _RecordBatch, version = MetadataVersion.V4) {
-        return new RecordBatch(batch.length(), decodeFieldNodes(batch), decodeBuffers(batch, version));
-    }
-
     public readonly length: number;
     public readonly nodes: FieldNode[];
     public readonly buffers: BufferRegion[];
@@ -92,14 +140,10 @@ export class RecordBatch {
 export class DictionaryBatch {
 
     private static atomicDictionaryId = 0;
-
-    static decode(batch: _DictionaryBatch, version = MetadataVersion.V4) {
-        return new DictionaryBatch(RecordBatch.decode(batch.data()!, version), batch.id(), batch.isDelta());
-    }
-    
     public readonly id: number;
     public readonly isDelta: boolean;
     public readonly data: RecordBatch;
+    public get length(): number { return this.data.length; }
     public get nodes(): FieldNode[] { return this.data.nodes; }
     public get buffers(): BufferRegion[] { return this.data.buffers; }
     public static getId() { return DictionaryBatch.atomicDictionaryId++; }
@@ -112,11 +156,6 @@ export class DictionaryBatch {
 }
 
 export class BufferRegion {
-
-    static decode(b: _Buffer) {
-        return new BufferRegion(b.offset(), b.length());
-    }
-
     public offset: number;
     public length: number;
     constructor(offset: Long | number, length: Long | number) {
@@ -126,17 +165,24 @@ export class BufferRegion {
 }
 
 export class FieldNode {
-
-    static decode(f: _FieldNode) {
-        return new FieldNode(f.length(), f.nullCount());
-    }
-    
     public length: number;
     public nullCount: number;
     constructor(length: Long | number, nullCount: Long | number) {
         this.length = typeof length === 'number' ? length : length.low;
         this.nullCount = typeof nullCount === 'number' ? nullCount : nullCount.low;
     }
+}
+
+function messageHeaderFromJSON(message: any, type: MessageHeader) {
+    return (() => {
+        switch (type) {
+            case MessageHeader.Schema: return Schema.fromJSON(message, new Map());
+            case MessageHeader.RecordBatch: return RecordBatch.fromJSON(message);
+            case MessageHeader.DictionaryBatch: return DictionaryBatch.fromJSON(message);
+        }
+        // return null;
+        throw new Error(`Unrecognized Message type: { name: ${MessageHeader[type]}, type: ${type} }`);
+    }) as MessageHeaderDecoder;
 }
 
 function decodeMessageHeader(message: _Message, type: MessageHeader) {
@@ -151,18 +197,95 @@ function decodeMessageHeader(message: _Message, type: MessageHeader) {
     }) as MessageHeaderDecoder;
 }
 
+Field.encode = encodeField;
+Field.decode = decodeField;
+Field.fromJSON = fieldFromJSON;
+
+Schema.encode = encodeSchema;
+Schema.decode = decodeSchema;
+Schema.fromJSON = schemaFromJSON;
+
+RecordBatch.encode = encodeRecordBatch;
+RecordBatch.decode = decodeRecordBatch;
+RecordBatch.fromJSON = recordBatchFromJSON;
+
+DictionaryBatch.encode = encodeDictionaryBatch;
+DictionaryBatch.decode = decodeDictionaryBatch;
+DictionaryBatch.fromJSON = dictionaryBatchFromJSON;
+
+FieldNode.encode = encodeFieldNode;
+FieldNode.decode = decodeFieldNode;
+
+BufferRegion.encode = encodeBufferRegion;
+BufferRegion.decode = decodeBufferRegion;
+
+declare module '../../schema' {
+    namespace Field {
+        export { encodeField as encode };
+        export { decodeField as decode };
+        export { fieldFromJSON as fromJSON };
+    }
+    namespace Schema {
+        export { encodeSchema as encode };
+        export { decodeSchema as decode };
+        export { schemaFromJSON as fromJSON };
+    }
+}
+
+declare module './message' {
+    namespace RecordBatch {
+        export { encodeRecordBatch as encode };
+        export { decodeRecordBatch as decode };
+        export { recordBatchFromJSON as fromJSON };
+    }
+    namespace DictionaryBatch {
+        export { encodeDictionaryBatch as encode };
+        export { decodeDictionaryBatch as decode };
+        export { dictionaryBatchFromJSON as fromJSON };
+    }
+    namespace FieldNode {
+        export { encodeFieldNode as encode };
+        export { decodeFieldNode as decode };
+    }
+    namespace BufferRegion {
+        export { encodeBufferRegion as encode };
+        export { decodeBufferRegion as decode };
+    }
+}
+
+function decodeSchema(_schema: _Schema, dictionaryTypes: Map<number, Dictionary>) {
+    const fields = decodeSchemaFields(_schema, dictionaryTypes);
+    return new Schema(fields, decodeCustomMetadata(_schema), dictionaryTypes);
+}
+
+function decodeRecordBatch(batch: _RecordBatch, version = MetadataVersion.V4) {
+    return new RecordBatch(batch.length(), decodeFieldNodes(batch), decodeBuffers(batch, version));
+}
+
+function decodeDictionaryBatch(batch: _DictionaryBatch, version = MetadataVersion.V4) {
+    return new DictionaryBatch(RecordBatch.decode(batch.data()!, version), batch.id(), batch.isDelta());
+}
+
+function decodeBufferRegion(b: _Buffer) {
+    return new BufferRegion(b.offset(), b.length());
+}
+
+function decodeFieldNode(f: _FieldNode) {
+    return new FieldNode(f.length(), f.nullCount());
+}
+
 function decodeFieldNodes(batch: _RecordBatch) {
     return Array.from(
         { length: batch.nodesLength() },
         (_, i) => batch.nodes(i)!
-    ).map(FieldNode.decode);
+    ).filter(Boolean).map(FieldNode.decode);
 }
 
 function decodeBuffers(batch: _RecordBatch, version: MetadataVersion) {
     return Array.from(
         { length: batch.buffersLength() },
         (_, i) => batch.buffers(i)!
-    ).map(v3Compat(version, BufferRegion.decode));
+    ).filter(Boolean).map(v3Compat(version, BufferRegion.decode));
 }
 
 function v3Compat(version: MetadataVersion, decode: (buffer: _Buffer) => BufferRegion) {
@@ -174,5 +297,252 @@ function v3Compat(version: MetadataVersion, decode: (buffer: _Buffer) => BufferR
             buffer.bb_pos += (8 * (i + 1));
         }
         return decode(buffer);
-    }
+    };
 }
+
+function decodeSchemaFields(schema: _Schema, dictionaryTypes: Map<number, Dictionary> | null) {
+    return Array.from(
+        { length: schema.fieldsLength() },
+        (_, i) => schema.fields(i)!
+    ).filter(Boolean).map((f) => Field.decode(f, dictionaryTypes));
+}
+
+function decodeFieldChildren(field: _Field, dictionaryTypes: Map<number, Dictionary> | null): Field[] {
+    return Array.from(
+        { length: field.childrenLength() },
+        (_, i) => field.children(i)!
+    ).filter(Boolean).map((f) => Field.decode(f, dictionaryTypes));
+}
+
+function decodeField(f: _Field, dictionaryTypes: Map<number, Dictionary> | null) {
+
+    let id: number;
+    let field: Field | void;
+    let keys: _Int | Int | null;
+    let type: DataType<any> | null;
+    let dict: _DictionaryEncoding | null;
+
+    // If no dictionary encoding, or in the process of decoding the children of a dictionary-encoded field
+    if (!dictionaryTypes || !(dict = f.dictionary())) {
+        type = decodeFieldType(f, decodeFieldChildren(f, dictionaryTypes));
+        field = new Field(f.name()!, type, f.nullable(), decodeCustomMetadata(f));
+    }
+    // tslint:disable
+    // If dictionary encoded and the first time we've seen this dictionary id, decode
+    // the data type and child fields, then wrap in a Dictionary type and insert the
+    // data type into the dictionary types map.
+    else if (!dictionaryTypes.has(id = dict.id().low)) {
+        // a dictionary index defaults to signed 32 bit int if unspecified
+        keys = (keys = dict.indexType()) ? decodeIntType(keys) : new Int(true, 32);
+        type = new Dictionary(decodeFieldType(f, decodeFieldChildren(f, null)), keys, id, dict.isOrdered());
+        field = new Field(f.name()!, type, f.nullable(), decodeCustomMetadata(f));
+        dictionaryTypes.set(id, type as Dictionary);
+    }
+    // If dictionary encoded, and have already seen this dictionary Id in the schema, then reuse the
+    // data type and wrap in a new Dictionary type and field.
+    else {
+        // a dictionary index defaults to signed 32 bit int if unspecified
+        keys = (keys = dict.indexType()) ? decodeIntType(keys) : new Int(true, 32);
+        field = new Field(f.name()!, dictionaryTypes.get(id)!, f.nullable(), decodeCustomMetadata(f));
+    }
+    return field || null;
+}
+
+function decodeCustomMetadata(parent?: _Schema | _Field | null) {
+    const data = new Map<string, string>();
+    if (parent) {
+        for (let entry, key, i = -1, n = parent.customMetadataLength() | 0; ++i < n;) {
+            if ((entry = parent.customMetadata(i)) && (key = entry.key()) != null) {
+                data.set(key, entry.value()!);
+            }
+        }
+    }
+    return data;
+}
+
+function decodeIntType(_type: _Int) {
+    return new Int(_type.isSigned(), _type.bitWidth());
+}
+
+function decodeFieldType(f: _Field, children?: Field[]): DataType<any> {
+
+    const typeId = f.typeType();
+
+    switch (typeId) {
+        case Type.NONE:    return new DataType();
+        case Type.Null:    return new Null();
+        case Type.Binary:  return new Binary();
+        case Type.Utf8:    return new Utf8();
+        case Type.Bool:    return new Bool();
+        case Type.List:    return new List(children || []);
+        case Type.Struct_: return new Struct(children || []);
+    }
+
+    switch (typeId) {
+        case Type.Int: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Int())!;
+            return new Int(t.isSigned(), t.bitWidth());
+        }
+        case Type.FloatingPoint: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.FloatingPoint())!;
+            return new Float(t.precision());
+        }
+        case Type.Decimal: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Decimal())!;
+            return new Decimal(t.scale(), t.precision());
+        }
+        case Type.Date: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Date())!;
+            return new Date_(t.unit());
+        }
+        case Type.Time: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Time())!;
+            return new Time(t.unit(), t.bitWidth() as TimeBitWidth);
+        }
+        case Type.Timestamp: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Timestamp())!;
+            return new Timestamp(t.unit(), t.timezone());
+        }
+        case Type.Interval: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Interval())!;
+            return new Interval(t.unit());
+        }
+        case Type.Union: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Union())!;
+            return new Union(t.mode(), (t.typeIdsArray() || []) as Type[], children || []);
+        }
+        case Type.FixedSizeBinary: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.FixedSizeBinary())!;
+            return new FixedSizeBinary(t.byteWidth());
+        }
+        case Type.FixedSizeList: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.FixedSizeList())!;
+            return new FixedSizeList(t.listSize(), children || []);
+        }
+        case Type.Map: {
+            const t = f.type(new Schema_.org.apache.arrow.flatbuf.Map())!;
+            return new Map_(children || [], t.keysSorted());
+        }
+    }
+    throw new Error(`Unrecognized type: "${Type[typeId]}" (${typeId})`);
+}
+
+function encodeSchema(b: Builder, schema: Schema) {
+
+    const fieldOffsets = schema.fields.map((f) => Field.encode(b, f));
+
+    _Schema.startFieldsVector(b, fieldOffsets.length);
+
+    const fieldsVectorOffset = _Schema.createFieldsVector(b, fieldOffsets);
+
+    const metadataOffset = !(schema.metadata && schema.metadata.size > 0) ? -1 :
+        _Schema.createCustomMetadataVector(b, [...schema.metadata].map(([k, v]) => {
+            const key = b.createString(`${k}`);
+            const val = b.createString(`${v}`);
+            _KeyValue.startKeyValue(b);
+            _KeyValue.addKey(b, key);
+            _KeyValue.addValue(b, val);
+            return _KeyValue.endKeyValue(b);
+        }));
+
+    _Schema.startSchema(b);
+    _Schema.addFields(b, fieldsVectorOffset);
+    _Schema.addEndianness(b, platformIsLittleEndian ? _Endianness.Little : _Endianness.Big);
+
+    if (metadataOffset !== -1) { _Schema.addCustomMetadata(b, metadataOffset); }
+
+    return _Schema.endSchema(b);
+}
+
+function encodeField(b: Builder, field: Field) {
+
+    let nameOffset = -1;
+    let typeOffset = -1;
+    let dictionaryOffset = -1;
+
+    let type = field.type;
+    let typeId: Type = <any> field.typeId;
+
+    if (!DataType.isDictionary(type)) {
+        typeOffset = typeAssembler.visit(type, b)!;
+    } else {
+        typeId = type.dictionary.TType;
+        dictionaryOffset = typeAssembler.visit(type, b)!;
+        typeOffset = typeAssembler.visit(type.dictionary, b)!;
+    }
+
+    const childOffsets = (type.children || []).map((f: Field) => Field.encode(b, f));
+    const childrenVectorOffset = _Field.createChildrenVector(b, childOffsets);
+
+    const metadataOffset = !(field.metadata && field.metadata.size > 0) ? -1 :
+        _Field.createCustomMetadataVector(b, [...field.metadata].map(([k, v]) => {
+            const key = b.createString(`${k}`);
+            const val = b.createString(`${v}`);
+            _KeyValue.startKeyValue(b);
+            _KeyValue.addKey(b, key);
+            _KeyValue.addValue(b, val);
+            return _KeyValue.endKeyValue(b);
+        }));
+
+    if (field.name) {
+        nameOffset = b.createString(field.name);
+    }
+
+    _Field.startField(b);
+    _Field.addType(b, typeOffset);
+    _Field.addTypeType(b, typeId);
+    _Field.addChildren(b, childrenVectorOffset);
+    _Field.addNullable(b, !!field.nullable);
+
+    if (nameOffset !== -1) { _Field.addName(b, nameOffset); }
+    if (dictionaryOffset !== -1) { _Field.addDictionary(b, dictionaryOffset); }
+    if (metadataOffset !== -1) { _Field.addCustomMetadata(b, metadataOffset); }
+
+    return _Field.endField(b);
+}
+
+function encodeRecordBatch(b: Builder, recordBatch: RecordBatch) {
+
+    const nodes = recordBatch.nodes || [];
+    const buffers = recordBatch.buffers || [];
+
+    _RecordBatch.startNodesVector(b, nodes.length);
+    nodes.slice().reverse().forEach((n) => FieldNode.encode(b, n));
+
+    const nodesVectorOffset = b.endVector();
+
+    _RecordBatch.startBuffersVector(b, buffers.length);
+    buffers.slice().reverse().forEach((b_) => BufferRegion.encode(b, b_));
+
+    const buffersVectorOffset = b.endVector();
+
+    _RecordBatch.startRecordBatch(b);
+    _RecordBatch.addLength(b, new Long(recordBatch.length, 0));
+    _RecordBatch.addNodes(b, nodesVectorOffset);
+    _RecordBatch.addBuffers(b, buffersVectorOffset);
+    return _RecordBatch.endRecordBatch(b);
+}
+
+function encodeDictionaryBatch(b: Builder, dictionaryBatch: DictionaryBatch) {
+    const dataOffset = RecordBatch.encode(b, dictionaryBatch.data);
+    _DictionaryBatch.startDictionaryBatch(b);
+    _DictionaryBatch.addId(b, new Long(dictionaryBatch.id, 0));
+    _DictionaryBatch.addIsDelta(b, dictionaryBatch.isDelta);
+    _DictionaryBatch.addData(b, dataOffset);
+    return _DictionaryBatch.endDictionaryBatch(b);
+}
+
+function encodeFieldNode(b: Builder, node: FieldNode) {
+    return _FieldNode.createFieldNode(b, new Long(node.length, 0), new Long(node.nullCount, 0));
+}
+
+function encodeBufferRegion(b: Builder, node: BufferRegion) {
+    return _Buffer.createBuffer(b, new Long(node.offset, 0), new Long(node.length, 0));
+}
+
+const platformIsLittleEndian = (function() {
+    const buffer = new ArrayBuffer(2);
+    new DataView(buffer).setInt16(0, 256, true /* littleEndian */);
+    // Int16Array uses the platform's endianness.
+    return new Int16Array(buffer)[0] === 256;
+})();

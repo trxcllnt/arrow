@@ -18,12 +18,15 @@
 /* tslint:disable */
 // Dynamically load an Arrow target build based on command line arguments
 
+import './jest-extensions';
+
+import '@mattiasbuelens/web-streams-polyfill';
+
+/* tslint:disable */
+// import this before assigning window global since it does a `typeof window` check
+require('web-stream-tools');
+
 (<any> global).window = (<any> global).window || global;
-
-import { ReadableStream, WritableStream } from '@mattiasbuelens/web-streams-polyfill/ponyfill';
-
-(global as any).ReadableStream = ReadableStream;
-(global as any).WritableStream = WritableStream;
 
 // Fix for Jest in node v10.x
 Object.defineProperty(ArrayBuffer, Symbol.hasInstance, {
@@ -55,21 +58,11 @@ else if (!~targets.indexOf(target)) throwInvalidImportError('target', target, ta
 else if (!~formats.indexOf(format)) throwInvalidImportError('module', format, formats);
 else modulePath = path.join(target, format);
 
-// import { read, readAsync } from '../src/Arrow';
-// export { read, readAsync };
-// import { View,  VectorLike } from '../src/Arrow';
-// export { View,  VectorLike };
-// import { Table, Field, Schema, RecordBatch, Type, vector } from '../src/Arrow';
-// export { Table, Field, Schema, RecordBatch, Type, vector };
+modulePath = path.resolve(`./targets`, modulePath);
+modulePath = path.join(modulePath, `Arrow.${format === 'umd' ? 'dom' : 'node'}`);
 
-// import { TypedArray, TypedArrayConstructor, IntBitWidth, TimeBitWidth } from '../src/Arrow';
-// export { TypedArray, TypedArrayConstructor, IntBitWidth, TimeBitWidth };
+const Arrow: typeof import('../src/Arrow') = require(modulePath);
+// export let Arrow: typeof import('../src/Arrow') = require(modulePath);
 
-// type XXX = typeof import('../src/Arrow');
-
-// export namespace Arrow {
-//     export import :XXX;
-// }
-
-export let Arrow: typeof import('../src/Arrow') = require(path.resolve(`./targets`, modulePath, `Arrow`));
-export default Arrow;
+// export default Arrow as typeof import('../src/Arrow');
+export = Arrow;

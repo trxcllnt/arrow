@@ -16,85 +16,79 @@
 // under the License.
 
 import { Data } from './data';
-import { Schema } from './schema';
-import { Column } from './column';
+import { Schema, Field } from './schema';
+import { Vector } from './vector';
+import { StructVector } from './vector';
 import { DataType, Struct } from './type';
-import { Vector, VectorLike } from './interfaces';
-import { clampRange } from './util/vector';
-import { Vector as ArrowVector } from './vector';
-import { instance as getVisitor } from './visitor/get';
-import { instance as indexOfVisitor } from './visitor/indexof';
-import { instance as toArrayVisitor } from './visitor/toarray';
-import { instance as iteratorVisitor } from './visitor/iterator';
-// import { instance as byteWidthVisitor } from './visitor/bytewidth';
 
-export class RecordBatch<T extends { [key: string]: DataType } = any> implements VectorLike<Struct<T>> {
+export class RecordBatch<T extends { [key: string]: DataType } = any> extends Vector<Struct<T>> {
 
-//     public static from<T extends { [key: string]: DataType } = any>(vectors: Vector[]) {
-//         const numRows = Math.max(...vectors.map((v) => v.length));
-//         return new RecordBatch<T>(Schema.from(vectors), numRows, vectors);
-//     }
-
-    static new<T extends { [key: string]: DataType } = any>(schema: Schema, numRows: number, columns: (Data | Vector)[]) {
-        return new RecordBatch<T>(schema, Data.Struct(new Struct(schema.fields), 0, numRows, 0, null, columns));
-    }
-
+    private impl: StructVector<T>;
     public readonly schema: Schema;
-    public readonly numCols: number;
-    public readonly data: Data<Struct<T>>;
-    protected _children: Vector[] | void;
-    
-    constructor(schema: Schema, data: Data<Struct<T>>, children?: Vector[]) {
-        this.data = data;
-        this.schema = schema;
-        this._children = children;
-        this.numCols = schema.fields.length;
+
+    constructor(schema: Schema<T>, numRows: number, childData: Data[]);
+    constructor(schema: Schema<T>, data: Data<Struct<T>>, children?: Vector[]);
+    constructor(...args: any[]) {
+        super();
+        this.schema = args[0];
+        let data: Data<Struct<T>>;
+        let children: Vector[] | undefined;
+        if (typeof args[1] === 'number') {
+            const fields = this.schema.fields as Field<T[keyof T]>[];
+            const [, numRows, childData] = args as [Schema<T>, number, Data[]];
+            data = Data.Struct(new Struct<T>(fields), 0, numRows, 0, null, childData);
+        } else {
+            [, data, children] = (args as [Schema<T>, Data<Struct<T>>, Vector[]?]);
+        }
+        this.impl = new StructVector(data, children);
     }
-    public get length() { return this.data.length; }
-    public clone<R extends { [key: string]: DataType } = any>(data: Data<Struct<R>>, children = this._children) {
-        return new RecordBatch(this.schema, data as any, children as any);
+
+    public clone<R extends { [key: string]: DataType } = any>(data: Data<Struct<R>>, children = (this.impl as any).children) {
+        return new RecordBatch<R>(this.schema, data, children);
     }
-    public concat(...others: VectorLike<Struct<T>>[]): VectorLike<Struct<T>> {
-        return Column.concat(this as any, ...others as any[]);
+
+    public get type() { return this.impl.type; }
+    public get data() { return this.impl.data; }
+    public get length() { return this.impl.length; }
+    public get numCols() { return this.schema.fields.length; }
+    public get rowProxy() { return this.impl.rowProxy; }
+    public get nullCount() { return this.impl.nullCount; }
+    public get numChildren() { return this.impl.numChildren; }
+
+    public get TType() { return this.impl.TType; }
+    public get TArray() { return this.impl.TArray; }
+    public get TValue() { return this.impl.TValue; }
+    public get ArrayType() { return this.impl.ArrayType; }
+
+    public get(index: number) { return this.impl.get(index); }
+    public isValid(index: number) { return this.impl.isValid(index); }
+    public indexOf(value: Struct<T>['TValue'] | null, fromIndex?: number) { return this.impl.indexOf(value, fromIndex); }
+
+    public toArray() { return this.impl.toArray(); }
+    public [Symbol.iterator]() { return this.impl[Symbol.iterator](); }
+
+    public slice(begin?: number, end?: number): RecordBatch<T> {
+        return this.impl.slice.call(this, begin, end) as RecordBatch<T>;
     }
-    public isValid(_index: number): boolean { return true; }
-    public getChildAt<R extends DataType = any>(index: number): Vector<R> | null {
-        return index < 0 || index >= this.numCols ? null : (
-            (this._children || (this._children = []))[index] ||
-            (this._children[index] = ArrowVector.new<R>(this.data.childData[index] as Data<R>))
-        ) as Vector<R>;
+
+    public concat(...others: Vector<Struct<T>>[]): Vector<Struct<T>> {
+        return this.impl.concat(...others.map((x) => x instanceof RecordBatch ? x.impl : x) as Vector<Struct<T>>[]);
     }
-    public slice(begin?: number, end?: number): VectorLike<Struct<T>> {
-        // Adjust args similar to Array.prototype.slice. Normalize begin/end to
-        // clamp between 0 and length, and wrap around on negative indices, e.g.
-        // slice(-1, 5) or slice(5, -1)
-        return clampRange(this, begin, end, (x, y, z) => x.clone(x.data.slice(y, z))) as any;
-    }
-    public get(index: number): Struct<T>['TValue'] | null {
-        return getVisitor.visit(this as any as Vector<Struct<T>>, index);
-    }
-    public indexOf(value: Struct<T>['TValue'] | null, fromIndex?: number): number {
-        return indexOfVisitor.visit(this as any as Vector<Struct<T>>, value, fromIndex);
-    }
-    public toArray(): Struct<T>['TArray'] {
-        return toArrayVisitor.visit(this as any as Vector<Struct<T>>);
-    }
-    public [Symbol.iterator](): IterableIterator<Struct<T>['TValue'] | null> {
-        return iteratorVisitor.visit(this as any as Vector<Struct<T>>);
-    }
+
+    public getChildAt<R extends DataType = any>(index: number) { return this.impl.getChildAt<R>(index); }
 
     public select<K extends keyof T = any>(...columnNames: K[]) {
         const fields = this.schema.fields;
-        const namesToKeep = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
-        return RecordBatch.new<{ [P in K]: T[P] }>(
-            this.schema.select(...columnNames), this.length,
-            this.data.childData.filter((_, i) => namesToKeep[fields[i].name])
-        );
+        const schema = this.schema.select(...columnNames);
+        const childNames = columnNames.reduce((xs, x) => (xs[x] = true) && xs, <any> {});
+        const childData = this.data.childData.filter((_, i) => childNames[fields[i].name]);
+        const structData = Data.Struct(new Struct(schema.fields), 0, this.length, 0, null, childData);
+        return new RecordBatch<{ [P in K]: T[P] }>(schema, structData);
     }
 //     public rowsToString(separator = ' | ', rowOffset = 0, maxColumnWidths: number[] = []) {
 //         return new PipeIterator(recordBatchRowsToString(this, separator, rowOffset, maxColumnWidths), 'utf8');
 //     }
-// }
+}
 
 // function* recordBatchRowsToString(recordBatch: RecordBatch, separator = ' | ', rowOffset = 0, maxColumnWidths: number[] = []) {
 //     const fields = recordBatch.schema.fields;
@@ -119,4 +113,4 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> implements
 //             .map((x, j) => leftPad(x, ' ', maxColumnWidths[j]))
 //             .join(separator);
 //     }
-}
+// }

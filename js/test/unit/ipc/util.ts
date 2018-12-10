@@ -15,13 +15,47 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Readable } from 'stream';
+import { Readable, PassThrough } from 'stream';
 import { toUint8Array } from '../../../src/util/buffer';
-import { ReadableDOMStream } from '../../../src/io/interfaces';
+
+export function* chunkedIterable(buffer: Uint8Array) {
+    let offset = 0, size = 0;
+    while (offset < buffer.byteLength) {
+        size = yield buffer.subarray(offset, offset +=
+            (isNaN(+size) ? buffer.byteLength - offset : size));
+    }
+}
+
+export async function* asyncChunkedIterable(buffer: Uint8Array) {
+    let offset = 0, size = 0;
+    while (offset < buffer.byteLength) {
+        size = yield buffer.subarray(offset, offset +=
+            (isNaN(+size) ? buffer.byteLength - offset : size));
+    }
+}
+
+export async function* readableDOMStreamToAsyncIterator<T>(stream: ReadableStream<T>) {
+    // Get a lock on the stream
+    const reader = stream.getReader();
+    try {
+        while (true) {
+            // Read from the stream
+            const { done, value } = await reader.read();
+            // Exit if we're done
+            if (done) { break; }
+            // Else yield the chunk
+            yield value as T;
+        }
+    } catch (e) {
+        throw e;
+    } finally {
+        try { stream.locked && reader.releaseLock(); } catch (e) {}
+    }
+}
 
 export function nodeToDOMStream(stream: NodeJS.ReadableStream, opts: any = {}) {
     stream = new Readable().wrap(stream);
-    return new ReadableDOMStream({
+    return new ReadableStream({
         ...opts,
         start(controller) {
             stream.pause();
@@ -50,5 +84,11 @@ export function nodeToDOMStream(stream: NodeJS.ReadableStream, opts: any = {}) {
                 return (stream as any).destroy(reason);
             }
         }
-    })
+    });
+}
+
+export function convertNodeToDOMStream() {
+    const stream = new PassThrough();
+    (stream as any).dom = nodeToDOMStream(stream);
+    return stream as PassThrough & { dom: ReadableStream<any> };
 }

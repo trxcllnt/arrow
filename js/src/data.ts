@@ -16,6 +16,7 @@
 // under the License.
 
 import { DataType } from './type';
+import { Vector } from './interfaces';
 import { popcnt_bit_range } from './util/bit';
 import { toArrayBufferView } from './util/buffer';
 import { Type, VectorType as BufferType, UnionMode } from './enum';
@@ -26,7 +27,6 @@ import {
     Date_, Time, Timestamp, Interval,
     List, Struct, Union, FixedSizeBinary, FixedSizeList, Map_,
 } from './type';
-import { Vector } from './interfaces';
 
 // When slicing, we do not know the null count of the sliced range without
 // doing some computation. To avoid doing this eagerly, we set the null count
@@ -126,9 +126,9 @@ export class Data<T extends DataType = DataType> {
         return valueOffsets.subarray(offset, offset + length + 1);
     }
 
-    // 
+    //
     // Convenience methods for creating Data instances for each of the Arrow Vector types
-    // 
+    //
 
     public static Null<T extends Null>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer) {
         return new Data(type, offset, length, nullCount, {
@@ -195,14 +195,14 @@ export class Data<T extends DataType = DataType> {
             [BufferType.DATA]: toArrayBufferView(type.ArrayType, data)
         });
     }
-    public static Binary<T extends Binary>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: Uint8Array, valueOffsets: ValueOffsetsBuffer) {
+    public static Binary<T extends Binary>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, valueOffsets: ValueOffsetsBuffer, data: Uint8Array) {
         return new Data(type, offset, length, nullCount, {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap),
             [BufferType.OFFSET]: toArrayBufferView(Int32Array, valueOffsets),
             [BufferType.DATA]: toArrayBufferView(Uint8Array, data)
         });
     }
-    public static Utf8<T extends Utf8>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: Uint8Array, valueOffsets: ValueOffsetsBuffer) {
+    public static Utf8<T extends Utf8>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, valueOffsets: ValueOffsetsBuffer, data: Uint8Array) {
         return new Data(type, offset, length, nullCount, {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap),
             [BufferType.OFFSET]: toArrayBufferView(Int32Array, valueOffsets),
@@ -230,14 +230,15 @@ export class Data<T extends DataType = DataType> {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap)
         }, childData);
     }
-    public static Union<T extends Union>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, typeIds: Uint8Array, childData: (Data | Vector)[], valueOffsets?: ValueOffsetsBuffer) {
+    public static Union<T extends Union>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, typeIds: Uint8Array, valueOffsetsOrChildData: ValueOffsetsBuffer | (Data | Vector)[], childData?: (Data | Vector)[]) {
         const buffers = {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap),
             [BufferType.TYPE]: toArrayBufferView(type.ArrayType, typeIds)
         } as any;
-        if (type.mode === UnionMode.Dense) {
-            buffers[BufferType.OFFSET] = toArrayBufferView(Int32Array, valueOffsets);
+        if (type.mode === UnionMode.Sparse) {
+            return new Data(type, offset, length, nullCount, buffers, valueOffsetsOrChildData as (Data | Vector)[]);
         }
+        buffers[BufferType.OFFSET] = toArrayBufferView(Int32Array, <ValueOffsetsBuffer> valueOffsetsOrChildData);
         return new Data(type, offset, length, nullCount, buffers, childData);
     }
 }

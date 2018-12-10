@@ -15,14 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Schema } from './schema';
 import { Vector } from './vector';
-import { Column } from './column';
-import { VectorLike } from './interfaces';
+import { Schema, Field } from './schema';
+import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
-import { ArrowIPCInput } from './ipc/input';
-import { DataType, Row, Struct } from './type';
-import { ArrowDataSource, RecordBatchReader, AsyncRecordBatchReader } from './ipc/reader';
+import { DataType, RowLike, Struct } from './type';
+import { Vector as VType } from './interfaces';
+import { ChunkedVector, Column } from './column';
+import {
+    RecordBatchReader,
+    FromArg0, FromArg1, FromArg2, FromArg3, FromArg4, FromArgs
+} from './ipc/reader';
+
 // import { Col, Predicate } from './predicate';
 // import { read, readAsync } from './ipc/reader/arrow';
 // import { writeTableBinary } from './ipc/writer/arrow';
@@ -38,39 +42,54 @@ export interface DataFrame<T extends { [key: string]: DataType; } = any> {
     // filter(predicate: Predicate): DataFrame<T>;
     // scan(next: NextFunc, bind?: BindFunc): void;
     // countBy(col: (Col|string)): CountByResult;
-    [Symbol.iterator](): IterableIterator<Row<T>>;
+    [Symbol.iterator](): IterableIterator<RowLike<T>>;
 }
 
 export class Table<T extends { [key: string]: DataType; } = any> implements DataFrame<T> {
-    static empty() { return new Table<{}>(new Schema([]), []); }
-    static from<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCInput): Table<R> | Promise<Table<R>> {
-        const source = new ArrowDataSource(sources);
-        if (source.isSync()) {
-            const reader = source.open() as RecordBatchReader<R>;
-            return new Table<R>(reader.readSchema(), [...reader]);
+
+    public static empty<T extends { [key: string]: DataType; } = any>() { return new Table<T>(new Schema([]), []); }
+
+    public static from<T extends { [key: string]: DataType } = any>(): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg0): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg1): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source?: any) {
+
+        if (!source) { return Table.empty<T>(); }
+
+        let reader = RecordBatchReader.from<T>(source) as RecordBatchReader<T> | Promise<RecordBatchReader<T>>;
+
+        if (isPromise<RecordBatchReader<T>>(reader)) {
+            return (async () => await Table.from(await reader))();
         }
-        return Table.fromAsync<R>(sources);
-    }
-    static async fromAsync<R extends { [key: string]: DataType; } = any>(sources: ArrowIPCInput): Promise<Table<R>> {
-        const source = new ArrowDataSource(sources);
-        if (source.isAsync()) {
-            const reader = await source.open() as AsyncRecordBatchReader<R>;
-            const schema = await reader.readSchema();
-            const recordBatches: RecordBatch[] = [];
-            for await (let recordBatch of reader) {
-                recordBatches.push(recordBatch);
+        if (reader.isSync() && (reader = reader.open())) {
+            return !reader.schema ? Table.empty<T>() : new Table<T>(reader.schema, [...reader]);
+        }
+        return (async (opening) => {
+            const reader = await opening;
+            const schema = reader.schema;
+            const batches: RecordBatch[] = [];
+            if (schema) {
+                for await (let batch of reader) {
+                    batches.push(batch);
+                }
+                return new Table<T>(schema, batches);
             }
-            return new Table<R>(schema, recordBatches);
-        }
-        return await Table.from<R>(sources);
+            return Table.empty<T>();
+        })(reader.open());
     }
-    // static fromStruct<R extends { [key: string]: DataType; } = any>(struct: StructVector<R>) {
-    //     const schema = new Schema(struct.type.children);
-    //     const chunks = struct.view instanceof ChunkedView ?
-    //                         (struct.view.chunkVectors as StructVector<R>[]) :
-    //                         [struct];
-    //     return new Table<R>(chunks.map((chunk) => new RecordBatch(schema, chunk.length, chunk.view.childData)));
-    // }
+
+    static async fromAsync<T extends { [key: string]: DataType; } = any>(source: FromArgs): Promise<Table<T>> {
+        return await Table.from<T>(source as any);
+    }
+    static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
+        const schema = new Schema(struct.type.children);
+        const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as VType<Struct<T>>[];
+        return new Table<T>(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
+    }
 
     public readonly schema: Schema;
     public readonly length: number;
@@ -84,7 +103,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     // If the Table has multiple inner RecordBatches, then this is a Chunked view
     // over the list of RecordBatches. This allows us to delegate the responsibility
     // of indexing, iterating, slicing, and visiting to the Nested/Chunked Data/Views.
-    public readonly batchesUnion: VectorLike<Struct<T>>;
+    public readonly batchesUnion: Vector<Struct<T>>;
 
     constructor(batches: RecordBatch<T>[]);
     constructor(...batches: RecordBatch<T>[]);
@@ -109,9 +128,9 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         this.schema = schema;
         this.batches = batches;
         this.batchesUnion = batches.length == 0
-            ? RecordBatch.new<T>(schema, 0, [])
+            ? new RecordBatch<T>(schema, 0, [])
             : batches.length === 1 ? batches[0]
-            : batches.slice(1).reduce<VectorLike<Struct<T>>>((union, batch) => union.concat(batch), batches[0]);
+            : ChunkedVector.concat<Struct<T>>(...batches) as Vector<Struct<T>>;
 
         this.length = this.batchesUnion.length;
         this.numCols = this.schema.fields.length;
@@ -120,23 +139,25 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public get(index: number): Struct<T>['TValue'] {
         return this.batchesUnion.get(index)!;
     }
-    public getColumn<R extends keyof T>(name: R): VectorLike<T[R]> | null {
-        return this.getColumnAt<T[R]>(this.getColumnIndex(name));
+    public getColumn<R extends keyof T>(name: R): Vector<T[R]> | null {
+        return this.getColumnAt(this.getColumnIndex(name)) as Vector<T[R]> | null;
     }
-    public getColumnAt<T extends DataType = any>(index: number): VectorLike<T> | null {
+    public getColumnAt<T extends DataType = any>(index: number): Vector<T> | null {
         if (index < 0 || index >= this.numCols) {
             return null;
         }
         if (this.batches.length === 1) {
-            return this.batches[0].getChildAt<T>(index) as VectorLike<T> | null;
+            return this.batches[0].getChildAt<T>(index) as Vector<T> | null;
         }
-        return Column.concat<T>(...this.batches.map((b) => b.getChildAt<T>(index)! as VectorLike<T>));
+        return new Column<T>(
+            this.schema.fields[index] as Field<T>,
+            this.batches.map((b) => b.getChildAt<T>(index)! as Vector<T>));
     }
     public getColumnIndex<R extends keyof T>(name: R) {
         return this.schema.fields.findIndex((f) => f.name === name);
     }
     public [Symbol.iterator]() {
-        return this.batchesUnion[Symbol.iterator]() as IterableIterator<Row<T>>;
+        return this.batchesUnion[Symbol.iterator]() as IterableIterator<RowLike<T>>;
     }
     // public filter(predicate: Predicate): DataFrame {
     //     return new FilteredDataFrame(this.batches, predicate);

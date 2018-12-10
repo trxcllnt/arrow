@@ -19,11 +19,11 @@ import * as File_ from '../../fb/File';
 import { flatbuffers } from 'flatbuffers';
 
 import Long = flatbuffers.Long;
+import Builder = flatbuffers.Builder;
 import ByteBuffer = flatbuffers.ByteBuffer;
 import _Block = File_.org.apache.arrow.flatbuf.Block;
 import _Footer = File_.org.apache.arrow.flatbuf.Footer;
 
-import './schema';
 import { Schema } from '../../schema';
 import { MetadataVersion } from '../../enum';
 import { toUint8Array } from '../../util/buffer';
@@ -38,6 +38,30 @@ export class Footer {
         return new OffHeapFooter(schema, footer) as Footer;
     }
 
+    static encode(footer: Footer) {
+
+        const b: Builder = new Builder();
+        const schemaOffset = Schema.encode(b, footer.schema);
+    
+        _Footer.startRecordBatchesVector(b, footer.numRecordBatches);
+        [...footer.recordBatches()].slice().reverse().forEach((rb) => FileBlock.encode(b, rb));
+        const recordBatchesOffset = b.endVector();
+    
+        _Footer.startDictionariesVector(b, footer.numDictionaries);
+        [...footer.dictionaryBatches()].slice().reverse().forEach((db) => FileBlock.encode(b, db));
+    
+        const dictionaryBatchesOffset = b.endVector();
+    
+        _Footer.startFooter(b);
+        _Footer.addSchema(b, schemaOffset);
+        _Footer.addVersion(b, MetadataVersion.V4);
+        _Footer.addRecordBatches(b, recordBatchesOffset);
+        _Footer.addDictionaries(b, dictionaryBatchesOffset);
+        _Footer.finishFooterBuffer(b, _Footer.endFooter(b));
+
+        return b.asUint8Array();
+    }
+    
     // @ts-ignore
     protected _recordBatches: FileBlock[];
     // @ts-ignore
@@ -67,13 +91,13 @@ export class Footer {
     public getRecordBatch(index: number) {
         return index >= 0
             && index < this.numRecordBatches
-            && this._recordBatches[index] || null; 
+            && this._recordBatches[index] || null;
     }
 
     public getDictionaryBatch(index: number) {
         return index >= 0
             && index < this.numDictionaries
-            && this._dictionaryBatches[index] || null; 
+            && this._dictionaryBatches[index] || null;
     }
 }
 
@@ -91,7 +115,7 @@ class OffHeapFooter extends Footer {
             const fileBlock = this._footer.recordBatches(index);
             if (fileBlock) { return FileBlock.decode(fileBlock); }
         }
-        return null; 
+        return null;
     }
 
     public getDictionaryBatch(index: number) {
@@ -99,7 +123,7 @@ class OffHeapFooter extends Footer {
             const fileBlock = this._footer.dictionaries(index);
             if (fileBlock) { return FileBlock.decode(fileBlock); }
         }
-        return null; 
+        return null;
     }
 }
 
@@ -108,7 +132,14 @@ export class FileBlock {
     static decode(block: _Block) {
         return new FileBlock(block.metaDataLength(), block.bodyLength(), block.offset());
     }
-    
+
+    static encode(b: Builder, fileBlock: FileBlock) {
+        const { metaDataLength } = fileBlock;
+        const offset = new Long(fileBlock.offset, 0);
+        const bodyLength = new Long(fileBlock.bodyLength, 0);
+        return _Block.createBlock(b, offset, metaDataLength, bodyLength);
+    }
+
     public offset: number;
     public bodyLength: number;
     public metaDataLength: number;
