@@ -71,16 +71,6 @@ const test_data = [
     },
 ];
 
-// function compareTables(t1: Table, t2: Table) {
-//     expect(t1.length).toEqual(t2.length);
-//     expect(t1.numCols).toEqual(t2.numCols);
-//     for (let i = -1, n = t1.numCols; ++i < n;) {
-//         const v1 = t1.getColumnAt(i);
-//         const v2 = t2.getColumnAt(i);
-//         (expect([v1, `left`, t1.schema.fields[i].name]) as any).toEqualVector([v2, `right`, t2.schema.fields[i].name]);
-//     }
-// }
-
 describe(`Table`, () => {
     test(`can create an empty table`, () => {
         expect(Table.empty().length).toEqual(0);
@@ -120,6 +110,12 @@ describe(`Table`, () => {
                     expect(row.dictionary).toEqual(expected[DICT]);
                 }
             });
+            test(`serialize and de-serialize is a no-op`, () => {
+                const table = datum.table();
+                const clone = Table.from(table.serialize());
+                expect(clone).toEqualTable(table);
+            });
+
             // describe(`scan()`, () => {
             //     test(`yields all values`, () => {
             //         let expected_idx = 0;
@@ -312,9 +308,6 @@ describe(`Table`, () => {
             //     test(`always-true count() returns length`, () => {
             //         expect(table.filter(col('dictionary').eq(col('dictionary'))).count()).toEqual(table.length);
             //     });
-            // });
-            // describe(`serialize and de-serialize is a no-op`, () => {
-            //     compareTables(Table.from(table.serialize()), table);
             // });
         });
     }

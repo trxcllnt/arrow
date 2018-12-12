@@ -19,9 +19,11 @@ import { Vector } from './vector';
 import { Schema, Field } from './schema';
 import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
-import { DataType, RowLike, Struct } from './type';
+import { AsyncByteQueue } from './io/stream';
 import { Vector as VType } from './interfaces';
 import { ChunkedVector, Column } from './column';
+import { DataType, RowLike, Struct } from './type';
+import { RecordBatchFileWriter, RecordBatchStreamWriter } from './ipc/writer';
 import {
     RecordBatchReader,
     FromArg0, FromArg1, FromArg2, FromArg3, FromArg4, FromArgs
@@ -52,10 +54,11 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public static from<T extends { [key: string]: DataType } = any>(): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg0): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg1): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: PromiseLike<RecordBatchReader<T>>): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source?: any) {
 
         if (!source) { return Table.empty<T>(); }
@@ -215,9 +218,15 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     //     return str;
     // }
     // @ts-ignore
-    // public serialize(encoding = 'binary', stream = true) {
-    //     return writeTableBinary(this, stream);
-    // }
+    public serialize(encoding = 'binary', stream = true) {
+        const sink = new AsyncByteQueue();
+        const writer = !stream
+            ? new RecordBatchFileWriter(sink)
+            : new RecordBatchStreamWriter(sink);
+        this.batches.forEach((b) => writer.write(b));
+        writer.close();
+        return sink.toUint8Array(true);
+    }
     // public rowsToString(separator = ' | '): PipeIterator<string|undefined> {
     //     return new PipeIterator(tableRowsToString(this, separator), 'utf8');
     // }
