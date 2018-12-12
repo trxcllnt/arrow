@@ -16,7 +16,7 @@
 // under the License.
 
 import streamAdapters from './adapters';
-import { memcpy, toUint8Array, ArrayBufferViewInput } from '../util/buffer';
+import { memcpy, toUint8Array, joinUint8Arrays, ArrayBufferViewInput } from '../util/buffer';
 import {
     ITERATOR_DONE,
     Readable, Writable, ReadableWritable,
@@ -41,17 +41,17 @@ export class AsyncByteQueue<T extends ArrayBufferViewInput = Uint8Array> extends
             return super.write(value as T);
         }
     }
-    public async toUint8Array() {
-        let chunks = [], total = 0;
-        for await (const chunk of this) {
-            chunks.push(chunk);
-            total += chunk.byteLength;
-        }
-        return chunks.reduce((x, buffer) => {
-            x.buffer.set(buffer, x.offset);
-            x.offset += buffer.byteLength;
-            return x;
-        }, { offset: 0, buffer: new Uint8Array(total) }).buffer;
+    public toUint8Array(): Promise<Uint8Array>;
+    public toUint8Array(sync: true): Uint8Array;
+    public toUint8Array(sync = false) {
+        return sync ? joinUint8Arrays((this.values as any[]).slice())[0] : (async () => {
+            let buffers = [], byteLength = 0;
+            for await (const chunk of this) {
+                buffers.push(chunk);
+                byteLength += chunk.byteLength;
+            }
+            return joinUint8Arrays(buffers, byteLength)[0];
+        })();
     }
 }
 
