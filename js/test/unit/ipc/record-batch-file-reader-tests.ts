@@ -53,7 +53,7 @@ describe('RecordBatchFileReader', () => {
             const actual = reader.readRecordBatch(batches.length);
             expect(actual).toEqualRecordBatch(expected);
         }
-        reader.close();
+        reader.cancel();
         expect(reader.closed).toBe(true);
         expect(reader.schema).toBeUndefined();
     });
@@ -97,7 +97,7 @@ describe('AsyncRecordBatchFileReader', () => {
             const actual = await reader.readRecordBatch(batches.length);
             expect(actual).toEqualRecordBatch(expected);
         }
-        await reader.close();
+        await reader.cancel();
         expect(reader.closed).toBe(true);
         expect(reader.schema).toBeUndefined();
     });

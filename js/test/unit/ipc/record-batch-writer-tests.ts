@@ -17,28 +17,60 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
+
 import {
+    AsyncByteQueue,
     RecordBatchReader,
-    RecordBatchWriter,
-    AsyncWritableByteStream
+    RecordBatchFileWriter,
+    RecordBatchStreamWriter,
 } from '../../Arrow';
 
 import {
+    testSimpleRecordBatchFileReader,
+    testSimpleRecordBatchStreamReader,
     testSimpleAsyncRecordBatchStreamReader,
 } from './validate';
 
+const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
 const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
-const simpleStreamData = fs.readFileSync(simpleStreamPath);
+const simpleFileData = fs.readFileSync(simpleFilePath) as Uint8Array;
+const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
 
-describe('RecordBatchStreamWriter', () => {
+describe('RecordBatchWriter', () => {
     it('should write RecordBatches to a stream', async () => {
-        let sink = new AsyncWritableByteStream();
-        let writer = new RecordBatchWriter(sink);
-        let reader = RecordBatchReader.from(simpleStreamData);
-        for (const batch of reader) {
+        const sink = new AsyncByteQueue();
+        const writer = new RecordBatchStreamWriter(sink);
+        for (const batch of RecordBatchReader.from(simpleStreamData)) {
             writer.write(batch);
         }
         writer.close();
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(sink));
+        const reader = await RecordBatchReader.from(sink);
+        await testSimpleAsyncRecordBatchStreamReader(reader);
+    });
+});
+
+describe('RecordBatchFileWriter', () => {
+    it('should write the Arrow file format', async () => {
+        const sink = new AsyncByteQueue();
+        const writer = new RecordBatchFileWriter(sink);
+        for (const batch of RecordBatchReader.from(simpleStreamData)) {
+            writer.write(batch);
+        }
+        writer.close();
+        const reader = RecordBatchReader.from(await sink.toUint8Array());
+        testSimpleRecordBatchFileReader(reader);
+    });
+});
+
+describe('RecordBatchStreamWriter', () => {
+    it('should write the Arrow stream format', async () => {
+        const sink = new AsyncByteQueue();
+        const writer = new RecordBatchStreamWriter(sink);
+        for (const batch of RecordBatchReader.from(simpleFileData)) {
+            writer.write(batch);
+        }
+        writer.close();
+        const reader = RecordBatchReader.from(await sink.toUint8Array());
+        testSimpleRecordBatchStreamReader(reader);
     });
 });

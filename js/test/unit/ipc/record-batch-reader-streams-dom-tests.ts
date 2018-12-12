@@ -67,7 +67,7 @@ import {
     });
 
     describe('RecordBatchJSONReader', () => {
-        it('asReadableDOMStream should yield all RecordBatches', async () => {
+        it('toReadableDOMStream should yield all RecordBatches', async () => {
             const reader = RecordBatchReader.from(simpleJSONData);
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
@@ -75,7 +75,7 @@ import {
     });
 
     describe('RecordBatchFileReader', () => {
-        it('asReadableDOMStream should yield all RecordBatches', async () => {
+        it('toReadableDOMStream should yield all RecordBatches', async () => {
             const reader = RecordBatchReader.from(simpleFileData).open();
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
@@ -83,7 +83,7 @@ import {
     });
 
     describe('RecordBatchStreamReader', () => {
-        it('asReadableDOMStream should yield all RecordBatches', async () => {
+        it('toReadableDOMStream should yield all RecordBatches', async () => {
             const reader = RecordBatchReader.from(simpleStreamData);
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
@@ -91,12 +91,12 @@ import {
     });
 
     describe('AsyncRecordBatchFileReader', () => {
-        it('asReadableDOMStream should read all RecordBatches from an fs.ReadStream', async () => {
+        it('toReadableDOMStream should read all RecordBatches from an fs.ReadStream', async () => {
             const reader = await RecordBatchReader.from(fs.createReadStream(simpleFilePath));
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
-        it('asReadableDOMStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
+        it('toReadableDOMStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
             const reader = await RecordBatchReader.from(await fs.promises.open(simpleFilePath, 'r'));
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
@@ -104,12 +104,12 @@ import {
     });
 
     describe('AsyncRecordBatchStreamReader', () => {
-        it('asReadableDOMStream should read all RecordBatches from an fs.ReadStream', async () => {
+        it('toReadableDOMStream should read all RecordBatches from an fs.ReadStream', async () => {
             const reader = await RecordBatchReader.from(fs.createReadStream(simpleStreamPath));
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
-        it('asReadableDOMStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
+        it('toReadableDOMStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
             const reader = await RecordBatchReader.from(await fs.promises.open(simpleStreamPath, 'r'));
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
@@ -119,7 +119,7 @@ import {
             const source = concatStream([
                 nodeToDOMStream(fs.createReadStream(simpleStreamPath)),
                 nodeToDOMStream(fs.createReadStream(simpleStreamPath))
-            ]);
+            ]) as ReadableStream<Uint8Array>;
     
             let reader = await (await RecordBatchReader.from(source)).open(false);
 
@@ -128,7 +128,8 @@ import {
             expect(reader.reset().schema).toBeUndefined();
     
             reader = await testSimpleAsyncRecordBatchStreamReader(reader);
-            expect((await reader.close()).schema).toBeUndefined();
+            await reader.cancel();
+            expect(reader.schema).toBeUndefined();
             expect((await reader.open()).schema).toBeUndefined();
         });
     });

@@ -16,12 +16,12 @@
 // under the License.
 
 import { FileHandle } from './interfaces';
-import { ReadableByteStream, AsyncReadableByteStream } from './stream';
+import { ByteStream, AsyncByteStream } from './stream';
 
 /**
  * @ignore
  */
-export class RandomAccessFile extends ReadableByteStream {
+export class RandomAccessFile extends ByteStream {
     public size: number;
     public position: number = 0;
     protected buffer: Uint8Array | null;
@@ -61,7 +61,7 @@ export class RandomAccessFile extends ReadableByteStream {
 /**
  * @ignore
  */
-export class AsyncRandomAccessFile extends AsyncReadableByteStream {
+export class AsyncRandomAccessFile extends AsyncByteStream {
     public size: number;
     public position: number = 0;
     protected file: FileHandle | null;

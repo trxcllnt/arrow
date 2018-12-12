@@ -51,7 +51,8 @@ describe('RecordBatchStreamReader', () => {
         expect(reader.reset().schema).toBeUndefined();
 
         reader = testSimpleRecordBatchStreamReader(reader);
-        expect(reader.close().schema).toBeUndefined();
+        reader.cancel();
+        expect(reader.schema).toBeUndefined();
         expect(reader.open().schema).toBeUndefined();
     });
 });
@@ -92,7 +93,8 @@ describe('AsyncRecordBatchStreamReader', () => {
         expect(reader.reset().schema).toBeUndefined();
 
         reader = await testSimpleAsyncRecordBatchStreamReader(reader);
-        expect((await reader.close()).schema).toBeUndefined();
+        await reader.cancel();
+        expect(reader.schema).toBeUndefined();
         expect((await reader.open()).schema).toBeUndefined();
     });
 });

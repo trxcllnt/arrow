@@ -38,15 +38,16 @@ function collapseContiguousByteRanges(chunks: Uint8Array[]) {
 /**
  * @ignore
  */
-export function memcpy(target: ArrayBufferView, source: ArrayBufferView, targetByteOffset = 0, sourceByteLength = source.byteLength) {
+export function memcpy<TTarget extends ArrayBufferView, TSource extends ArrayBufferView>(target: TTarget, source: TSource, targetByteOffset = 0, sourceByteLength = source.byteLength) {
     const targetByteLength = target.byteLength;
-    const T = ((sourceByteLength + targetByteLength) % 8 === 0) ? Float64Array :
-              ((sourceByteLength + targetByteLength) % 4 === 0) ? Float32Array :
-              ((sourceByteLength + targetByteLength) % 2 === 0) ? Uint16Array  : Uint8Array;
-    const dst = new T(target.buffer, target.byteOffset, targetByteLength / T.BYTES_PER_ELEMENT);
-    const src = new T(source.buffer, source.byteOffset, Math.min(sourceByteLength, targetByteLength) / T.BYTES_PER_ELEMENT);
-    dst.set(src, targetByteOffset / T.BYTES_PER_ELEMENT);
-    return dst;
+    const ABVCTor =
+        ((sourceByteLength + targetByteLength) % 8 === 0) ? Float64Array :
+        ((sourceByteLength + targetByteLength) % 4 === 0) ? Float32Array :
+        ((sourceByteLength + targetByteLength) % 2 === 0) ? Uint16Array  : Uint8Array;
+    const dst = new ABVCTor(target.buffer, target.byteOffset, targetByteLength / ABVCTor.BYTES_PER_ELEMENT);
+    const src = new ABVCTor(source.buffer, source.byteOffset, Math.min(sourceByteLength, targetByteLength) / ABVCTor.BYTES_PER_ELEMENT);
+    dst.set(src, targetByteOffset / ABVCTor.BYTES_PER_ELEMENT);
+    return target;
 }
 
 /**
@@ -76,9 +77,9 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
     return [buffer || new Uint8Array(0), chunks.slice(index)];
 }
 
-export type ArrayBufferViewInput = ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined  |
-                    IteratorResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> |
-          ReadableStreamReadResult<ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> ;
+export type ArrayBufferViewInput = ArrayBufferView | ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined  |
+                    IteratorResult<ArrayBufferView | ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> |
+          ReadableStreamReadResult<ArrayBufferView | ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> ;
 
 /**
  * @ignore

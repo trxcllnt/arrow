@@ -73,7 +73,7 @@ export class Footer {
                 public version: MetadataVersion = MetadataVersion.V4,
                 recordBatches?: FileBlock[], dictionaryBatches?: FileBlock[]) {
         recordBatches && (this._recordBatches = recordBatches);
-        dictionaryBatches && (this._recordBatches = dictionaryBatches);
+        dictionaryBatches && (this._dictionaryBatches = dictionaryBatches);
     }
 
     public *recordBatches(): Iterable<FileBlock> {

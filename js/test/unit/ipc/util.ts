@@ -34,6 +34,19 @@ export async function* asyncChunkedIterable(buffer: Uint8Array) {
     }
 }
 
+export async function concatBuffersAsync(iterator: AsyncIterable<Uint8Array>) {
+    let chunks = [], total = 0;
+    for await (const chunk of iterator) {
+        chunks.push(chunk);
+        total += chunk.byteLength;
+    }
+    return chunks.reduce((x, buffer) => {
+        x.buffer.set(buffer, x.offset);
+        x.offset += buffer.byteLength;
+        return x;
+    }, { offset: 0, buffer: new Uint8Array(total) }).buffer;
+}
+
 export async function* readableDOMStreamToAsyncIterator<T>(stream: ReadableStream<T>) {
     // Get a lock on the stream
     const reader = stream.getReader();
@@ -68,7 +81,7 @@ export function nodeToDOMStream(stream: NodeJS.ReadableStream, opts: any = {}) {
                 // When the ReadableByteStream sets the ArrayBuffer's `byteLength` to 0, it isn't just
                 // setting this chunk's ArrayBuffer byteLength to zero, but rather the ArrayBuffer for
                 // all the currently active file streams. See the code here for more details:
-                // https://github.com/whatwg/files/blob/3197c7e69456eda08377c18c78ffc99831b5a35f/reference-implementation/lib/helpers.js#L126
+                // https://github.com/whatwg/streams/blob/0ebe4b042e467d9876d80ae045de3843092ad797/reference-implementation/lib/helpers.js#L126
                 controller.enqueue(toUint8Array(chunk).slice());
                 stream.pause();
             });
