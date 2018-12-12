@@ -15,19 +15,19 @@ export * from './Arrow';
 
 function recordBatchReaderThroughDOMStream<T extends { [key: string]: DataType } = any>() {
 
-    const queue = new AsyncByteQueue();
+    const through = new AsyncByteQueue();
     let reader: RecordBatchReader<T> | null = null;
 
     const readable = new ReadableStream<RecordBatch<T>>({
-        async cancel() { await queue.close(); },
+        async cancel() { await through.close(); },
         async start(controller) { await next(controller, reader || (reader = await open())); },
         async pull(controller) { reader ? await next(controller, reader) : controller.close(); }
     });
 
-    return { writable: new WritableStream(queue), readable };
+    return { writable: new WritableStream(through), readable };
 
     async function open() {
-        return await (await RecordBatchReader.from(queue)).open();
+        return await (await RecordBatchReader.from(through)).open();
     }
 
     async function next(controller: ReadableStreamDefaultController<RecordBatch<T>>, reader: RecordBatchReader<T>) {
@@ -49,12 +49,12 @@ function recordBatchWriterThroughDOMStream<T extends { [key: string]: DataType }
     readableStrategy?: { highWaterMark?: number, size?: any }
 ) {
 
-    const queue = new AsyncByteQueue();
-    const writer = new this<T>(queue);
-    const reader = new AsyncByteStream(queue);
+    const through = new AsyncByteQueue();
+    const writer = new this<T>(through);
+    const reader = new AsyncByteStream(through);
     const readable = new ReadableStream({
         type: 'bytes',
-        async cancel() { await queue.close(); },
+        async cancel() { await through.close(); },
         async pull(controller) { await next(controller); },
         async start(controller) { await next(controller); },
     }, readableStrategy);
