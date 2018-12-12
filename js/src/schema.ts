@@ -19,14 +19,24 @@ import { Vector } from './vector';
 import { DataType, Dictionary } from './type';
 
 function generateDictionaryMap(fields: Field[]) {
-    return fields
-        .filter((f): f is Field<Dictionary> => DataType.isDictionary(f.type))
-        .reduce((dictionaries, f) => {
-            if (dictionaries.has(f.type.id)) {
+    let dictionaries = new Map<number, Dictionary>();
+    for (let i = -1, n = fields.length; ++i < n;) {
+        const type = fields[i].type;
+        if (DataType.isDictionary(type)) {
+            if (!dictionaries.has(type.id)) {
+                dictionaries.set(type.id, type);
+            } else if (dictionaries.get(type.id) !== type) {
                 throw new Error(`Cannot create Schema containing two dictionaries with the same ID`);
             }
-            return dictionaries.set((f.type as Dictionary).id, f.type.dictionary);
-        }, new Map());
+        }
+        if (type.children) {
+            dictionaries = new Map([
+                ...dictionaries.entries(),
+                ...generateDictionaryMap(type.children).entries()
+            ]);
+        }
+    }
+    return dictionaries;
 }
 
 export class Schema<T extends { [key: string]: DataType } = any> {
