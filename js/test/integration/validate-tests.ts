@@ -15,28 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
+if (!process.env.JSON_PATHS || !process.env.ARROW_PATHS) {
+    throw new Error('Integration tests need paths to both json and arrow files');
+}
+
 import '../jest-extensions';
 
 import * as fs from 'fs';
 import * as path from 'path';
 
-import Arrow from '../Arrow';
 import { zip } from 'ix/iterable/zip';
 import { toArray } from 'ix/iterable/toarray';
-
-import { AsyncIterableX } from 'ix/asynciterable/asynciterablex';
-import { zip as zipAsync } from 'ix/asynciterable/zip';
-import { toArray as toArrayAsync } from 'ix/asynciterable/toarray';
+import { Table, RecordBatchReader } from '../Arrow';
 
 /* tslint:disable */
+const concatStream = require('multistream');
+/* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
-
-const { Table, read } = Arrow;
-const { fromReadableStream, readBuffersAsync, readRecordBatchesAsync } = Arrow;
-
-if (!process.env.JSON_PATHS || !process.env.ARROW_PATHS) {
-    throw new Error('Integration tests need paths to both json and arrow files');
-}
 
 function resolvePathArgs(paths: string) {
     let pathsArray = JSON.parse(paths) as string | string[];
@@ -82,18 +77,10 @@ describe(`Integration`, () => {
 function testReaderIntegration(jsonData: any, arrowBuffer: Uint8Array) {
     test(`json and arrow record batches report the same values`, () => {
         expect.hasAssertions();
-        const jsonRecordBatches = toArray(read(jsonData));
-        const binaryRecordBatches = toArray(read(arrowBuffer));
-        for (const [jsonRecordBatch, binaryRecordBatch] of zip(jsonRecordBatches, binaryRecordBatches)) {
-            expect(jsonRecordBatch.length).toEqual(binaryRecordBatch.length);
-            expect(jsonRecordBatch.numCols).toEqual(binaryRecordBatch.numCols);
-            for (let i = -1, n = jsonRecordBatch.numCols; ++i < n;) {
-                const v1 = jsonRecordBatch.getChildAt(i);
-                const v2 = binaryRecordBatch.getChildAt(i);
-                const name = jsonRecordBatch.schema.fields[i].name;
-                (expect([v1, `json`, name]) as any)
-                    .toEqualVector([v2, `binary`]);
-            }
+        const jsonReader = RecordBatchReader.from(jsonData);
+        const binaryReader = RecordBatchReader.from(arrowBuffer);
+        for (const [jsonRecordBatch, binaryRecordBatch] of zip(jsonReader, binaryReader)) {
+            expect(jsonRecordBatch).toEqualRecordBatch(binaryRecordBatch);
         }
     });
 }
@@ -103,111 +90,43 @@ function testTableFromBuffersIntegration(jsonData: any, arrowBuffer: Uint8Array)
         expect.hasAssertions();
         const jsonTable = Table.from(jsonData);
         const binaryTable = Table.from(arrowBuffer);
-        expect(jsonTable.length).toEqual(binaryTable.length);
-        expect(jsonTable.numCols).toEqual(binaryTable.numCols);
-        for (let i = -1, n = jsonTable.numCols; ++i < n;) {
-            const v1 = jsonTable.getColumnAt(i);
-            const v2 = binaryTable.getColumnAt(i);
-            const name = jsonTable.schema.fields[i].name;
-            (expect([v1, `json`, name]) as any)
-                .toEqualVector([v2, `binary`]);
-        }
+        expect(jsonTable).toEqualTable(binaryTable);
     });
 }
 
 function testTableToBuffersIntegration(srcFormat: 'json' | 'binary', arrowFormat: 'stream' | 'file') {
     const refFormat = srcFormat === `json` ? `binary` : `json`;
     return function testTableToBuffersIntegration(jsonData: any, arrowBuffer: Uint8Array) {
-        test(`serialized ${srcFormat} ${arrowFormat} reports the same values as the ${refFormat} ${arrowFormat}`, () => {
+        test(`serialized ${srcFormat} ${arrowFormat} reports the same values as the ${refFormat} ${arrowFormat}`, async () => {
             expect.hasAssertions();
             const refTable = Table.from(refFormat === `json` ? jsonData : arrowBuffer);
             const srcTable = Table.from(srcFormat === `json` ? jsonData : arrowBuffer);
             const dstTable = Table.from(srcTable.serialize(`binary`, arrowFormat === `stream`));
-            expect(dstTable.length).toEqual(refTable.length);
-            expect(dstTable.numCols).toEqual(refTable.numCols);
-            for (let i = -1, n = dstTable.numCols; ++i < n;) {
-                const v1 = dstTable.getColumnAt(i);
-                const v2 = refTable.getColumnAt(i);
-                const name = dstTable.schema.fields[i].name;
-                (expect([v1, srcFormat, name]) as any)
-                    .toEqualVector([v2, refFormat]);
-            }
+            expect(dstTable).toEqualTable(refTable);
         });
     }
 }
 
 function testReadingMultipleTablesFromTheSameStream() {
 
-    test('Can read multiple tables from the same stream with a special stream reader', async () => {
+    test('Can read multiple tables from the same stream', async () => {
 
-        async function* allTablesReadableStream() {
-            for (const [, arrowPath] of jsonAndArrowPaths) {
-                for await (const buffer of fs.createReadStream(arrowPath)) {
-                    yield buffer as Uint8Array;
-                }
-            }
-        }
+        const sources = concatStream([...jsonAndArrowPaths].map(([, arrowPath]) => {
+            return () => fs.createReadStream(arrowPath);
+        })) as NodeJS.ReadableStream;
 
-        const pathsAsync = AsyncIterableX.from(jsonAndArrowPaths);
-        const batchesAsync = readBatches(allTablesReadableStream());
-        const pathsAndBatches = zipAsync(pathsAsync, batchesAsync);
+        const reader = await RecordBatchReader.from(sources);
 
-        for await (const [[jsonFilePath, arrowFilePath], batches] of pathsAndBatches) {
+        for (const [jsonFilePath, arrowFilePath] of jsonAndArrowPaths) {
 
-            const streamTable = new Table(await toArrayAsync(batches));
+            const streamTable = await Table.from(await reader.reset().open(false));
             const binaryTable = Table.from(getOrReadFileBuffer(arrowFilePath) as Uint8Array);
             const jsonTable = Table.from(bignumJSONParse(getOrReadFileBuffer(jsonFilePath, 'utf8')));
 
-            expect(streamTable.length).toEqual(jsonTable.length);
-            expect(streamTable.length).toEqual(binaryTable.length);
-            expect(streamTable.numCols).toEqual(jsonTable.numCols);
-            expect(streamTable.numCols).toEqual(binaryTable.numCols);
-            for (let i = -1, n = streamTable.numCols; ++i < n;) {
-                const v1 = streamTable.getColumnAt(i);
-                const v2 = jsonTable.getColumnAt(i);
-                const v3 = binaryTable.getColumnAt(i);
-                const name = streamTable.schema.fields[i].name;
-                (expect([v1, `stream`, name]) as any).toEqualVector([v2, `json`]);
-                (expect([v1, `stream`, name]) as any).toEqualVector([v3, `binary`]);
-            }
+            expect(streamTable).toEqualTable(jsonTable);
+            expect(streamTable).toEqualTable(binaryTable);
         }
+
+        reader.cancel();
     });
-
-    async function* readBatches(stream: AsyncIterable<Uint8Array>) {
-
-        let message: any, done = false, broke = false;
-        let source = buffers(fromReadableStream(stream as any));
-    
-        do {
-            yield readRecordBatchesAsync(messages({
-                next(x: any) { return source.next(x); },
-                throw(x: any) { return source.throw!(x); },
-                [Symbol.asyncIterator]() { return this; },
-            }));
-        } while (!done || (message = null));
-    
-        source.return && (await source.return());
-    
-        async function* messages(source: AsyncIterableIterator<Uint8Array>) {
-            for await (message of readBuffersAsync(source)) {
-                if (broke = message.message.headerType === 1) {
-                    break;
-                }
-                yield message;
-                message = null;
-            }
-            done = done || !broke;
-            broke = false;
-        }
-    
-        async function* buffers(source: AsyncIterableIterator<Uint8Array>) {
-            while (!done) {
-                message && (yield message.loader.bytes);
-                const next = await source.next();
-                if (!(done = next.done)) {
-                    yield next.value;
-                }
-            }
-        }
-    }
 }
