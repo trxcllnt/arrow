@@ -54,7 +54,7 @@ import {
     const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
     // const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
 
-    describe(`RecordBatchWriter.throughNode`, () => {
+    describe(`RecordBatchWriter.throughDOM`, () => {
         it('should read all Arrow file format messages from an fs.ReadStream', async () => {
 
             const stream = fs
@@ -79,7 +79,7 @@ import {
         });
     });
 
-    describe(`RecordBatchFileWriter.throughNode`, () => {
+    describe(`RecordBatchFileWriter.throughDOM`, () => {
         it('should convert an Arrow stream to file format', async () => {
 
             const stream = fs
@@ -106,7 +106,7 @@ import {
         });
     });
 
-    describe(`RecordBatchStreamWriter.throughNode`, () => {
+    describe(`RecordBatchStreamWriter.throughDOM`, () => {
         it('should convert an Arrow file to stream format', async () => {
 
             const stream = fs
