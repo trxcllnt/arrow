@@ -59,9 +59,7 @@ export class MessageReader implements IterableIterator<Message> {
             throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
         // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
-        return (buf.byteOffset % 8 === 0) &&
-        // Work around https://github.com/whatwg/streams/blob/0ebe4b042e467d9876d80ae045de3843092ad797/reference-implementation/lib/helpers.js#L126
-               (buf.buffer.byteLength !== 0) ? buf : buf.slice();
+        return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
     public readSchema() {
         const type = MessageHeader.Schema;
@@ -122,9 +120,7 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
             throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
         // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
-        return (buf.byteOffset % 8 === 0) &&
-        // Work around https://github.com/whatwg/streams/blob/0ebe4b042e467d9876d80ae045de3843092ad797/reference-implementation/lib/helpers.js#L126
-               (buf.buffer.byteLength !== 0) ? buf : buf.slice();
+        return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
     public async readSchema() {
         const type = MessageHeader.Schema;
