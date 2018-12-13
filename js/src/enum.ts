@@ -40,6 +40,15 @@ export enum Type {
     FixedSizeList   = 16,  // Fixed-size list. Each value occupies the same number of bytes
     Map             = 17,  // Map of named logical types
 
+    // These enum values are here so that TypeScript can narrow the type signatures further
+    // beyond the base Arrow types. The base Arrow types include metadata like bitWidths that
+    // impact the type signatures of the values we return. For example, the Int8Vector reads
+    // 1-byte numbers from an Int8Array, an Int32Vector reads a 4-byte number from an Int32Array,
+    // and an Int64Vector reads a pair of 4-byte lo, hi int32s, and returns them as a zero-copy
+    // slice from an underlying Int32Array. Library consumers benefit by doing this type narrowing,
+    // since we can ensure the types across all public methods are propagated and never bail to `any`.
+    // These values are _never_ actually used at runtime, and they will _never_ be written into the
+    // flatbuffers metadata of serialized Arrow IPC payloads.
     Dictionary            = -1, // Dictionary aka Category type
     Int8                  = -2,
     Int16                 = -3,
