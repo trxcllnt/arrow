@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
 
@@ -25,14 +24,14 @@ import {
     RecordBatchStreamReader,
     AsyncRecordBatchFileReader,
     AsyncRecordBatchStreamReader
-} from '../../Arrow';
+} from '../../../Arrow';
 
 /* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
 
-const simpleJSONPath = Path.resolve(__dirname, `../../data/json/simple.json`);
-const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
-const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
+const simpleJSONPath = Path.resolve(__dirname, `../../../data/json/simple.json`);
+const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);
+const simpleStreamPath = Path.resolve(__dirname, `../../../data/cpp/stream/simple.arrow`);
 const simpleFileData = fs.readFileSync(simpleFilePath) as Uint8Array;
 const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
 const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath));

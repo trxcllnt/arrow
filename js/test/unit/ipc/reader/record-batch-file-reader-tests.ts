@@ -15,24 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
-import { nodeToDOMStream } from './util';
+import { nodeToDOMStream } from '../util';
 import { toArray } from 'ix/asynciterable/toarray';
-import { chunkedIterable, asyncChunkedIterable } from './util';
+import { chunkedIterable, asyncChunkedIterable } from '../util';
 import {
     testSimpleRecordBatchFileReader,
     testSimpleAsyncRecordBatchFileReader,
-} from './validate';
+} from '../validate';
 
 import {
     RecordBatchReader,
     RecordBatchFileReader,
     AsyncRecordBatchFileReader 
-} from '../../Arrow';
+} from '../../../Arrow';
 
-const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
+const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);
 const simpleFileData = fs.readFileSync(simpleFilePath);
 
 describe('RecordBatchFileReader', () => {

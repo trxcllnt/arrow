@@ -17,14 +17,14 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import { Schema, RecordBatchReader } from '../../Arrow';
-import { nodeToDOMStream, chunkedIterable, asyncChunkedIterable } from './util';
+import { Schema, RecordBatchReader } from '../../../Arrow';
+import { nodeToDOMStream, chunkedIterable, asyncChunkedIterable } from '../util';
 import {
     testSimpleRecordBatchStreamReader,
     testSimpleAsyncRecordBatchStreamReader,
-} from './validate';
+} from '../validate';
 
-const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
+const simpleStreamPath = Path.resolve(__dirname, `../../../data/cpp/stream/simple.arrow`);
 const simpleStreamData = fs.readFileSync(simpleStreamPath);
 
 describe('RecordBatchStreamReader', () => {

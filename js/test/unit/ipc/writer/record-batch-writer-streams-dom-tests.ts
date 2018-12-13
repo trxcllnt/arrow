@@ -21,35 +21,35 @@ import {
     concatBuffersAsync,
     convertNodeToDOMStream,
     readableDOMStreamToAsyncIterator
-} from './util';
+} from '../util';
 import {
     RecordBatchReader,
     RecordBatchWriter,
     RecordBatchFileWriter,
     RecordBatchStreamWriter
-} from '../../Arrow';
+} from '../../../Arrow';
 import {
     testSimpleRecordBatchFileReader,
     testSimpleRecordBatchStreamReader,
     testSimpleAsyncRecordBatchIterator,
     testSimpleAsyncRecordBatchFileReader,
     testSimpleAsyncRecordBatchStreamReader
-} from './validate';
+} from '../validate';
 
 (() => {
 
     if (process.env.TEST_NODE_STREAMS !== 'true') { return; }
 
     /* tslint:disable */
-    require('../../../src/Arrow.node');
+    require('../../../../src/Arrow.node');
     /* tslint:disable */
     // const concatStream = require('multistream');
     /* tslint:disable */
     // const { parse: bignumJSONParse } = require('json-bignum');
 
-    // const simpleJSONPath = Path.resolve(__dirname, `../../data/json/simple.json`);
-    const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
-    const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
+    // const simpleJSONPath = Path.resolve(__dirname, `../../../data/json/simple.json`);
+    const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);
+    const simpleStreamPath = Path.resolve(__dirname, `../../../data/cpp/stream/simple.arrow`);
     const simpleFileData = fs.readFileSync(simpleFilePath) as Uint8Array;
     const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
     // const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };

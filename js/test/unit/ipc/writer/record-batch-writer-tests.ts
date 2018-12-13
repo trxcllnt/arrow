@@ -23,16 +23,16 @@ import {
     RecordBatchReader,
     RecordBatchFileWriter,
     RecordBatchStreamWriter,
-} from '../../Arrow';
+} from '../../../Arrow';
 
 import {
     testSimpleRecordBatchFileReader,
     testSimpleRecordBatchStreamReader,
     testSimpleAsyncRecordBatchStreamReader,
-} from './validate';
+} from '../validate';
 
-const simpleFilePath = Path.resolve(__dirname, `../../data/cpp/file/simple.arrow`);
-const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
+const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);
+const simpleStreamPath = Path.resolve(__dirname, `../../../data/cpp/stream/simple.arrow`);
 const simpleFileData = fs.readFileSync(simpleFilePath) as Uint8Array;
 const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
 

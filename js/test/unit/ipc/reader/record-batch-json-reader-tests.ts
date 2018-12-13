@@ -15,16 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import '../../Arrow';
 import * as fs from 'fs';
 import * as Path from 'path';
-import { RecordBatchReader } from '../../Arrow';
-import { testSimpleRecordBatchJSONReader } from './validate';
+import { RecordBatchReader } from '../../../Arrow';
+import { testSimpleRecordBatchJSONReader } from '../validate';
 
 /* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
 
-const simpleJSONPath = Path.resolve(__dirname, `../../data/json/simple.json`);
+const simpleJSONPath = Path.resolve(__dirname, `../../../data/json/simple.json`);
 const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
 
 describe('RecordBatchJSONReader', () => {
