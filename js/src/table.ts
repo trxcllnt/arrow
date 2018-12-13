@@ -87,7 +87,10 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     static async fromAsync<T extends { [key: string]: DataType; } = any>(source: FromArgs): Promise<Table<T>> {
         return await Table.from<T>(source as any);
     }
-    static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
+    static fromVectors<R extends { [key: string]: DataType; } = any>(vectors: VType<R[keyof R]>[], names?: string[]) {
+        return new Table(RecordBatch.from(vectors, names));
+     }
+     static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
         const schema = new Schema(struct.type.children);
         const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as VType<Struct<T>>[];
         return new Table<T>(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
@@ -227,6 +230,10 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     //     return new PipeIterator(tableRowsToString(this, separator), 'utf8');
     // }
 }
+
+// // protect batches, batchesUnion from es2015/umd mangler
+// (<any> Table.prototype).batches = Object.freeze([]);
+// (<any> Table.prototype).batchesUnion = Object.freeze([]);
 
 // class FilteredDataFrame<T extends StructData = StructData> implements DataFrame<T> {
 //     private predicate: Predicate;

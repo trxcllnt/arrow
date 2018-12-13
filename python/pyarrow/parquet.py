@@ -95,11 +95,14 @@ class ParquetFile(object):
     common_metadata : ParquetFileMetadata, default None
         Will be used in reads for pandas schema metadata if not found in the
         main file's metadata, no other uses at the moment
+    memory_map : boolean, default True
+        If the source is a file path, use a memory map to read file, which can
+        improve performance in some environments
     """
-
-    def __init__(self, source, metadata=None, common_metadata=None):
+    def __init__(self, source, metadata=None, common_metadata=None,
+                 memory_map=True):
         self.reader = ParquetReader()
-        self.reader.open(source, metadata=metadata)
+        self.reader.open(source, use_memory_map=memory_map, metadata=metadata)
         self.common_metadata = common_metadata
         self._nested_paths_by_prefix = self._build_nested_paths()
 
@@ -367,7 +370,7 @@ schema : arrow Schema
             table = _sanitize_table(table, self.schema, self.flavor)
         assert self.is_open
 
-        if not table.schema.equals(self.schema):
+        if not table.schema.equals(self.schema, check_metadata=False):
             msg = ('Table schema does not match schema used to create file: '
                    '\ntable:\n{0!s} vs. \nfile:\n{1!s}'.format(table.schema,
                                                                self.schema))
@@ -1056,6 +1059,9 @@ use_threads : boolean, default True
     Perform multi-threaded column reads
 metadata : FileMetaData
     If separately computed
+memory_map : boolean, default True
+    If the source is a file path, use a memory map to read file, which can
+    improve performance in some environments
 {1}
 
 Returns
@@ -1065,7 +1071,8 @@ Returns
 
 
 def read_table(source, columns=None, use_threads=True, metadata=None,
-               use_pandas_metadata=False, nthreads=None):
+               use_pandas_metadata=False, memory_map=True,
+               nthreads=None):
     use_threads = _deprecate_nthreads(use_threads, nthreads)
     if _is_path_like(source):
         fs = _get_fs_from_path(source)
@@ -1088,10 +1095,11 @@ read_table.__doc__ = _read_table_docstring.format(
 
 
 def read_pandas(source, columns=None, use_threads=True,
-                nthreads=None, metadata=None):
+                memory_map=True, nthreads=None, metadata=None):
     return read_table(source, columns=columns,
                       use_threads=use_threads,
-                      metadata=metadata, use_pandas_metadata=True)
+                      metadata=metadata, memory_map=True,
+                      use_pandas_metadata=True)
 
 
 read_pandas.__doc__ = _read_table_docstring.format(
@@ -1201,12 +1209,14 @@ def write_to_dataset(table, root_path, partition_cols=None,
         data_cols = df.columns.drop(partition_cols)
         if len(data_cols) == 0:
             raise ValueError('No data left to save outside partition columns')
+
         subschema = table.schema
         # ARROW-2891: Ensure the output_schema is preserved when writing a
         # partitioned dataset
-        for partition_col in partition_cols:
-            subschema = subschema.remove(
-                subschema.get_field_index(partition_col))
+        for col in table.schema.names:
+            if (col.startswith('__index_level_') or col in partition_cols):
+                subschema = subschema.remove(subschema.get_field_index(col))
+
         for keys, subgroup in data_df.groupby(partition_keys):
             if not isinstance(keys, tuple):
                 keys = (keys,)
@@ -1258,31 +1268,35 @@ def write_metadata(schema, where, version='1.0',
     writer.close()
 
 
-def read_metadata(where):
+def read_metadata(where, memory_map=False):
     """
     Read FileMetadata from footer of a single Parquet file
 
     Parameters
     ----------
     where : string (filepath) or file-like object
+    memory_map : boolean, default False
+        Create memory map when the source is a file path
 
     Returns
     -------
     metadata : FileMetadata
     """
-    return ParquetFile(where).metadata
+    return ParquetFile(where, memory_map=memory_map).metadata
 
 
-def read_schema(where):
+def read_schema(where, memory_map=False):
     """
     Read effective Arrow schema from Parquet file metadata
 
     Parameters
     ----------
     where : string (filepath) or file-like object
+    memory_map : boolean, default False
+        Create memory map when the source is a file path
 
     Returns
     -------
     schema : pyarrow.Schema
     """
-    return ParquetFile(where).schema.to_arrow_schema()
+    return ParquetFile(where, memory_map=memory_map).schema.to_arrow_schema()

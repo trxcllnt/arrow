@@ -29,6 +29,9 @@ export * from './ipc/message';
 export * from './recordbatch';
 export * from './io/interfaces';
 
+import * as util from './util/int';
+export { util };
+
 // import * as enums from './enum';
 // import * as type_ from './type';
 // import * as vector_ from './vector';
@@ -215,17 +218,17 @@ export * from './io/interfaces';
 //     }
 // } catch (e) { /* not the UMD bundle */ }
 // /* end umd exports */
-
-// // closure compiler erases static properties/methods:
-// // https://github.com/google/closure-compiler/issues/1776
-// // set them via string indexers to save them from the mangler
+// closure compiler erases static properties/methods:
+// https://github.com/google/closure-compiler/issues/1776
+// set them via string indexers to save them from the mangler
 // Vector['new'] = Vector.new;
 // Schema['from'] = Schema.from;
-// // Table['from'] = Table.from;
-// // Table['fromAsync'] = Table.fromAsync;
-// // Table['fromStruct'] = Table.fromStruct;
-// // Table['empty'] = Table.empty;
-// // RecordBatch['from'] = RecordBatch.from;
+// Table['from'] = Table.from;
+// Table['fromVectors'] = Table.fromVectors;
+// Table['fromAsync'] = Table.fromAsync;
+// Table['fromStruct'] = Table.fromStruct;
+// Table['empty'] = Table.empty;
+// RecordBatch['from'] = RecordBatch.from;
 
 // Data['Null'] = Data.Null;
 // Data['Int'] = Data.Int;

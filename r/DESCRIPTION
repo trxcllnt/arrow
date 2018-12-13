@@ -32,7 +32,7 @@ Remotes:
     RcppCore/Rcpp, 
     r-lib/withr
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 6.1.0.9000
+RoxygenNote: 6.1.1
 Suggests:
     testthat,
     lubridate, 
@@ -54,10 +54,16 @@ Collate:
     'Table.R'
     'array.R'
     'buffer.R'
+    'compute.R'
     'dictionary.R'
+    'feather.R'
     'io.R'
     'memory_pool.R'
+    'message.R'
     'on_exit.R'
+    'read_record_batch.R'
+    'read_table.R'
     'reexports-bit64.R'
     'reexports-tibble.R'
+    'write_arrow.R'
     'zzz.R'

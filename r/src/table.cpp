@@ -28,7 +28,7 @@ std::shared_ptr<arrow::Table> Table__from_dataframe(DataFrame tbl) {
   auto rb = RecordBatch__from_dataframe(tbl);
 
   std::shared_ptr<arrow::Table> out;
-  R_ERROR_NOT_OK(arrow::Table::FromRecordBatches({std::move(rb)}, &out));
+  STOP_IF_NOT_OK(arrow::Table::FromRecordBatches({std::move(rb)}, &out));
   return out;
 }
 
@@ -66,4 +66,15 @@ List Table__to_dataframe(const std::shared_ptr<arrow::Table>& table) {
 std::shared_ptr<arrow::Column> Table__column(const std::shared_ptr<arrow::Table>& table,
                                              int i) {
   return table->column(i);
+}
+
+// [[Rcpp::export]]
+std::vector<std::shared_ptr<arrow::Column>> Table__columns(
+    const std::shared_ptr<arrow::Table>& table) {
+  auto nc = table->num_columns();
+  std::vector<std::shared_ptr<arrow::Column>> res(nc);
+  for (int i = 0; i < nc; i++) {
+    res[i] = table->column(i);
+  }
+  return res;
 }

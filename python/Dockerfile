@@ -21,13 +21,11 @@ FROM arrow:cpp
 ARG PYTHON_VERSION=3.6
 ADD ci/conda_env_python.yml /arrow/ci/
 RUN conda install -c conda-forge \
-        --file arrow/ci/conda_env_python.yml && \
+        --file arrow/ci/conda_env_python.yml \
         python=$PYTHON_VERSION && \
     conda clean --all
 
-ENV CC=gcc \
-    CXX=g++ \
-    ARROW_PYTHON=ON
+ENV ARROW_PYTHON=ON
 
 # build and test
 CMD arrow/ci/docker_build_cpp.sh && \

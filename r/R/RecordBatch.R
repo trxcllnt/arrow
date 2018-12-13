@@ -17,30 +17,55 @@
 
 #' @include R6.R
 
+#' @title class arrow::RecordBatch
+#'
+#' @usage NULL
+#' @format NULL
+#' @docType class
+#'
+#' @section Methods:
+#'
+#' TODO
+#'
+#' @rdname arrow__RecordBatch
+#' @name arrow__RecordBatch
 `arrow::RecordBatch` <- R6Class("arrow::RecordBatch", inherit = `arrow::Object`,
   public = list(
-    num_columns = function() RecordBatch__num_columns(self),
-    num_rows = function() RecordBatch__num_rows(self),
-    schema = function() construct(`arrow::Schema`, RecordBatch__schema(self)),
-    column = function(i) construct(`arrow::Array`, RecordBatch__column(self, i)),
+    column = function(i) shared_ptr(`arrow::Array`, RecordBatch__column(self, i)),
     column_name = function(i) RecordBatch__column_name(self, i),
     names = function() RecordBatch__names(self),
     Equals = function(other) {
       assert_that(inherits(other, "arrow::RecordBatch"))
       RecordBatch__Equals(self, other)
     },
+
     RemoveColumn = function(i){
-      construct(`arrow::RecordBatch`, RecordBatch__RemoveColumn(self, i))
+      shared_ptr(`arrow::RecordBatch`, RecordBatch__RemoveColumn(self, i))
     },
+
     Slice = function(offset, length = NULL) {
       if (is.null(length)) {
-        construct(`arrow::RecordBatch`, RecordBatch__Slice1(self, offset))
+        shared_ptr(`arrow::RecordBatch`, RecordBatch__Slice1(self, offset))
       } else {
-        construct(`arrow::RecordBatch`, RecordBatch__Slice2(self, offset, length))
+        shared_ptr(`arrow::RecordBatch`, RecordBatch__Slice2(self, offset, length))
       }
     },
 
-    serialize = function(output_stream, ...) write_record_batch(self, output_stream, ...)
+    serialize = function() ipc___SerializeRecordBatch__Raw(self),
+
+    cast = function(target_schema, safe = TRUE, options = cast_options(safe)) {
+      assert_that(inherits(target_schema, "arrow::Schema"))
+      assert_that(inherits(options, "arrow::compute::CastOptions"))
+      assert_that(identical(self$schema$names, target_schema$names), msg = "incompatible schemas")
+      shared_ptr(`arrow::RecordBatch`, RecordBatch__cast(self, target_schema, options))
+    }
+  ),
+
+  active = list(
+    num_columns = function() RecordBatch__num_columns(self),
+    num_rows = function() RecordBatch__num_rows(self),
+    schema = function() shared_ptr(`arrow::Schema`, RecordBatch__schema(self)),
+    columns = function() map(RecordBatch__columns(self), shared_ptr, `arrow::Array`)
   )
 )
 
@@ -59,11 +84,12 @@
   RecordBatch__to_dataframe(x)
 }
 
-#' Create an arrow::RecordBatch from a data frame
+#' Create an [arrow::RecordBatch][arrow__RecordBatch] from a data frame
 #'
 #' @param .data a data frame
 #'
+#' @return a [arrow::RecordBatch][arrow__RecordBatch]
 #' @export
 record_batch <- function(.data){
-  construct(`arrow::RecordBatch`, RecordBatch__from_dataframe(.data))
+  shared_ptr(`arrow::RecordBatch`, RecordBatch__from_dataframe(.data))
 }

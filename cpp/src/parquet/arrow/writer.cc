@@ -504,7 +504,7 @@ Status ArrowColumnWriter::WriteNullableBatch(
   using ParquetCType = typename ParquetType::c_type;
 
   ParquetCType* buffer;
-  RETURN_NOT_OK(ctx_->GetScratchData<ParquetCType>(num_levels, &buffer));
+  RETURN_NOT_OK(ctx_->GetScratchData<ParquetCType>(num_values, &buffer));
   for (int i = 0; i < num_values; i++) {
     buffer[i] = static_cast<ParquetCType>(values[i]);
   }
@@ -861,13 +861,18 @@ Status ArrowColumnWriter::TypedWriteBatch<FLBAType, ::arrow::Decimal128Type>(
 }
 
 Status ArrowColumnWriter::Write(const Array& data) {
+  if (data.length() == 0) {
+    // Write nothing when length is 0
+    return Status::OK();
+  }
+
   ::arrow::Type::type values_type;
   RETURN_NOT_OK(GetLeafType(*data.type(), &values_type));
 
   std::shared_ptr<Array> _values_array;
-  int64_t values_offset;
-  int64_t num_levels;
-  int64_t num_values;
+  int64_t values_offset = 0;
+  int64_t num_levels = 0;
+  int64_t num_values = 0;
   LevelBuilder level_builder(ctx_->memory_pool);
 
   std::shared_ptr<Buffer> def_levels_buffer, rep_levels_buffer;

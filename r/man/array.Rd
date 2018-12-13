@@ -2,13 +2,15 @@
 % Please edit documentation in R/array.R
 \name{array}
 \alias{array}
-\title{create an arrow::Array from an R vector}
+\title{create an \link[=arrow__Array]{arrow::Array} from an R vector}
 \usage{
-array(...)
+array(..., type)
 }
 \arguments{
 \item{\dots}{Vectors to coerce}
+
+\item{type}{currently ignored}
 }
 \description{
-create an arrow::Array from an R vector
+create an \link[=arrow__Array]{arrow::Array} from an R vector
 }

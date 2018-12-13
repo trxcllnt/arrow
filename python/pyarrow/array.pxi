@@ -49,12 +49,13 @@ cdef _is_array_like(obj):
         return isinstance(obj, np.ndarray)
 
 
-cdef _ndarray_to_array(object values, object mask, DataType type,
-                       c_bool from_pandas, c_bool safe, CMemoryPool* pool):
-    cdef:
-        shared_ptr[CChunkedArray] chunked_out
-        shared_ptr[CDataType] c_type
-        CCastOptions cast_options = CCastOptions(safe)
+def _ndarray_to_arrow_type(object values, DataType type):
+    return pyarrow_wrap_data_type(_ndarray_to_type(values, type))
+
+
+cdef shared_ptr[CDataType] _ndarray_to_type(object values,
+                                            DataType type) except *:
+    cdef shared_ptr[CDataType] c_type
 
     dtype = values.dtype
 
@@ -65,6 +66,16 @@ cdef _ndarray_to_array(object values, object mask, DataType type,
     if type is not None:
         c_type = type.sp_type
 
+    return c_type
+
+
+cdef _ndarray_to_array(object values, object mask, DataType type,
+                       c_bool from_pandas, c_bool safe, CMemoryPool* pool):
+    cdef:
+        shared_ptr[CChunkedArray] chunked_out
+        shared_ptr[CDataType] c_type = _ndarray_to_type(values, type)
+        CCastOptions cast_options = CCastOptions(safe)
+
     with nogil:
         check_status(NdarrayToArrow(pool, values, mask, from_pandas,
                                     c_type, cast_options, &chunked_out))
@@ -73,15 +84,6 @@ cdef _ndarray_to_array(object values, object mask, DataType type,
         return pyarrow_wrap_chunked_array(chunked_out)
     else:
         return pyarrow_wrap_array(chunked_out.get().chunk(0))
-
-
-cdef inline DataType _ensure_type(object type):
-    if type is None:
-        return None
-    elif not isinstance(type, DataType):
-        return type_for_alias(type)
-    else:
-        return type
 
 
 def array(object obj, type=None, mask=None, size=None, bint from_pandas=False,
@@ -147,7 +149,7 @@ def array(object obj, type=None, mask=None, size=None, bint from_pandas=False,
     array : pyarrow.Array or pyarrow.ChunkedArray (if object data
     overflowed binary storage)
     """
-    type = _ensure_type(type)
+    type = ensure_type(type, allow_none=True)
     cdef CMemoryPool* pool = maybe_unbox_memory_pool(memory_pool)
 
     if _is_array_like(obj):
@@ -406,7 +408,7 @@ cdef class Array:
         """
         cdef:
             CCastOptions options = CCastOptions(safe)
-            DataType type = _ensure_type(target_type)
+            DataType type = ensure_type(target_type)
             shared_ptr[CArray] result
 
         with nogil:

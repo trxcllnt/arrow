@@ -15,19 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-extern crate bytes;
-extern crate libc;
-
-#[macro_use]
-extern crate serde_json;
-
-extern crate rand;
+#![feature(specialization)]
 
 pub mod array;
 pub mod array_data;
+pub mod array_ops;
 pub mod bitmap;
 pub mod buffer;
 pub mod builder;
+pub mod csv;
 pub mod datatypes;
 pub mod error;
 pub mod memory;

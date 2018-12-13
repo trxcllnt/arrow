@@ -16,17 +16,26 @@
 // under the License.
 
 import { Data } from './data';
-import { Schema, Field } from './schema';
 import { Vector } from './vector';
+import { Schema, Field } from './schema';
 import { StructVector } from './vector';
 import { DataType, Struct } from './type';
+import { Vector as VType } from './interfaces';
 
 export class RecordBatch<T extends { [key: string]: DataType } = any> extends Vector<Struct<T>> {
 
+    public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: string[] = []) {
+        return new RecordBatch<T>(
+            Schema.from<T>(vectors, names),
+            vectors.reduce((len, vec) => Math.max(len, vec.length), 0),
+            vectors
+        );
+    }
+  
     private impl: StructVector<T>;
     public readonly schema: Schema;
 
-    constructor(schema: Schema<T>, numRows: number, childData: Data[]);
+    constructor(schema: Schema<T>, numRows: number, childData: (Data | Vector)[]);
     constructor(schema: Schema<T>, data: Data<Struct<T>>, children?: Vector[]);
     constructor(...args: any[]) {
         super();

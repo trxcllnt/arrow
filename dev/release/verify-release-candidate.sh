@@ -189,7 +189,7 @@ test_and_install_cpp() {
 test_python() {
   pushd python
 
-  pip install -r requirements.txt
+  pip install -r requirements-test.txt
 
   python setup.py build_ext --inplace --with-parquet --with-plasma
   py.test pyarrow -v --pdb
@@ -268,10 +268,14 @@ test_rust() {
   # build and test rust
   pushd rust
 
-  # raises on any formatting errors (disabled, because RC1 has a couple)
-  # rustup component add rustfmt-preview
-  # cargo fmt --all -- --check
+  # we are targeting Rust nightly for releases
+  rustup default nightly
+
+  # raises on any formatting errors
+  rustup component add rustfmt-preview
+  cargo fmt --all -- --check
   # raises on any warnings
+
   cargo rustc -- -D warnings
 
   cargo build

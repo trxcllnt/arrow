@@ -17,12 +17,37 @@
 
 #' @include R6.R
 
+#' @title class arrow::ArrayData
+#'
+#' @usage NULL
+#' @format NULL
+#' @docType class
+#'
+#' @section Usage:
+#'
+#' ```
+#' data <- array(...)$data()
+#'
+#' data$type()
+#' data$length()
+#' data$null_count()
+#' data$offset()
+#' data$buffers()
+#' ```
+#'
+#' @section Methods:
+#'
+#' ...
+#'
+#' @rdname arrow__ArrayData
+#' @name arrow__ArrayData
 `arrow::ArrayData` <- R6Class("arrow::ArrayData",
   inherit = `arrow::Object`,
   active = list(
     type = function() `arrow::DataType`$dispatch(ArrayData__get_type(self)),
     length = function() ArrayData__get_length(self),
     null_count = function() ArrayData__get_null_count(self),
-    offset = function() ArrayData__get_offset(self)
+    offset = function() ArrayData__get_offset(self),
+    buffers = function() map(ArrayData__buffers(self), shared_ptr, class = `arrow::Buffer`)
   )
 )

@@ -393,19 +393,20 @@ export class Map_<T extends { [key: string]: DataType; } = any> extends DataType
 
 const getId = ((atomicDictionaryId) => () => ++atomicDictionaryId)(-1);
 
-export interface Dictionary<T extends DataType = any, TKey extends Int = Int32> extends DataType<Type.Dictionary> { TArray: TKey['TArray']; TValue: T['TValue']; }
-export class Dictionary<T extends DataType = any, TKey extends Int = Int32> extends DataType<Type.Dictionary> {
+export interface Dictionary<T extends DataType = any, TKey extends Int = Int> extends DataType<Type.Dictionary> { TArray: TKey['TArray']; TValue: T['TValue']; }
+export class Dictionary<T extends DataType = any, TKey extends Int = Int> extends DataType<Type.Dictionary> {
     public readonly id: number;
     public readonly indices: TKey;
     public readonly dictionary: T;
     public readonly isOrdered: boolean;
     // @ts-ignore;
     public dictionaryVector: Vector<T>;
-    constructor(dictionary: T, indices: TKey, id?: Long | number | null, isOrdered?: boolean | null) {
+    constructor(dictionary: T, indices: TKey, id?: Long | number | null, isOrdered?: boolean | null, dictionaryVector?: Vector<T>) {
         super(Type.Dictionary);
         this.indices = indices;
         this.dictionary = dictionary;
         this.isOrdered = isOrdered || false;
+        this.dictionaryVector = dictionaryVector!;
         this.id = id == null ? getId() : typeof id === 'number' ? id : id.low;
     }
     public set children(_: T['children']) {}

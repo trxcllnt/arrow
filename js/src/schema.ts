@@ -15,17 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Vector } from './vector';
+import { Vector as VType } from './interfaces';
 import { DataType, Dictionary, Int } from './type';
 
 export class Schema<T extends { [key: string]: DataType } = any> {
-    public static from<T extends { [key: string]: DataType } = any>(vectors: Vector<T[keyof T]>[]) {
-        return new Schema<T>(vectors.map((v, i) => new Field('' + i, v.type)));
+
+    public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: string[] = []) {
+        return new Schema<T>(vectors.map((v, i) => new Field(names[i] || ('' + i), v.type)));
     }
+
     public readonly fields: Field[];
     public readonly metadata: Map<string, string>;
     public readonly dictionaries: Map<number, DataType>;
     public readonly dictionaryFields: Map<number, Field<Dictionary<any, Int>>[]>;
+
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
                 dictionaries?: Map<number, DataType>,
