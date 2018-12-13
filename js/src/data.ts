@@ -144,7 +144,7 @@ export class Data<T extends DataType = DataType> {
     public static Dictionary<T extends Dictionary>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) {
         return new Data(type, offset, length, nullCount, {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap),
-            [BufferType.DATA]: toArrayBufferView<T['TArray']>(type.ArrayType as any, data)
+            [BufferType.DATA]: toArrayBufferView<T['TArray']>(type.indices.ArrayType, data)
         });
     }
     public static Float<T extends Float>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, data: DataBuffer<T>) {

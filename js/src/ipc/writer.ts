@@ -15,9 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Schema } from '../schema';
-import { Vector } from '../vector';
 import { MAGIC } from './message';
+import { Vector } from '../vector';
+import { Schema, Field } from '../schema';
 import { ChunkedVector } from '../column';
 import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
@@ -122,7 +122,7 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
     protected _writeSchema(schema: Schema<T>) {
         return this
             ._writeMessage(Message.from(schema))
-            ._writeDictionaries(schema.dictionaries);
+            ._writeDictionaries(schema.dictionaryFields);
     }
 
     protected _writeFooter() {
@@ -180,9 +180,9 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
         return this;
     }
 
-    protected _writeDictionaries(dictionaries: Map<number, Dictionary>) {
-        for (const [id, dictionary] of dictionaries) {
-            let vector = dictionary.dictionaryVector;
+    protected _writeDictionaries(dictionaryFields: Map<number, Field<Dictionary<any, any>>[]>) {
+        for (const [id, fields] of dictionaryFields) {
+            const vector = fields[0].type.dictionaryVector;
             if (!(vector instanceof ChunkedVector)) {
                 this._writeDictionaryBatch(vector, id, false);
             } else {
@@ -201,8 +201,10 @@ export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> 
         this._writeFooter();
         return super.close();
     }
-    protected _writeSchema() {
-        return this._writeMagic()._writePadding(2);
+    protected _writeSchema(schema: Schema<T>) {
+        return this
+            ._writeMagic()._writePadding(2)
+            ._writeDictionaries(schema.dictionaryFields);
     }
 }
 

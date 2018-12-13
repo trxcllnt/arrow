@@ -232,11 +232,15 @@ abstract class RecordBatchReaderImplBase<T extends { [key: string]: DataType } =
         const { id, isDelta, data } = header;
         const { dictionaries, schema } = this;
         if (isDelta || !dictionaries.get(id)) {
+
             const type = schema.dictionaries.get(id)!;
             const vector = (isDelta ? dictionaries.get(id)!.concat(
-                Vector.new(this._loadVectors(data, body, [type.dictionary])[0])) :
-                Vector.new(this._loadVectors(data, body, [type.dictionary])[0])) as Vector;
-            return (type.dictionaryVector = vector);
+                Vector.new(this._loadVectors(data, body, [type])[0])) :
+                Vector.new(this._loadVectors(data, body, [type])[0])) as Vector;
+
+            (schema.dictionaryFields.get(id) || []).forEach(({ type }) => type.dictionaryVector = vector);
+
+            return vector;
         }
         return dictionaries.get(id)!;
     }
@@ -389,7 +393,10 @@ class RecordBatchFileReaderImpl<T extends { [key: string]: DataType } = any>
     }
     public open(autoClose = this.autoClose) {
         if (!this.closed && !this.footer) {
-            this.schema = this.readFooter().schema;
+            this.schema = (this.footer = this.readFooter()).schema;
+            for (const block of this.footer.dictionaryBatches()) {
+                block && this.readDictionaryBatch(this.dictionaryIndex++);
+            }
         }
         return super.open(autoClose);
     }
@@ -421,18 +428,12 @@ class RecordBatchFileReaderImpl<T extends { [key: string]: DataType } = any>
         }
     }
     protected readFooter() {
-        if (!this.footer) {
-            const { file } = this;
-            const size = file.size;
-            const offset = size - magicAndPadding;
-            const length = file.readInt32(offset);
-            const buffer = file.readAt(offset - length, length);
-            const footer = this.footer = Footer.decode(buffer);
-            for (const block of footer.dictionaryBatches()) {
-                block && this.readDictionaryBatch(this.dictionaryIndex++);
-            }
-        }
-        return this.footer;
+        const { file } = this;
+        const size = file.size;
+        const offset = size - magicAndPadding;
+        const length = file.readInt32(offset);
+        const buffer = file.readAt(offset - length, length);
+        return Footer.decode(buffer);
     }
     protected readNextMessageAndValidate<T extends MessageHeader>(type?: T | null): Message<T> | null {
         if (!this.footer) { this.open(); }
@@ -460,7 +461,10 @@ class AsyncRecordBatchFileReaderImpl<T extends { [key: string]: DataType } = any
     }
     public async open(autoClose = this.autoClose) {
         if (!this.closed && !this.footer) {
-            this.schema = (await this.readFooter()).schema;
+            this.schema = (this.footer = await this.readFooter()).schema;
+            for (const block of this.footer.dictionaryBatches()) {
+                block && this.readDictionaryBatch(this.dictionaryIndex++);
+            }
         }
         return await super.open(autoClose);
     }
@@ -492,17 +496,11 @@ class AsyncRecordBatchFileReaderImpl<T extends { [key: string]: DataType } = any
         }
     }
     protected async readFooter() {
-        if (!this.footer) {
-            const { file } = this;
-            const offset = file.size - magicAndPadding;
-            const length = await file.readInt32(offset);
-            const buffer = await file.readAt(offset - length, length);
-            const footer = this.footer = Footer.decode(buffer);
-            for (const block of footer.dictionaryBatches()) {
-                block && (await this.readDictionaryBatch(this.dictionaryIndex++));
-            }
-        }
-        return this.footer;
+        const { file } = this;
+        const offset = file.size - magicAndPadding;
+        const length = await file.readInt32(offset);
+        const buffer = await file.readAt(offset - length, length);
+        return Footer.decode(buffer);
     }
     protected async readNextMessageAndValidate<T extends MessageHeader>(type?: T | null): Promise<Message<T> | null> {
         if (!this.footer) { await this.open(); }
