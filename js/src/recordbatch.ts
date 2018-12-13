@@ -59,6 +59,7 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     public get type() { return this.impl.type; }
     public get data() { return this.impl.data; }
     public get length() { return this.impl.length; }
+    public get stride() { return this.impl.stride; }
     public get numCols() { return this.schema.fields.length; }
     public get rowProxy() { return this.impl.rowProxy; }
     public get nullCount() { return this.impl.nullCount; }
@@ -70,6 +71,9 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     public get ArrayType() { return this.impl.ArrayType; }
 
     public get(index: number) { return this.impl.get(index); }
+    public set(index: number, value: Struct<T>['TValue'] | null) {
+        this.impl.set(index, value);
+    }
     public isValid(index: number) { return this.impl.isValid(index); }
     public indexOf(value: Struct<T>['TValue'] | null, fromIndex?: number) { return this.impl.indexOf(value, fromIndex); }
 
@@ -77,7 +81,8 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     public [Symbol.iterator]() { return this.impl[Symbol.iterator](); }
 
     public slice(begin?: number, end?: number): RecordBatch<T> {
-        return this.impl.slice.call(this, begin, end) as RecordBatch<T>;
+        const { length, childData } = this.impl.slice(begin, end).data;
+        return new RecordBatch<T>(this.schema, length, childData);
     }
 
     public concat(...others: Vector<Struct<T>>[]): Vector<Struct<T>> {

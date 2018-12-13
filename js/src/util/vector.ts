@@ -27,24 +27,24 @@ export function clampIndex<T extends RangeLike, N extends ClampThen<T> = ClampTh
     return then ? then(source, adjust) : adjust;
 }
 
+let tmp: number;
 export function clampRange<T extends RangeLike>(source: T, begin: number | undefined, end: number | undefined): [number, number];
 export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = ClampRangeThen<T>>(source: T, begin: number | undefined, end: number | undefined, then: N): ReturnType<N>;
 export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = ClampRangeThen<T>>(source: T, begin: number | undefined, end: number | undefined, then?: N) {
 
-    // maybe this fn can just be
-    // let wrapAround = (i, N = length) => ((i % N) + N) % N;
-
     // Adjust args similar to Array.prototype.slice. Normalize begin/end to
     // clamp between 0 and length, and wrap around on negative indices, e.g.
     // slice(-1, 5) or slice(5, -1)
-    let { length = 0, stride = 1 } = source;
-    let tmp, len = length, max = length * stride;
-    let lhs = (typeof begin !== 'number' ? 0 : begin) * stride;
-    let rhs = (typeof end !== 'number' ? length : end) * stride;
-
-    (rhs < 0) && (rhs = (len - (rhs * -1)) % length);
-    (lhs < 0) && (lhs = (len - (lhs * -1)) % length);
+    let { length: len = 0 } = source;
+    let lhs = typeof begin !== 'number' ? 0 : begin;
+    let rhs = typeof end !== 'number' ? len : end;
+    // wrap around on negative start/end positions
+    (lhs < 0) && (lhs = ((lhs % len) + len) % len);
+    (rhs < 0) && (rhs = ((rhs % len) + len) % len);
+    // ensure lhs <= rhs
     (rhs < lhs) && (tmp = lhs, lhs = rhs, rhs = tmp);
-    len = Math.min(max, !isFinite(len = (rhs - lhs)) || len < 0 ? 0 : len);
-    return then ? then(source, lhs, len) : [lhs, len];
+     // ensure rhs <= length
+    (rhs > len) && (rhs = len);
+
+    return then ? then(source, lhs, rhs) : [lhs, rhs];
 }

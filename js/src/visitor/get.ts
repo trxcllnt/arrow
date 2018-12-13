@@ -36,18 +36,6 @@ export const decodeUtf8 = ((decoder) =>
     decoder.decode.bind(decoder) as (input?: ArrayBufferLike | ArrayBufferView) => string
 )(new TextDecoder('utf-8'));
 
-export const epochSecondsToMs = (data: Int32Array, index: number) => 1000 * data[index];
-export const epochDaysToMs = (data: Int32Array, index: number) => 86400000 * data[index];
-export const epochMillisecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1]) + (data[index] >>> 0);
-export const epochMicrosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000) + ((data[index] >>> 0) / 1000);
-export const epochNanosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000000) + ((data[index] >>> 0) / 1000000);
-
-export const epochMillisecondsToDate = (epochMs: number) => new Date(epochMs);
-export const epochDaysToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochDaysToMs(data, index));
-export const epochSecondsToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochSecondsToMs(data, index));
-export const epochNanosecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochNanosecondsLongToMs(data, index));
-export const epochMillisecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochMillisecondsLongToMs(data, index));
-
 export interface GetVisitor extends Visitor {
     visitMany <T extends Vector>  (nodes: T[], indices: number[]): T['TValue'][];
     visit     <T extends Vector>  (node: T, index: number       ): T['TValue'];
@@ -105,6 +93,18 @@ export class GetVisitor extends Visitor {
 
 export const instance = new GetVisitor();
 
+const epochSecondsToMs = (data: Int32Array, index: number) => 1000 * data[index];
+const epochDaysToMs = (data: Int32Array, index: number) => 86400000 * data[index];
+const epochMillisecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1]) + (data[index] >>> 0);
+const epochMicrosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000) + ((data[index] >>> 0) / 1000);
+const epochNanosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000000) + ((data[index] >>> 0) / 1000000);
+
+const epochMillisecondsToDate = (epochMs: number) => new Date(epochMs);
+const epochDaysToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochDaysToMs(data, index));
+// const epochSecondsToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochSecondsToMs(data, index));
+// const epochNanosecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochNanosecondsLongToMs(data, index));
+const epochMillisecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochMillisecondsLongToMs(data, index));
+
 const getNull = <T extends Null>(_vector: Vector<T>, _index: number): T['TValue'] => null;
 const getVariableWidthBytes = (values: Uint8Array, valueOffsets: Int32Array, index: number) => {
     const { [index]: x, [index + 1]: y } = valueOffsets;
@@ -120,12 +120,12 @@ const getBool = <T extends Bool>({ offset, values }: Vector<T>, index: number): 
 type Numeric1X = Int8 | Int16 | Int32 | Uint8 | Uint16 | Uint32 | Float32 | Float64;
 type Numeric2X = Int64 | Uint64;
 
-const getDateDay         = <T extends DateDay>        ({ values         }: Vector<T>, index: number): T['TValue'] => (epochDaysToDate(values, index * 2));
-const getDateMillisecond = <T extends DateMillisecond>({ values         }: Vector<T>, index: number): T['TValue'] => (epochMillisecondsLongToDate(values, index * 2));
-const getNumeric         = <T extends Numeric1X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values[stride * index]);
-const getFloat16         = <T extends Float16>        ({ stride, values }: Vector<T>, index: number): T['TValue'] => ((values[stride * index] - 32767) / 32767);
-const getNumericX2       = <T extends Numeric2X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * (index + 1)));
-const getFixedSizeBinary = <T extends FixedSizeBinary>({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * (index + 1)));
+const getDateDay         = <T extends DateDay>        ({ values         }: Vector<T>, index: number): T['TValue'] => epochDaysToDate(values, index);
+const getDateMillisecond = <T extends DateMillisecond>({ values         }: Vector<T>, index: number): T['TValue'] => epochMillisecondsLongToDate(values, index * 2);
+const getNumeric         = <T extends Numeric1X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => values[stride * index];
+const getFloat16         = <T extends Float16>        ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values[stride * index] - 32767) / 32767;
+const getNumericX2       = <T extends Numeric2X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => values.subarray(stride * index, stride * (index + 1));
+const getFixedSizeBinary = <T extends FixedSizeBinary>({ stride, values }: Vector<T>, index: number): T['TValue'] => values.subarray(stride * index, stride * (index + 1));
 
 const getBinary = <T extends Binary>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] | null => getVariableWidthBytes(values, valueOffsets, index);
 const getUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] | null => {
@@ -223,7 +223,7 @@ const getInterval = <T extends Interval>(vector: Vector<T>, index: number): T['T
 const getIntervalDayTime = <T extends IntervalDayTime>({ values }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * index + 1);
 
 const getIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>, index: number): T['TValue'] => {
-    const interval = values[2 * index];
+    const interval = values[index];
     const int32s = new Int32Array(2);
     int32s[0] = interval / 12 | 0; /* years */
     int32s[1] = interval % 12 | 0; /* months */

@@ -23,7 +23,7 @@ declare global {
         interface Matchers<R> {
             toEqualTable(expected: Table): CustomMatcherResult;
             toEqualRecordBatch(expected: RecordBatch): CustomMatcherResult;
-            toEqualVector(expected: [Vector | null, string, string]): CustomMatcherResult;
+            toEqualVector(expected: [Vector | null, string, string?]): CustomMatcherResult;
         }
     }
 }

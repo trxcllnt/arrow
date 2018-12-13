@@ -16,14 +16,17 @@
 // under the License.
 
 import { Data } from './data';
-import { Type } from './enum';
+import { setBool } from './util/bit';
+import * as IntUtil from './util/int';
+import { Type, DateUnit } from './enum';
 import { clampRange } from './util/vector';
-import { instance as getVisitor } from './visitor/get';
 import { Vector as V, VectorCtorArgs } from './interfaces';
+import { instance as getVisitor } from './visitor/get';
 import { instance as indexOfVisitor } from './visitor/indexof';
 import { instance as toArrayVisitor } from './visitor/toarray';
 import { instance as iteratorVisitor } from './visitor/iterator';
 import { instance as byteWidthVisitor } from './visitor/bytewidth';
+import { instance as setVisitor, encodeUtf8 } from './visitor/set';
 import { instance as getVectorConstructor } from './visitor/vectorctor';
 import {
     DataType, Dictionary,
@@ -39,7 +42,7 @@ import {
     Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64, Float16, Float32, Float64,
 } from './type';
 
-export abstract class Vector<T extends DataType = any> {
+export abstract class Vector<T extends DataType = any> implements Iterable<T['TValue'] | null> {
 
     static new <T extends DataType>(data: Data<T>, ...args: VectorCtorArgs<V<T>>): V<T> {
         return new (getVectorConstructor.getVisitFn(data.type)())(data, ...args) as V<T>;
@@ -49,13 +52,15 @@ export abstract class Vector<T extends DataType = any> {
     protected bindDataAccessors(data: Data<T>) {
         if (this.nullCount > 0) {
             this['get'] && (this['get'] = wrapNullable1(this['get']));
-            this['indexOf'] && (this['indexOf'] = wrapNullable2(this['indexOf']));
+            this['set'] && (this['set'] = wrapNullableSet(this['set']));
+            // this['indexOf'] && (this['indexOf'] = wrapNullable2(this['indexOf']));
         }
     }
 
     public abstract readonly type: T;
     public abstract readonly data: Data<T>;
     public abstract readonly length: number;
+    public abstract readonly stride: number;
     public abstract readonly nullCount: number;
     public abstract readonly numChildren: number;
 
@@ -66,6 +71,7 @@ export abstract class Vector<T extends DataType = any> {
 
     public abstract isValid(index: number): boolean;
     public abstract get(index: number): T['TValue'] | null;
+    public abstract set(index: number, value: T['TValue'] | null): void;
     public abstract indexOf(value: T['TValue'] | null, fromIndex?: number): number;
 
     public abstract toArray(): T['TArray'];
@@ -77,6 +83,7 @@ export abstract class Vector<T extends DataType = any> {
 }
 
 import { Row, ChunkedVector } from './column';
+import { packBools } from './util/bit';
 
 export class BaseVector<T extends DataType = any> extends Vector<T> {
 
@@ -103,6 +110,7 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
     protected bindDataAccessors(data: Data<T>) {
         const type = this.type;
         this['get'] = getVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
+        this['set'] = setVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
         this['indexOf'] = indexOfVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
         this['toArray'] = toArrayVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
         this[Symbol.iterator] = iteratorVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
@@ -154,11 +162,12 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
     // @ts-ignore
     public toJSON(): any {}
 
-    public slice(begin?: number, end?: number): Vector<T> {
+    public slice(begin?: number, end?: number): this {
         // Adjust args similar to Array.prototype.slice. Normalize begin/end to
         // clamp between 0 and length, and wrap around on negative indices, e.g.
         // slice(-1, 5) or slice(5, -1)
-        return clampRange(this, begin, end, (x, y, z) => x.clone(x.data.slice(y, z))) as any;
+        const { stride } = this;
+        return clampRange(this, begin, end, (x, y, z) => x.clone(x.data.slice(y * stride, (z - y) * stride))) as any;
     }
 
     //
@@ -170,6 +179,9 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
     //
     public get(index: number): T['TValue'] | null {
         return getVisitor.visit(this, index);
+    }
+    public set(index: number, value: T['TValue'] | null): void {
+        return setVisitor.visit(this, index, value);
     }
     public indexOf(value: T['TValue'] | null, fromIndex?: number): number {
         return indexOfVisitor.visit(this, value, fromIndex);
@@ -184,8 +196,6 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
         return iteratorVisitor.visit(this);
     }
 }
-
-// export { VectorBase as Vector };
 
 export class NullVector                                       extends BaseVector<Null> {}
 
@@ -209,7 +219,14 @@ export class Float16Vector                                    extends FloatVecto
 export class Float32Vector                                    extends FloatVector<Float32> {}
 export class Float64Vector                                    extends FloatVector<Float64> {}
 
-export class BoolVector                                       extends BaseVector<Bool> {}
+export class BoolVector                                       extends BaseVector<Bool> {
+    public static from(data: Iterable<boolean>) {
+        let length = 0, bitmap = packBools(function*() {
+            for (let x of data) { length++; yield x; }
+        }());
+        return Vector.new(Data.Bool(new Bool(), 0, length, 0, null, bitmap));
+    }
+}
 export class DecimalVector                                    extends BaseVector<Decimal> {
     constructor(data: Data<Decimal>) {
         super(data, undefined, 4);
@@ -217,6 +234,19 @@ export class DecimalVector                                    extends BaseVector
 }
 
 export class DateVector<T extends Date_ = Date_>              extends BaseVector<T> {
+    static from<T extends Date_ = DateMillisecond>(data: Date[], unit: T['unit'] = DateUnit.MILLISECOND) {
+        switch (unit) {
+            case DateUnit.DAY: {
+                const values = Int32Array.from(data.map((d) => d.valueOf() / 86400000));
+                return Vector.new(Data.Date(new DateDay(), 0, data.length, 0, null, values));
+            }
+            case DateUnit.MILLISECOND: {
+                const values = IntUtil.Int64.convertArray(data.map((d) => d.valueOf()));
+                return Vector.new(Data.Date(new DateMillisecond(), 0, data.length, 0, null, values));
+            }
+        }
+        throw new TypeError(`Unrecognized date unit "${DateUnit[unit]}"`);
+    }
     constructor(data: Data<T>) {
         super(data, undefined, data.type.unit + 1);
     }
@@ -259,6 +289,14 @@ export class BinaryVector extends BaseVector<Binary> {
 }
 
 export class Utf8Vector extends BaseVector<Utf8> {
+    public static from(values: string[]) {
+        const length = values.length;
+        const data = encodeUtf8(values.join(''));
+        const offsets = values.reduce((offsets, str, idx) => (
+            (!(offsets[idx + 1] = offsets[idx] + str.length) || true) && offsets
+        ), new Uint32Array(values.length + 1));
+        return Vector.new(Data.Utf8(new Utf8(), 0, length, 0, null, offsets, data));
+    }
     public asBinary() {
         return Vector.new(this.data.clone(new Binary()));
     }
@@ -303,6 +341,10 @@ export class MapVector<T extends { [key: string]: DataType } = any> extends Base
 }
 
 export class DictionaryVector<T extends DataType = any> extends BaseVector<Dictionary<T>> {
+    public static from<TVal extends DataType<any>, TKey extends Int>(values: Vector<TVal>, indices: TKey, keys: ArrayLike<number> | TKey['TArray']) {
+        const dictType = new Dictionary(values.type, indices, null, null, values);
+        return Vector.new(Data.Dictionary(dictType, 0, keys.length, 0, null, keys as TKey['TArray']));
+    }
     public readonly indices: Vector<Dictionary<T>['indices']>;
     constructor(data: Data<Dictionary<T>>) {
         super(data, void 0, 1);
@@ -311,6 +353,7 @@ export class DictionaryVector<T extends DataType = any> extends BaseVector<Dicti
     public get dictionary() { return this.type.dictionaryVector; }
     public getKey(index: number) { return this.indices.get(index); }
     public getValue(key: number) { return this.dictionary.get(key); }
+    public isValid(index: number) { return this.indices.isValid(index); }
     public reverseLookup(value: T) { return this.dictionary.indexOf(value); }
 }
 
@@ -333,6 +376,7 @@ export class DictionaryVector<T extends DataType = any> extends BaseVector<Dicti
         typeIds.forEach((TType) => {
             const VectorCtor = getVectorConstructor.visit(TType);
             VectorCtor.prototype['get'] = partial1(getVisitor.getVisitFn(TType));
+            VectorCtor.prototype['set'] = partial2(setVisitor.getVisitFn(TType));
             VectorCtor.prototype['indexOf'] = partial2(indexOfVisitor.getVisitFn(TType));
             VectorCtor.prototype['toArray'] = partial0(toArrayVisitor.getVisitFn(TType));
             VectorCtor.prototype['getByteWidth'] = partial0(byteWidthVisitor.getVisitFn(TType));
@@ -356,6 +400,14 @@ function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: nu
     return function(this: V, i: number) { return this.isValid(i) ? fn.call(this, i) : null; };
 }
 
-function wrapNullable2<T extends DataType, V extends Vector<T>, F extends (i: number, a: any) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
-    return function(this: V, i: number, a: any) { return this.isValid(i) ? fn.call(this, i, a) : null; };
+// function wrapNullable2<T extends DataType, V extends Vector<T>, F extends (i: number, a: any) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
+//     return function(this: V, i: number, a: any) { return this.isValid(i) ? fn.call(this, i, a) : null; };
+// }
+
+function wrapNullableSet<T extends DataType, V extends BaseVector<T>, F extends (i: number, a: any) => void>(fn: F): (...args: Parameters<F>) => void {
+    return function(this: V, i: number, a: any) {
+        if (setBool(this.nullBitmap, this.offset + i, a != null)) {
+            fn.call(this, i, a);
+        }
+    };
 }

@@ -49,18 +49,18 @@ export class IndexOfVisitor extends Visitor {
     public visitInt8                 <T extends Int8>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitInt16                <T extends Int16>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitInt32                <T extends Int32>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitInt64                <T extends Int64>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
+    public visitInt64                <T extends Int64>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
     public visitUint8                <T extends Uint8>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitUint16               <T extends Uint16>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitUint32               <T extends Uint32>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitUint64               <T extends Uint64>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
+    public visitUint64               <T extends Uint64>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
     public visitFloat                <T extends Float>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitFloat16              <T extends Float16>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitFloat32              <T extends Float32>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitFloat64              <T extends Float64>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitUtf8                 <T extends Utf8>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
     public visitBinary               <T extends Binary>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
-    public visitFixedSizeBinary      <T extends FixedSizeBinary>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
+    public visitFixedSizeBinary      <T extends FixedSizeBinary>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
     public visitDate                 <T extends Date_>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       dateIndexOf(vector, value, index || 0); }
     public visitDateDay              <T extends DateDay>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       dateIndexOf(vector, value, index || 0); }
     public visitDateMillisecond      <T extends DateMillisecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       dateIndexOf(vector, value, index || 0); }
@@ -132,6 +132,8 @@ function dateIndexOf<T extends Date_>(vector: Vector<T>, searchElement?: Date | 
 }
 
 function dictionaryIndexOf<T extends DataType>(vector: Vector<Dictionary<T>>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
+    if (searchElement === undefined) { return -1; }
+    if (searchElement === null) { return indexOfNull(vector, fromIndex); }
     const { dictionary, indices } = vector;
     // First find the dictionary key for the desired value...
     const key = dictionary.indexOf(searchElement);
@@ -202,18 +204,18 @@ IndexOfVisitor.prototype.visitInt                  =      valueIndexOf;
 IndexOfVisitor.prototype.visitInt8                 =      valueIndexOf;
 IndexOfVisitor.prototype.visitInt16                =      valueIndexOf;
 IndexOfVisitor.prototype.visitInt32                =      valueIndexOf;
-IndexOfVisitor.prototype.visitInt64                =      valueIndexOf;
+IndexOfVisitor.prototype.visitInt64                =      arrayIndexOf;
 IndexOfVisitor.prototype.visitUint8                =      valueIndexOf;
 IndexOfVisitor.prototype.visitUint16               =      valueIndexOf;
 IndexOfVisitor.prototype.visitUint32               =      valueIndexOf;
-IndexOfVisitor.prototype.visitUint64               =      valueIndexOf;
+IndexOfVisitor.prototype.visitUint64               =      arrayIndexOf;
 IndexOfVisitor.prototype.visitFloat                =      valueIndexOf;
 IndexOfVisitor.prototype.visitFloat16              =      valueIndexOf;
 IndexOfVisitor.prototype.visitFloat32              =      valueIndexOf;
 IndexOfVisitor.prototype.visitFloat64              =      valueIndexOf;
 IndexOfVisitor.prototype.visitUtf8                 =      valueIndexOf;
 IndexOfVisitor.prototype.visitBinary               =      arrayIndexOf;
-IndexOfVisitor.prototype.visitFixedSizeBinary      =      valueIndexOf;
+IndexOfVisitor.prototype.visitFixedSizeBinary      =      arrayIndexOf;
 IndexOfVisitor.prototype.visitDate                 =       dateIndexOf;
 IndexOfVisitor.prototype.visitDateDay              =       dateIndexOf;
 IndexOfVisitor.prototype.visitDateMillisecond      =       dateIndexOf;
