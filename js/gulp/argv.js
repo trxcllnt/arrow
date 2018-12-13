@@ -30,7 +30,8 @@ const argv = require(`command-line-args`)([
     { name: `targets`, alias: `t`, type: String, multiple: true, defaultValue: [] },
     { name: `modules`, alias: `m`, type: String, multiple: true, defaultValue: [] },
     { name: `json_files`, alias: `j`, type: String, multiple: true, defaultValue: [] },
-    { name: `arrow_files`, alias: `a`, type: String, multiple: true, defaultValue: [] },
+    { name: `arrow_files`, alias: `f`, type: String, multiple: true, defaultValue: [] },
+    { name: `arrow_streams`, alias: `s`, type: String, multiple: true, defaultValue: [] },
 ], { partial: true });
 
 const { targets, modules } = argv;
@@ -46,23 +47,32 @@ if (argv.target === `src`) {
 
 if (argv.coverage && (!argv.json_files || !argv.json_files.length)) {
 
-    let [jsonPaths, arrowPaths] = glob
-        .sync(path.resolve(__dirname, `../test/data/json/`, `*.json`))
-        .reduce((paths, jsonPath) => {
-            const { name } = path.parse(jsonPath);
-            const [jsonPaths, arrowPaths] = paths;
-            ['cpp', 'java'].forEach((source) => ['file', 'stream'].forEach((format) => {
-                const arrowPath = path.resolve(__dirname, `../test/data/${source}/${format}/${name}.arrow`);
-                if (fs.existsSync(arrowPath)) {
-                    jsonPaths.push(jsonPath);
-                    arrowPaths.push(arrowPath);
-                }
-            }));
-            return paths;
-        }, [[], []]);
+    let filePaths = [];
+    let streamPaths = [];
+    let jsonPaths = glob.sync(path.resolve(__dirname, `../test/data/json/`, `*.json`));
+
+    [jsonPaths, filePaths] = loadJSONAndArrowPaths(jsonPaths, 'cpp', 'file');
+    [jsonPaths, filePaths] = loadJSONAndArrowPaths(jsonPaths, 'java', 'file');
+    [jsonPaths, streamPaths] = loadJSONAndArrowPaths(jsonPaths, 'cpp', 'stream');
+    [jsonPaths, streamPaths] = loadJSONAndArrowPaths(jsonPaths, 'java', 'stream');
 
     argv.json_files = jsonPaths;
-    argv.arrow_files = arrowPaths;
+    argv.arrow_files = filePaths;
+    argv.arrow_streams = streamPaths;
 }
 
 module.exports = { argv, targets, modules };
+
+function loadJSONAndArrowPaths(jsonPaths, source, format) {
+    const jPaths = [];
+    const aPaths = [];
+    for (const jsonPath of jsonPaths) {
+        const { name } = path.parse(jsonPath);
+        const arrowPath = path.resolve(__dirname, `../test/data/${source}/${format}/${name}.arrow`);
+        if (fs.existsSync(arrowPath)) {
+            jPaths.push(jsonPath);
+            aPaths.push(arrowPath);
+        }
+    }
+    return [jPaths, aPaths];
+}
