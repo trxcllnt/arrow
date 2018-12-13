@@ -333,11 +333,21 @@ async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
             // if the stream emitted an Error, rethrow it
             if (event === 'error') { throw err; }
             if (!(done = event === 'end')) {
-                buffer = isNaN(size - bufferLength)
-                    ? toUint8Array(stream.read(undefined))
-                    : toUint8Array(stream.read(size - bufferLength));
+                // If the size is NaN, request to read everything in the stream's internal buffer
+                if (!isFinite(size - bufferLength)) {
+                    buffer = toUint8Array(stream['read'](undefined));
+                } else {
+                    buffer = toUint8Array(stream['read'](size - bufferLength));
+                    // If the byteLength is 0, then the requested amount is more than the stream has
+                    // in its internal buffer. In this case the stream needs a "kick" to tell it to
+                    // continue emitting readable events, so request to read everything the stream
+                    // has in its internal buffer right now.
+                    if (buffer.byteLength < (size - bufferLength)) {
+                        buffer = toUint8Array(stream['read'](undefined));
+                    }
+                }
                 // if chunk is not null or empty, push it onto the queue
-                if (buffer && buffer.byteLength > 0) {
+                if (buffer.byteLength > 0) {
                     buffers.push(buffer);
                     bufferLength += buffer.byteLength;
                 }
