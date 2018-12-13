@@ -132,5 +132,31 @@ import {
             expect(reader.schema).toBeUndefined();
             expect((await reader.open()).schema).toBeUndefined();
         });
+
+        // /* tslint:disable */
+        // const { concatStream } = require('web-stream-tools').default;
+    
+        // it('should read multiple tables from the same DOM stream', async () => {
+    
+        //     const sources = concatStream(jsonAndArrowPaths.map(([, , stream]) => {
+        //         return nodeToDOMStream(fs.createReadStream(stream.path));
+        //     })) as ReadableStream<Uint8Array>;
+    
+        //     let reader = await RecordBatchReader.from(sources);
+    
+        //     for (const [json, file] of jsonAndArrowPaths) {
+    
+        //         reader = await reader.reset().open(false);
+    
+        //         const jsonTable = Table.from(json.data);
+        //         const fileTable = Table.from(file.data);
+        //         const streamTable = await Table.from(reader);
+    
+        //         expect(streamTable).toEqualTable(jsonTable);
+        //         expect(streamTable).toEqualTable(fileTable);
+        //     }
+    
+        //     reader.cancel();
+        // }, 60 * 1000);
     });
 })();

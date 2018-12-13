@@ -23,43 +23,31 @@ if (!jsonAndArrowPaths.length) {
 
 import '../jest-extensions';
 
-import * as fs from 'fs';
 import * as path from 'path';
 import { zip } from 'ix/iterable/zip';
-import { nodeToDOMStream } from '../unit/ipc/util';
 import {
     Table,
     RecordBatchReader
 } from '../Arrow';
 
 describe(`Integration`, () => {
-    for (const [json, file, stream] of jsonAndArrowPaths) {
+    for (const [json, file] of jsonAndArrowPaths) {
 
         let { name, dir } = path.parse(file.path);
         dir = dir.split(path.sep).slice(-2).join(path.sep);
 
         const jsonData = json.data;
         const fileData = file.data;
-        const streamData = stream.data;
 
         describe(path.join(dir, name), () => {
             testReaderIntegration(jsonData, fileData);
-            testReaderIntegration(jsonData, streamData);
             testTableFromBuffersIntegration(jsonData, fileData);
-            testTableFromBuffersIntegration(jsonData, streamData);
             testTableToBuffersIntegration('json', 'file')(jsonData, fileData);
             testTableToBuffersIntegration('json', 'file')(jsonData, fileData);
             testTableToBuffersIntegration('binary', 'file')(jsonData, fileData);
             testTableToBuffersIntegration('binary', 'file')(jsonData, fileData);
-            testTableToBuffersIntegration('json', 'stream')(jsonData, streamData);
-            testTableToBuffersIntegration('json', 'stream')(jsonData, streamData);
-            testTableToBuffersIntegration('binary', 'stream')(jsonData, streamData);
-            testTableToBuffersIntegration('binary', 'stream')(jsonData, streamData);
         });
     }
-
-    testReadingMultipleTablesFromTheSameDOMStream();
-    testReadingMultipleTablesFromTheSameNodeStream();
 });
 
 function testReaderIntegration(jsonData: any, arrowBuffer: Uint8Array) {
@@ -93,61 +81,4 @@ function testTableToBuffersIntegration(srcFormat: 'json' | 'binary', arrowFormat
             expect(dstTable).toEqualTable(refTable);
         });
     }
-}
-
-function testReadingMultipleTablesFromTheSameDOMStream() {
-    /* tslint:disable */
-    const { concatStream } = require('web-stream-tools').default;
-
-    test('Can read multiple tables from the same DOM stream', async () => {
-
-        const sources = concatStream(jsonAndArrowPaths.map(([, , stream]) => {
-            return nodeToDOMStream(fs.createReadStream(stream.path));
-        })) as ReadableStream<Uint8Array>;
-
-        let reader = await RecordBatchReader.from(sources);
-
-        for (const [json, file] of jsonAndArrowPaths) {
-
-            reader = await reader.reset().open(false);
-
-            const jsonTable = Table.from(json.data);
-            const fileTable = Table.from(file.data);
-            const streamTable = await Table.from(reader);
-
-            expect(streamTable).toEqualTable(jsonTable);
-            expect(streamTable).toEqualTable(fileTable);
-        }
-
-        reader.cancel();
-    }, 60 * 1000);
-}
-
-function testReadingMultipleTablesFromTheSameNodeStream() {
-
-    /* tslint:disable */
-    const concatStream = require('multistream');
-
-    test('Can read multiple tables from the same node stream', async () => {
-
-        const sources = concatStream(jsonAndArrowPaths.map(([, , stream]) => {
-            return () => fs.createReadStream(stream.path);
-        })) as NodeJS.ReadableStream;
-
-        let reader = await RecordBatchReader.from(sources);
-
-        for (const [json, file] of jsonAndArrowPaths) {
-
-            reader = await reader.reset().open(false);
-
-            const jsonTable = Table.from(json.data);
-            const fileTable = Table.from(file.data);
-            const streamTable = await Table.from(reader);
-
-            expect(streamTable).toEqualTable(jsonTable);
-            expect(streamTable).toEqualTable(fileTable);
-        }
-
-        reader.cancel();
-    }, 60 * 1000);
 }

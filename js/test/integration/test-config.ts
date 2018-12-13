@@ -26,7 +26,6 @@ type TestFile = { path: string, data: Uint8Array };
 
 let JSON_FILES = parsePaths(process.env.JSON_FILES);
 let ARROW_FILES = parsePaths(process.env.ARROW_FILES);
-let ARROW_STREAMS = parsePaths(process.env.ARROW_STREAMS);
 
 if (!JSON_FILES.length && process.env.TEST_FILE_NAMES) {
     JSON_FILES = process.env.TEST_FILE_NAMES.split(' ').map(
@@ -38,16 +37,10 @@ if (JSON_FILES.length && !ARROW_FILES.length) {
     [JSON_FILES, ARROW_FILES] = loadDefaultArrowPaths(JSON_FILES, 'java', 'file');
 }
 
-if (JSON_FILES.length && !ARROW_STREAMS.length) {
-    [JSON_FILES, ARROW_STREAMS] = loadDefaultArrowPaths(JSON_FILES, 'cpp', 'stream');
-    [JSON_FILES, ARROW_STREAMS] = loadDefaultArrowPaths(JSON_FILES, 'java', 'stream');
-}
-
 export const jsonAndArrowPaths = [...zip(
     loadJSONAndArrowPaths(JSON_FILES, (b) => bignumJSONParse(`${b}`)),
-    loadJSONAndArrowPaths(ARROW_FILES, (b) => b),
-    loadJSONAndArrowPaths(ARROW_STREAMS, (b) => b),
-)].filter(([p1, p2, p3]) => p1 && p2 && p3) as [TestFile, TestFile, TestFile][];
+    loadJSONAndArrowPaths(ARROW_FILES, (b) => b)
+)].filter(([p1, p2]) => p1 && p2) as [TestFile, TestFile][];
 
 function parsePaths(input?: string): string[] {
     const paths = JSON.parse(input || '[]');

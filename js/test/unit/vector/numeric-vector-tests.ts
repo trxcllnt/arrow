@@ -38,19 +38,6 @@ describe(`Uint32Vector`, () => { testIntVector(Uint32); });
 describe(`Float32Vector`, () => { testFloatVector(Float32); });
 describe(`Float64Vector`, () => { testFloatVector(Float64); });
 
-if (!Int8) { console.log('bugger'); }
-if (!Int16) { console.log('bugger'); }
-if (!Int32) { console.log('bugger'); }
-if (!Int64) { console.log('bugger'); }
-if (!Uint64) { console.log('bugger'); }
-if (!Uint8) { console.log('bugger'); }
-if (!Uint16) { console.log('bugger'); }
-if (!Uint32) { console.log('bugger'); }
-if (!Float32) { console.log('bugger'); }
-if (!Float64) { console.log('bugger'); }
-if (!testIntVector) { console.log('bugger'); }
-if (!testFloatVector) { console.log('bugger'); }
-
 function testIntVector<T extends Int>(DataType: new () => T) {
 
     const type = new DataType();
