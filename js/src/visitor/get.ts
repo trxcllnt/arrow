@@ -124,7 +124,7 @@ const getDateDay         = <T extends DateDay>        ({ values         }: Vecto
 const getDateMillisecond = <T extends DateMillisecond>({ values         }: Vector<T>, index: number): T['TValue'] => (epochMillisecondsLongToDate(values, index * 2));
 const getNumeric         = <T extends Numeric1X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values[stride * index]);
 const getFloat16         = <T extends Float16>        ({ stride, values }: Vector<T>, index: number): T['TValue'] => ((values[stride * index] - 32767) / 32767);
-const getNumericX2       = <T extends Numeric2X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * index + 1));
+const getNumericX2       = <T extends Numeric2X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * (index + 1)));
 const getFixedSizeBinary = <T extends FixedSizeBinary>({ stride, values }: Vector<T>, index: number): T['TValue'] => (values.subarray(stride * index, stride * (index + 1)));
 
 const getBinary = <T extends Binary>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] | null => getVariableWidthBytes(values, valueOffsets, index);

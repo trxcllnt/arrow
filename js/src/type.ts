@@ -93,15 +93,15 @@ export class Null extends DataType<Type.Null> {
 
 type Ints = Type.Int | Type.Int8 | Type.Int16 | Type.Int32 | Type.Int64 | Type.Uint8 | Type.Uint16 | Type.Uint32 | Type.Uint64;
 type IType = {
-    [Type.Int   ]: { bitWidth: any; isSigned: any;   TArray: IntArray;    TValue: number | IntArray; };
-    [Type.Int8  ]: { bitWidth:   8; isSigned: true;  TArray: Int8Array;   TValue: number;            };
-    [Type.Int16 ]: { bitWidth:  16; isSigned: true;  TArray: Int16Array;  TValue: number;            };
-    [Type.Int32 ]: { bitWidth:  32; isSigned: true;  TArray: Int32Array;  TValue: number;            };
-    [Type.Int64 ]: { bitWidth:  64; isSigned: true;  TArray: Int32Array;  TValue: Int32Array;        };
-    [Type.Uint8 ]: { bitWidth:   8; isSigned: false; TArray: Uint8Array;  TValue: number;            };
-    [Type.Uint16]: { bitWidth:  16; isSigned: false; TArray: Uint16Array; TValue: number;            };
-    [Type.Uint32]: { bitWidth:  32; isSigned: false; TArray: Uint32Array; TValue: number;            };
-    [Type.Uint64]: { bitWidth:  64; isSigned: false; TArray: Uint32Array; TValue: Uint32Array;       };
+    [Type.Int   ]: { bitWidth: IntBitWidth; isSigned: true | false; TArray: IntArray;    TValue: number | IntArray; };
+    [Type.Int8  ]: { bitWidth:           8; isSigned: true;         TArray: Int8Array;   TValue: number;            };
+    [Type.Int16 ]: { bitWidth:          16; isSigned: true;         TArray: Int16Array;  TValue: number;            };
+    [Type.Int32 ]: { bitWidth:          32; isSigned: true;         TArray: Int32Array;  TValue: number;            };
+    [Type.Int64 ]: { bitWidth:          64; isSigned: true;         TArray: Int32Array;  TValue: Int32Array;        };
+    [Type.Uint8 ]: { bitWidth:           8; isSigned: false;        TArray: Uint8Array;  TValue: number;            };
+    [Type.Uint16]: { bitWidth:          16; isSigned: false;        TArray: Uint16Array; TValue: number;            };
+    [Type.Uint32]: { bitWidth:          32; isSigned: false;        TArray: Uint32Array; TValue: number;            };
+    [Type.Uint64]: { bitWidth:          64; isSigned: false;        TArray: Uint32Array; TValue: Uint32Array;       };
 };
 
 export interface Int<T extends Ints = Ints> extends DataType<T> { TArray: IType[T]['TArray']; TValue: IType[T]['TValue']; }
