@@ -19,7 +19,7 @@ import '../jest-extensions';
 import { TextEncoder } from 'text-encoding-utf-8';
 
 import {
-    Table, RecordBatch, Vector, Data,
+    Schema, Table, RecordBatch, Vector, Data,
     Struct, Float32, Int32, Dictionary, Utf8, Int8
 } from '../Arrow';
 
@@ -375,23 +375,26 @@ export function getSingleRecordBatchTable() {
 }
 
 function getMultipleRecordBatchesTable() {
-    const b1 = RecordBatch.from<TestDataSchema>(getTestVectors(
+
+    const schema = Schema.from<TestDataSchema>(getTestVectors([], [], []), NAMES);
+
+    const b1 = new RecordBatch(schema, 3, getTestVectors(
         [-0.3, -0.2, -0.1],
         [-1, 1, -1],
         [0, 1, 2]
-    ), NAMES);
+    ));
 
-    const b2 = RecordBatch.from<TestDataSchema>(getTestVectors(
+    const b2 = new RecordBatch(schema, 3, getTestVectors(
         [0, 0.1, 0.2],
         [1, -1, 1],
         [0, 1, 2]
-    ), NAMES);
+    ));
 
-    const b3 = RecordBatch.from<TestDataSchema>(getTestVectors(
+    const b3 = new RecordBatch(schema, 3, getTestVectors(
         [0.3, 0.2, 0.1],
         [-1, 1, -1],
         [0, 1, 2]
-    ), NAMES);
+    ));
 
     return new Table<TestDataSchema>([b1, b2, b3])
 }
