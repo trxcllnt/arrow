@@ -41,7 +41,6 @@ if [ "$only_library_mode" == "no" ]; then
 fi
 
 CMAKE_COMMON_FLAGS="\
--DARROW_BUILD_BENCHMARKS=ON \
 -DCMAKE_INSTALL_PREFIX=$ARROW_CPP_INSTALL \
 -DARROW_NO_DEPRECATED_API=ON \
 -DARROW_EXTRA_ERROR_CONTEXT=ON"
@@ -61,8 +60,15 @@ pushd $ARROW_CPP_BUILD_DIR
 if [ $only_library_mode == "yes" ]; then
   CMAKE_COMMON_FLAGS="\
 $CMAKE_COMMON_FLAGS \
--DARROW_BUILD_TESTS=OFF \
 -DARROW_BUILD_UTILITIES=OFF \
+-DARROW_INSTALL_NAME_RPATH=OFF"
+else
+  CMAKE_COMMON_FLAGS="\
+$CMAKE_COMMON_FLAGS \
+-DARROW_BUILD_BENCHMARKS=ON \
+-DARROW_BUILD_TESTS=ON \
+-DARROW_BUILD_EXAMPLES=ON \
+-DARROW_BUILD_UTILITIES=ON \
 -DARROW_INSTALL_NAME_RPATH=OFF"
 fi
 
@@ -86,11 +92,15 @@ fi
 if [ $ARROW_TRAVIS_PARQUET == "1" ]; then
   CMAKE_COMMON_FLAGS="$CMAKE_COMMON_FLAGS \
 -DARROW_PARQUET=ON \
+-DPARQUET_BUILD_EXAMPLES=ON \
 -DPARQUET_BUILD_EXECUTABLES=ON"
 fi
 
 if [ $ARROW_TRAVIS_GANDIVA == "1" ]; then
   CMAKE_COMMON_FLAGS="$CMAKE_COMMON_FLAGS -DARROW_GANDIVA=ON"
+  if [ $only_library_mode == "no" ]; then
+    CMAKE_COMMON_FLAGS="$CMAKE_COMMON_FLAGS -DARROW_GANDIVA_BUILD_TESTS=ON"
+  fi
 fi
 
 if [ $ARROW_TRAVIS_VALGRIND == "1" ]; then
@@ -119,6 +129,7 @@ else
     if [ "$using_homebrew" = "yes" ]; then
 	# build against homebrew's boost if we're using it
 	export BOOST_ROOT=$(brew --prefix boost)
+	export LLVM_DIR=$(brew --prefix llvm@6)/lib/cmake/llvm
 	export THRIFT_HOME=$(brew --prefix thrift)
     fi
     cmake $CMAKE_COMMON_FLAGS \

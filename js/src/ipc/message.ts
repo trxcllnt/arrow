@@ -22,7 +22,7 @@ import { Message } from './metadata/message';
 import { isFileHandle } from '../util/compat';
 import { AsyncRandomAccessFile } from '../io/file';
 import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
-import { ReadableByteStream, AsyncReadableByteStream } from '../io/stream';
+import { ByteStream, ReadableSource, AsyncByteStream } from '../io/stream';
 import { ArrowJSON, ArrowJSONLike, ITERATOR_DONE, FileHandle } from '../io/interfaces';
 
 const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
@@ -31,9 +31,9 @@ const invalidMessageMetadata   = (expected: number, actual: number) => `Expected
 const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
 
 export class MessageReader implements IterableIterator<Message> {
-    protected source: ReadableByteStream;
-    constructor(source: ReadableByteStream | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
-        this.source = source instanceof ReadableByteStream ? source : new ReadableByteStream(source);
+    protected source: ByteStream;
+    constructor(source: ByteStream | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
+        this.source = source instanceof ByteStream ? source : new ByteStream(source);
     }
     public [Symbol.iterator](): IterableIterator<Message> { return this as IterableIterator<Message>; }
     public next(): IteratorResult<Message> {
@@ -58,15 +58,14 @@ export class MessageReader implements IterableIterator<Message> {
         if (buf.byteLength < bodyLength) {
             throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
-        // Work around bugs in fs.ReadStream's internal Buffer pooling
-        // see: https://github.com/nodejs/node/issues/24817
+        // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
         return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
-    public readSchema() {
+    public readSchema(throwIfNull = false) {
         const type = MessageHeader.Schema;
         const message = this.readMessage(type);
         const schema = message && message.header();
-        if (!message || !schema) {
+        if (throwIfNull && !schema) {
             throw new Error(nullMessage(type));
         }
         return schema;
@@ -88,14 +87,14 @@ export class MessageReader implements IterableIterator<Message> {
 }
 
 export class AsyncMessageReader implements AsyncIterableIterator<Message> {
-    protected source: AsyncReadableByteStream;
-    constructor(source: AsyncReadableByteStream | NodeJS.ReadableStream | ReadableStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput>);
+    protected source: AsyncByteStream;
+    constructor(source: ReadableSource<Uint8Array>);
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
-        this.source = source instanceof AsyncReadableByteStream ? source
+        this.source = source instanceof AsyncByteStream ? source
             : (isFileHandle(source) && typeof byteLength === 'number')
             ? new AsyncRandomAccessFile(source, byteLength)
-            : new AsyncReadableByteStream(source);
+            : new AsyncByteStream(source);
     }
     public [Symbol.asyncIterator](): AsyncIterableIterator<Message> { return this as AsyncIterableIterator<Message>; }
     public async next(): Promise<IteratorResult<Message>> {
@@ -120,15 +119,14 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
         if (buf.byteLength < bodyLength) {
             throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
-        // Work around bugs in fs.ReadStream's internal Buffer pooling
-        // see: https://github.com/nodejs/node/issues/24817
+        // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
         return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
-    public async readSchema() {
+    public async readSchema(throwIfNull = false) {
         const type = MessageHeader.Schema;
         const message = await this.readMessage(type);
         const schema = message && message.header();
-        if (!message || !schema) {
+        if (throwIfNull && !schema) {
             throw new Error(nullMessage(type));
         }
         return schema;

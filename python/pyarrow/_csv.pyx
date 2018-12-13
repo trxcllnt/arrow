@@ -22,8 +22,14 @@
 
 from pyarrow.includes.common cimport *
 from pyarrow.includes.libarrow cimport *
-from pyarrow.lib cimport (check_status, MemoryPool, maybe_unbox_memory_pool,
-                          pyarrow_wrap_table, get_input_stream)
+from pyarrow.lib cimport (check_status, Field, MemoryPool, ensure_type,
+                          maybe_unbox_memory_pool, get_input_stream,
+                          pyarrow_wrap_table, pyarrow_wrap_data_type,
+                          pyarrow_unwrap_data_type)
+
+from pyarrow.compat import frombytes, tobytes
+
+from collections import Mapping
 
 
 cdef unsigned char _single_char(s) except 0:
@@ -107,6 +113,10 @@ cdef class ParseOptions:
         Whether newline characters are allowed in CSV values.
         Setting this to True reduces the performance of multi-threaded
         CSV reading.
+    ignore_empty_lines: bool, optional (default True)
+        Whether empty lines are ignored in CSV input.
+        If False, an empty line is interpreted as containing a single empty
+        value (assuming a one-column CSV file).
     """
     cdef:
         CCSVParseOptions options
@@ -114,7 +124,8 @@ cdef class ParseOptions:
     __slots__ = ()
 
     def __init__(self, delimiter=None, quote_char=None, double_quote=None,
-                 escape_char=None, header_rows=None, newlines_in_values=None):
+                 escape_char=None, header_rows=None, newlines_in_values=None,
+                 ignore_empty_lines=None):
         self.options = CCSVParseOptions.Defaults()
         if delimiter is not None:
             self.delimiter = delimiter
@@ -128,6 +139,8 @@ cdef class ParseOptions:
             self.header_rows = header_rows
         if newlines_in_values is not None:
             self.newlines_in_values = newlines_in_values
+        if ignore_empty_lines is not None:
+            self.ignore_empty_lines = ignore_empty_lines
 
     @property
     def delimiter(self):
@@ -214,6 +227,85 @@ cdef class ParseOptions:
     def newlines_in_values(self, value):
         self.options.newlines_in_values = value
 
+    @property
+    def ignore_empty_lines(self):
+        """
+        Whether empty lines are ignored in CSV input.
+        If False, an empty line is interpreted as containing a single empty
+        value (assuming a one-column CSV file).
+        """
+        return self.options.ignore_empty_lines
+
+    @ignore_empty_lines.setter
+    def ignore_empty_lines(self, value):
+        self.options.ignore_empty_lines = value
+
+
+cdef class ConvertOptions:
+    """
+    Options for converting CSV data.
+
+    Parameters
+    ----------
+    check_utf8 : bool, optional (default True)
+        Whether to check UTF8 validity of string columns.
+    column_types: dict, optional
+        Map column names to column types
+        (disabling type inference on those columns).
+    """
+    cdef:
+        CCSVConvertOptions options
+
+    # Avoid mistakingly creating attributes
+    __slots__ = ()
+
+    def __init__(self, check_utf8=None, column_types=None):
+        self.options = CCSVConvertOptions.Defaults()
+        if check_utf8 is not None:
+            self.check_utf8 = check_utf8
+        if column_types is not None:
+            self.column_types = column_types
+
+    @property
+    def check_utf8(self):
+        """
+        Whether to check UTF8 validity of string columns.
+        """
+        return self.options.check_utf8
+
+    @check_utf8.setter
+    def check_utf8(self, value):
+        self.options.check_utf8 = value
+
+    @property
+    def column_types(self):
+        """
+        Map column names to column types
+        (disabling type inference on those columns).
+        """
+        d = {frombytes(item.first): pyarrow_wrap_data_type(item.second)
+             for item in self.options.column_types}
+        return d
+
+    @column_types.setter
+    def column_types(self, value):
+        cdef:
+            shared_ptr[CDataType] typ
+
+        if isinstance(value, Mapping):
+            value = value.items()
+
+        self.options.column_types.clear()
+        for item in value:
+            if isinstance(item, Field):
+                k = item.name
+                v = item.type
+            else:
+                k, v = item
+            typ = pyarrow_unwrap_data_type(ensure_type(v))
+            assert typ != NULL
+            self.options.column_types[tobytes(k)] = typ
+
 
 cdef _get_reader(input_file, shared_ptr[InputStream]* out):
     use_memory_map = False
@@ -234,11 +326,12 @@ cdef _get_parse_options(ParseOptions parse_options, CCSVParseOptions* out):
         out[0] = parse_options.options
 
 
-cdef _get_convert_options(convert_options, CCSVConvertOptions* out):
+cdef _get_convert_options(ConvertOptions convert_options,
+                          CCSVConvertOptions* out):
     if convert_options is None:
         out[0] = CCSVConvertOptions.Defaults()
     else:
-        raise NotImplementedError("non-default convert options not supported")
+        out[0] = convert_options.options
 
 
 def read_csv(input_file, read_options=None, parse_options=None,
@@ -257,8 +350,9 @@ def read_csv(input_file, read_options=None, parse_options=None,
     parse_options: ParseOptions, optional
         Options for the CSV parser
         (see ParseOptions constructor for defaults)
-    convert_options: None
-        Currently unused
+    convert_options: ConvertOptions, optional
+        Options for converting CSV data
+        (see ConvertOptions constructor for defaults)
     memory_pool: MemoryPool, optional
         Pool to allocate Table memory from
 

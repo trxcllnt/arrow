@@ -21,26 +21,79 @@
 
 #undef Free
 #include <arrow/api.h>
+#include <arrow/compute/api.h>
 #include <arrow/io/file.h>
 #include <arrow/io/memory.h>
+#include <arrow/ipc/feather.h>
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
 #include <arrow/type.h>
 
-#define R_ERROR_NOT_OK(s)                  \
-  do {                                     \
-    if (!s.ok()) Rcpp::stop(s.ToString()); \
-  } while (0);
+#define STOP_IF_NOT(TEST, MSG)  \
+  do {                          \
+    if (!TEST) Rcpp::stop(MSG); \
+  } while (0)
+
+#define STOP_IF_NOT_OK(s) STOP_IF_NOT(s.ok(), s.ToString())
+
+template <typename T>
+inline void STOP_IF_NULL(T* ptr) {
+  STOP_IF_NOT(ptr, "invalid data");
+}
 
 template <typename T>
 struct NoDelete {
   inline void operator()(T* ptr){};
 };
 
+namespace arrow {
+namespace r {
+struct symbols {
+  static SEXP units;
+  static SEXP xp;
+};
+}  // namespace r
+}  // namespace arrow
+
 namespace Rcpp {
+namespace internal {
+
+template <typename Pointer>
+Pointer r6_to_smart_pointer(SEXP self) {
+  return reinterpret_cast<Pointer>(
+      EXTPTR_PTR(Rf_findVarInFrame(self, arrow::r::symbols::xp)));
+}
+
+}  // namespace internal
+
+template <typename T>
+class ConstReferenceSmartPtrInputParameter {
+ public:
+  using const_reference = const T&;
+
+  ConstReferenceSmartPtrInputParameter(SEXP self)
+      : ptr(internal::r6_to_smart_pointer<const T*>(self)) {}
+
+  inline operator const_reference() { return *ptr; }
+
+ private:
+  const T* ptr;
+};
+
 namespace traits {
 
+template <typename T>
+struct input_parameter<const std::shared_ptr<T>&> {
+  typedef typename Rcpp::ConstReferenceSmartPtrInputParameter<std::shared_ptr<T>> type;
+};
+
+template <typename T>
+struct input_parameter<const std::unique_ptr<T>&> {
+  typedef typename Rcpp::ConstReferenceSmartPtrInputParameter<std::unique_ptr<T>> type;
+};
+
 struct wrap_type_shared_ptr_tag {};
+struct wrap_type_unique_ptr_tag {};
 
 template <typename T>
 struct wrap_type_traits<std::shared_ptr<T>> {
@@ -48,13 +101,18 @@ struct wrap_type_traits<std::shared_ptr<T>> {
 };
 
 template <typename T>
-class Exporter<std::shared_ptr<T>>;
+struct wrap_type_traits<std::unique_ptr<T>> {
+  using wrap_category = wrap_type_unique_ptr_tag;
+};
 
 }  // namespace traits
 namespace internal {
 
 template <typename T>
 inline SEXP wrap_dispatch(const T& x, Rcpp::traits::wrap_type_shared_ptr_tag);
+
+template <typename T>
+inline SEXP wrap_dispatch(const T& x, Rcpp::traits::wrap_type_unique_ptr_tag);
 
 }  // namespace internal
 
@@ -67,34 +125,21 @@ RCPP_EXPOSED_ENUM_NODECL(arrow::DateUnit)
 RCPP_EXPOSED_ENUM_NODECL(arrow::TimeUnit::type)
 RCPP_EXPOSED_ENUM_NODECL(arrow::StatusCode)
 RCPP_EXPOSED_ENUM_NODECL(arrow::io::FileMode::type)
+RCPP_EXPOSED_ENUM_NODECL(arrow::ipc::Message::Type)
 
 namespace Rcpp {
-namespace traits {
-
-template <typename T>
-class Exporter<std::shared_ptr<T>> {
- public:
-  Exporter(SEXP self) : xp(extract_xp(self)) {}
-
-  inline std::shared_ptr<T> get() { return *Rcpp::XPtr<std::shared_ptr<T>>(xp); }
-
- private:
-  SEXP xp;
-
-  SEXP extract_xp(SEXP self) {
-    static SEXP symb_xp = Rf_install(".:xp:.");
-    return Rf_findVarInFrame(self, symb_xp);
-  }
-};
-
-}  // namespace traits
-
 namespace internal {
 
 template <typename T>
 inline SEXP wrap_dispatch(const T& x, Rcpp::traits::wrap_type_shared_ptr_tag) {
   return Rcpp::XPtr<std::shared_ptr<typename T::element_type>>(
       new std::shared_ptr<typename T::element_type>(x));
+}
+
+template <typename T>
+inline SEXP wrap_dispatch(const T& x, Rcpp::traits::wrap_type_unique_ptr_tag) {
+  return Rcpp::XPtr<std::unique_ptr<typename T::element_type>>(
+      new std::unique_ptr<typename T::element_type>(const_cast<T&>(x).release()));
 }
 
 }  // namespace internal
@@ -107,6 +152,7 @@ using LogicalVector_ = Rcpp::Vector<LGLSXP, Rcpp::NoProtectStorage>;
 using StringVector_ = Rcpp::Vector<STRSXP, Rcpp::NoProtectStorage>;
 using CharacterVector_ = StringVector_;
 using RawVector_ = Rcpp::Vector<RAWSXP, Rcpp::NoProtectStorage>;
+using List_ = Rcpp::Vector<VECSXP, Rcpp::NoProtectStorage>;
 
 template <int RTYPE>
 inline typename Rcpp::Vector<RTYPE>::stored_type default_value() {
@@ -127,16 +173,6 @@ std::shared_ptr<arrow::RecordBatch> RecordBatch__from_dataframe(Rcpp::DataFrame 
 namespace arrow {
 namespace r {
 
-template <typename T>
-inline const T* GetValuesSafely(const std::shared_ptr<ArrayData>& data, int i,
-                                int64_t offset) {
-  auto buffer = data->buffers[i];
-  if (!buffer) {
-    Rcpp::stop(tfm::format("invalid data in buffer %d", i));
-  };
-  return reinterpret_cast<const T*>(buffer->data()) + offset;
-}
-
 template <int RTYPE, typename Vec = Rcpp::Vector<RTYPE>>
 class RBuffer : public MutableBuffer {
  public:
@@ -148,10 +184,6 @@ class RBuffer : public MutableBuffer {
  private:
   // vec_ holds the memory
   Vec vec_;
-};
-
-struct symbols {
-  static SEXP units;
 };
 
 }  // namespace r

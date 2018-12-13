@@ -430,11 +430,9 @@ cdef class Field:
 
     @property
     def metadata(self):
-        cdef shared_ptr[const CKeyValueMetadata] metadata = (
-            self.field.metadata())
-        return box_metadata(metadata.get())
+        return pyarrow_wrap_metadata(self.field.metadata())
 
-    def add_metadata(self, dict metadata):
+    def add_metadata(self, metadata):
         """
         Add metadata as dict of string keys and values to Field
 
@@ -447,14 +445,18 @@ cdef class Field:
         -------
         field : pyarrow.Field
         """
-        cdef shared_ptr[CKeyValueMetadata] c_meta
-        convert_metadata(metadata, &c_meta)
+        cdef:
+            shared_ptr[CField] c_field
+            shared_ptr[CKeyValueMetadata] c_meta
 
-        cdef shared_ptr[CField] new_field
+        if not isinstance(metadata, dict):
+            raise TypeError('Metadata must be an instance of dict')
+
+        c_meta = pyarrow_unwrap_metadata(metadata)
         with nogil:
-            new_field = self.field.AddMetadata(c_meta)
+            c_field = self.field.AddMetadata(c_meta)
 
-        return pyarrow_wrap_field(new_field)
+        return pyarrow_wrap_field(c_field)
 
     def remove_metadata(self):
         """
@@ -515,6 +517,9 @@ cdef class Schema:
     def __reduce__(self):
         return schema, (list(self), self.metadata)
 
+    def __hash__(self):
+        return hash((tuple(self), self.metadata))
+
     @property
     def names(self):
         """
@@ -544,9 +549,7 @@ cdef class Schema:
 
     @property
     def metadata(self):
-        cdef shared_ptr[const CKeyValueMetadata] metadata = (
-            self.schema.metadata())
-        return box_metadata(metadata.get())
+        return pyarrow_wrap_metadata(self.schema.metadata())
 
     def __eq__(self, other):
         try:
@@ -590,6 +593,45 @@ cdef class Schema:
         cdef Schema _other = other
         return self.sp_schema.get().Equals(deref(_other.schema),
                                            check_metadata)
+
+    @classmethod
+    def from_pandas(cls, df, bint preserve_index=True):
+        """
+        Returns implied schema from dataframe
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+        preserve_index : bool, default True
+            Whether to store the index as an additional column (or columns, for
+            MultiIndex) in the resulting `Table`.
+
+        Returns
+        -------
+        pyarrow.Schema
+
+        Examples
+        --------
+
+        >>> import pandas as pd
+        >>> import pyarrow as pa
+        >>> df = pd.DataFrame({
+            ...     'int': [1, 2],
+            ...     'str': ['a', 'b']
+            ... })
+        >>> pa.Schema.from_pandas(df)
+        int: int64
+        str: string
+        __index_level_0__: int64
+        """
+        names, types, metadata = pdcompat.dataframe_to_types(
+            df,
+            preserve_index=preserve_index
+        )
+        fields = []
+        for name, type_ in zip(names, types):
+            fields.append(field(name, type_))
+        return schema(fields, metadata)
 
     def field_by_name(self, name):
         """
@@ -689,7 +731,7 @@ cdef class Schema:
 
         return pyarrow_wrap_schema(new_schema)
 
-    def add_metadata(self, dict metadata):
+    def add_metadata(self, metadata):
         """
         Add metadata as dict of string keys and values to Schema
 
@@ -702,14 +744,18 @@ cdef class Schema:
         -------
         schema : pyarrow.Schema
         """
-        cdef shared_ptr[CKeyValueMetadata] c_meta
-        convert_metadata(metadata, &c_meta)
+        cdef:
+            shared_ptr[CKeyValueMetadata] c_meta
+            shared_ptr[CSchema] c_schema
 
-        cdef shared_ptr[CSchema] new_schema
+        if not isinstance(metadata, dict):
+            raise TypeError('Metadata must be an instance of dict')
+
+        c_meta = pyarrow_unwrap_metadata(metadata)
         with nogil:
-            new_schema = self.schema.AddMetadata(c_meta)
+            c_schema = self.schema.AddMetadata(c_meta)
 
-        return pyarrow_wrap_schema(new_schema)
+        return pyarrow_wrap_schema(c_schema)
 
     def serialize(self, memory_pool=None):
         """
@@ -771,15 +817,6 @@ cdef class Schema:
         return self.__str__()
 
 
-cdef dict box_metadata(const CKeyValueMetadata* metadata):
-    cdef unordered_map[c_string, c_string] result
-    if metadata != nullptr:
-        metadata.ToUnorderedMap(&result)
-        return result
-    else:
-        return None
-
-
 cdef dict _type_cache = {}
 
 
@@ -793,25 +830,12 @@ cdef DataType primitive_type(Type type):
     _type_cache[type] = out
     return out
 
+
 # -----------------------------------------------------------
 # Type factory functions
 
-cdef int convert_metadata(dict metadata,
-                          shared_ptr[CKeyValueMetadata]* out) except -1:
-    cdef:
-        shared_ptr[CKeyValueMetadata] meta = (
-            make_shared[CKeyValueMetadata]())
-        c_string key, value
 
-    for py_key, py_value in metadata.items():
-        key = tobytes(py_key)
-        value = tobytes(py_value)
-        meta.get().Append(key, value)
-    out[0] = meta
-    return 0
-
-
-def field(name, type, bint nullable=True, dict metadata=None):
+def field(name, type, bint nullable=True, metadata=None):
     """
     Create a pyarrow.Field instance
 
@@ -828,28 +852,22 @@ def field(name, type, bint nullable=True, dict metadata=None):
     field : pyarrow.Field
     """
     cdef:
-        shared_ptr[CKeyValueMetadata] c_meta
         Field result = Field.__new__(Field)
-        DataType _type
+        DataType _type = ensure_type(type, allow_none=False)
+        shared_ptr[CKeyValueMetadata] c_meta
 
     if metadata is not None:
-        convert_metadata(metadata, &c_meta)
+        if not isinstance(metadata, dict):
+            raise TypeError('Metadata must be an instance of dict')
+        c_meta = pyarrow_unwrap_metadata(metadata)
 
-    _type = _as_type(type)
-
-    result.sp_field.reset(new CField(tobytes(name), _type.sp_type,
-                                     nullable == 1, c_meta))
+    result.sp_field.reset(
+        new CField(tobytes(name), _type.sp_type, nullable, c_meta)
+    )
     result.field = result.sp_field.get()
     result.type = _type
+
     return result
-
-
-cdef _as_type(type):
-    if isinstance(type, DataType):
-        return type
-    if not isinstance(type, six.string_types):
-        raise TypeError(type)
-    return type_for_alias(type)
 
 
 cdef set PRIMITIVE_TYPES = set([
@@ -972,12 +990,30 @@ def tzinfo_to_string(tz):
       name : string
         Time zone name
     """
-    if tz.zone is None:
-        sign = '+' if tz._minutes >= 0 else '-'
-        hours, minutes = divmod(abs(tz._minutes), 60)
+    import pytz
+    import datetime
+
+    def fixed_offset_to_string(offset):
+        seconds = int(offset.utcoffset(None).total_seconds())
+        sign = '+' if seconds >= 0 else '-'
+        minutes, seconds = divmod(abs(seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        if seconds > 0:
+            raise ValueError('Offset must represent whole number of minutes')
         return '{}{:02d}:{:02d}'.format(sign, hours, minutes)
-    else:
+
+    if isinstance(tz, pytz.tzinfo.BaseTzInfo):
         return tz.zone
+    elif isinstance(tz, pytz._FixedOffset):
+        return fixed_offset_to_string(tz)
+    elif isinstance(tz, datetime.tzinfo):
+        if six.PY3 and isinstance(tz, datetime.timezone):
+            return fixed_offset_to_string(tz)
+        else:
+            raise ValueError('Unable to convert timezone `{}` to string'
+                             .format(tz))
+    else:
+        raise TypeError('Must be an instance of `datetime.tzinfo`')
 
 
 def string_to_tzinfo(name):
@@ -1241,7 +1277,7 @@ cpdef ListType list_(value_type):
     elif isinstance(value_type, Field):
         list_type.reset(new CListType((<Field> value_type).sp_field))
     else:
-        raise ValueError('List requires DataType or Field')
+        raise TypeError('List requires DataType or Field')
 
     out.init(list_type)
     return out
@@ -1368,6 +1404,7 @@ def union(children_fields, mode):
 cdef dict _type_aliases = {
     'null': null,
     'bool': bool_,
+    'boolean': bool_,
     'i1': int8,
     'int8': int8,
     'i2': int16,
@@ -1431,7 +1468,18 @@ def type_for_alias(name):
     return alias()
 
 
-def schema(fields, dict metadata=None):
+cdef DataType ensure_type(object ty, c_bool allow_none=False):
+    if allow_none and ty is None:
+        return None
+    elif isinstance(ty, DataType):
+        return ty
+    elif isinstance(ty, six.string_types):
+        return type_for_alias(ty)
+    else:
+        raise TypeError('DataType expected, got {!r}'.format(type(ty)))
+
+
+def schema(fields, metadata=None):
     """
     Construct pyarrow.Schema from collection of fields
 
@@ -1471,14 +1519,19 @@ def schema(fields, dict metadata=None):
             py_field = field(*item)
         else:
             py_field = item
+        if py_field is None:
+            raise TypeError("field or tuple expected, got None")
         c_fields.push_back(py_field.sp_field)
 
     if metadata is not None:
-        convert_metadata(metadata, &c_meta)
+        if not isinstance(metadata, dict):
+            raise TypeError('Metadata must be an instance of dict')
+        c_meta = pyarrow_unwrap_metadata(metadata)
 
     c_schema.reset(new CSchema(c_fields, c_meta))
     result = Schema.__new__(Schema)
     result.init_schema(c_schema)
+
     return result
 
 

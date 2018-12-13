@@ -99,3 +99,7 @@ def test_plasma_tf_op(use_gpu=False):
                       np.int8, np.int16, np.int32, np.int64]:
             run_tensorflow_test_with_dtype(tf, plasma, plasma_store_name,
                                            client, use_gpu, dtype)
+
+        # Make sure the objects have been released.
+        for _, info in client.list().items():
+            assert info['ref_count'] == 0

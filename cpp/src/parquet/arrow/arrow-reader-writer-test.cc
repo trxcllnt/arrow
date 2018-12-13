@@ -29,6 +29,11 @@
 #include <sstream>
 #include <vector>
 
+#include "arrow/api.h"
+#include "arrow/test-util.h"
+#include "arrow/type_traits.h"
+#include "arrow/util/decimal.h"
+
 #include "parquet/api/reader.h"
 #include "parquet/api/writer.h"
 
@@ -36,15 +41,8 @@
 #include "parquet/arrow/schema.h"
 #include "parquet/arrow/test-util.h"
 #include "parquet/arrow/writer.h"
-
 #include "parquet/file_writer.h"
-
 #include "parquet/util/test-common.h"
-
-#include "arrow/api.h"
-#include "arrow/test-util.h"
-#include "arrow/type_traits.h"
-#include "arrow/util/decimal.h"
 
 using arrow::Array;
 using arrow::ArrayVisitor;
@@ -335,21 +333,6 @@ void WriteTableToBuffer(const std::shared_ptr<Table>& table, int64_t row_group_s
   *out = sink->GetBuffer();
 }
 
-namespace internal {
-
-void AssertArraysEqual(const Array& expected, const Array& actual) {
-  if (!actual.Equals(expected)) {
-    std::stringstream pp_result;
-    std::stringstream pp_expected;
-
-    EXPECT_OK(::arrow::PrettyPrint(actual, 0, &pp_result));
-    EXPECT_OK(::arrow::PrettyPrint(expected, 0, &pp_expected));
-    FAIL() << "Got: \n" << pp_result.str() << "\nExpected: \n" << pp_expected.str();
-  }
-}
-
-}  // namespace internal
-
 void AssertChunkedEqual(const ChunkedArray& expected, const ChunkedArray& actual) {
   ASSERT_EQ(expected.num_chunks(), actual.num_chunks()) << "# chunks unequal";
   if (!actual.Equals(expected)) {
@@ -492,7 +475,7 @@ class TestParquetIO : public ::testing::Test {
     ReaderFromSink(&reader);
     ReadSingleColumnFile(std::move(reader), &out);
 
-    internal::AssertArraysEqual(values, *out);
+    AssertArraysEqual(values, *out);
   }
 
   void ReadTableFromFile(std::unique_ptr<FileReader> reader,
@@ -551,7 +534,7 @@ class TestParquetIO : public ::testing::Test {
     ASSERT_EQ(1, chunked_array->num_chunks());
     auto result = chunked_array->chunk(0);
 
-    internal::AssertArraysEqual(*values, *result);
+    AssertArraysEqual(*values, *result);
   }
 
   void CheckRoundTrip(const std::shared_ptr<Table>& table) {
@@ -623,7 +606,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredWrite) {
   std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
   ASSERT_EQ(1, chunked_array->num_chunks());
 
-  internal::AssertArraysEqual(*values, *chunked_array->chunk(0));
+  AssertArraysEqual(*values, *chunked_array->chunk(0));
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnOptionalReadWrite) {
@@ -797,7 +780,7 @@ TYPED_TEST(TestParquetIO, SingleColumnTableRequiredChunkedWriteArrowIO) {
   std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
   ASSERT_EQ(1, chunked_array->num_chunks());
 
-  internal::AssertArraysEqual(*values, *chunked_array->chunk(0));
+  AssertArraysEqual(*values, *chunked_array->chunk(0));
 }
 
 TYPED_TEST(TestParquetIO, SingleColumnOptionalChunkedWrite) {
@@ -869,8 +852,8 @@ TEST_F(TestInt96ParquetIO, ReadIntoTimestamp) {
   Int96 day;
   day.value[2] = UINT32_C(2440589);
   int64_t seconds = (11 * 60 + 35) * 60;
-  *(reinterpret_cast<int64_t*>(&(day.value))) =
-      seconds * INT64_C(1000) * INT64_C(1000) * INT64_C(1000) + 145738543;
+  Int96SetNanoSeconds(
+      day, seconds * INT64_C(1000) * INT64_C(1000) * INT64_C(1000) + 145738543);
   // Compute the corresponding nanosecond timestamp
   struct tm datetime;
   memset(&datetime, 0, sizeof(struct tm));
@@ -1016,7 +999,7 @@ TEST_F(TestStringParquetIO, EmptyStringColumnRequiredWrite) {
   std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
   ASSERT_EQ(1, chunked_array->num_chunks());
 
-  internal::AssertArraysEqual(*values, *chunked_array->chunk(0));
+  AssertArraysEqual(*values, *chunked_array->chunk(0));
 }
 
 using TestNullParquetIO = TestParquetIO<::arrow::NullType>;
@@ -1040,7 +1023,7 @@ TEST_F(TestNullParquetIO, NullColumn) {
 
     std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
     ASSERT_EQ(1, chunked_array->num_chunks());
-    internal::AssertArraysEqual(*values, *chunked_array->chunk(0));
+    AssertArraysEqual(*values, *chunked_array->chunk(0));
   }
 }
 
@@ -1070,7 +1053,7 @@ TEST_F(TestNullParquetIO, NullListColumn) {
 
     std::shared_ptr<ChunkedArray> chunked_array = out->column(0)->data();
     ASSERT_EQ(1, chunked_array->num_chunks());
-    internal::AssertArraysEqual(*list_array, *chunked_array->chunk(0));
+    AssertArraysEqual(*list_array, *chunked_array->chunk(0));
   }
 }
 
@@ -1099,7 +1082,7 @@ TEST_F(TestNullParquetIO, NullDictionaryColumn) {
 
   std::shared_ptr<Array> expected_values =
       std::make_shared<::arrow::NullArray>(SMALL_SIZE);
-  internal::AssertArraysEqual(*expected_values, *chunked_array->chunk(0));
+  AssertArraysEqual(*expected_values, *chunked_array->chunk(0));
 }
 
 template <typename T>
@@ -1727,6 +1710,7 @@ TEST(TestArrowReadWrite, ReadColumnSubset) {
 TEST(TestArrowReadWrite, ListLargeRecords) {
   // PARQUET-1308: This test passed on Linux when num_rows was smaller
   const int num_rows = 2000;
+  const int row_group_size = 100;
 
   std::shared_ptr<Array> list_array;
   std::shared_ptr<::DataType> list_type;
@@ -1738,8 +1722,8 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   std::shared_ptr<Table> table = Table::Make(schema, {list_array});
 
   std::shared_ptr<Buffer> buffer;
-  ASSERT_NO_FATAL_FAILURE(
-      WriteTableToBuffer(table, 100, default_arrow_writer_properties(), &buffer));
+  ASSERT_NO_FATAL_FAILURE(WriteTableToBuffer(table, row_group_size,
+                                             default_arrow_writer_properties(), &buffer));
 
   std::unique_ptr<FileReader> reader;
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
@@ -1751,7 +1735,7 @@ TEST(TestArrowReadWrite, ListLargeRecords) {
   ASSERT_OK_NO_THROW(reader->ReadTable(&result));
   ASSERT_NO_FATAL_FAILURE(::arrow::AssertTablesEqual(*table, *result));
 
-  // Read chunked
+  // Read 1 record at a time
   ASSERT_OK_NO_THROW(OpenFile(std::make_shared<BufferReader>(buffer),
                               ::arrow::default_memory_pool(),
                               ::parquet::default_reader_properties(), nullptr, &reader));
@@ -2278,7 +2262,7 @@ TEST_P(TestNestedSchemaRead, DeepNestedSchemaRead) {
   const int num_trees = 3;
   const int depth = 3;
 #else
-  const int num_trees = 10;
+  const int num_trees = 5;
   const int depth = 5;
 #endif
   const int num_children = 3;
@@ -2370,7 +2354,7 @@ TEST_P(TestArrowReaderAdHocSparkAndHvr, ReadDecimals) {
   }
   ASSERT_OK(builder.Finish(&expected_array));
 
-  internal::AssertArraysEqual(*expected_array, *chunk);
+  AssertArraysEqual(*expected_array, *chunk);
 }
 
 INSTANTIATE_TEST_CASE_P(

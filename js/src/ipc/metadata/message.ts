@@ -46,13 +46,12 @@ import {
     DataType, Dictionary, TimeBitWidth,
     Utf8, Binary, Decimal, FixedSizeBinary,
     List, FixedSizeList, Map_, Struct, Union,
-    Bool, Null, Int, Float, Date_, Time, Interval, Timestamp,
+    Bool, Null, Int, Float, Date_, Time, Interval, Timestamp, IntBitWidth,
 } from '../../type';
 
-type MessageHeaderDecoder = <T extends MessageHeader>() => T extends MessageHeader.Schema ? Schema
-                                                         : T extends MessageHeader.RecordBatch ? RecordBatch
-                                                         : T extends MessageHeader.DictionaryBatch ? DictionaryBatch : never;
-
+/**
+ * @ignore
+ */
 export class Message<T extends MessageHeader = any> {
 
     static fromJSON<T extends MessageHeader>(msg: any, headerType: T): Message<T> {
@@ -125,6 +124,9 @@ export class Message<T extends MessageHeader = any> {
     }
 }
 
+/**
+ * @ignore
+ */
 export class RecordBatch {
     public readonly length: number;
     public readonly nodes: FieldNode[];
@@ -137,16 +139,17 @@ export class RecordBatch {
     }
 }
 
+/**
+ * @ignore
+ */
 export class DictionaryBatch {
 
-    private static atomicDictionaryId = 0;
     public readonly id: number;
     public readonly isDelta: boolean;
     public readonly data: RecordBatch;
     public get length(): number { return this.data.length; }
     public get nodes(): FieldNode[] { return this.data.nodes; }
     public get buffers(): BufferRegion[] { return this.data.buffers; }
-    public static getId() { return DictionaryBatch.atomicDictionaryId++; }
 
     constructor(data: RecordBatch, id: Long | number, isDelta: boolean = false) {
         this.data = data;
@@ -155,6 +158,9 @@ export class DictionaryBatch {
     }
 }
 
+/**
+ * @ignore
+ */
 export class BufferRegion {
     public offset: number;
     public length: number;
@@ -164,6 +170,9 @@ export class BufferRegion {
     }
 }
 
+/**
+ * @ignore
+ */
 export class FieldNode {
     public length: number;
     public nullCount: number;
@@ -176,7 +185,7 @@ export class FieldNode {
 function messageHeaderFromJSON(message: any, type: MessageHeader) {
     return (() => {
         switch (type) {
-            case MessageHeader.Schema: return Schema.fromJSON(message, new Map());
+            case MessageHeader.Schema: return Schema.fromJSON(message);
             case MessageHeader.RecordBatch: return RecordBatch.fromJSON(message);
             case MessageHeader.DictionaryBatch: return DictionaryBatch.fromJSON(message);
         }
@@ -188,7 +197,7 @@ function messageHeaderFromJSON(message: any, type: MessageHeader) {
 function decodeMessageHeader(message: _Message, type: MessageHeader) {
     return (() => {
         switch (type) {
-            case MessageHeader.Schema: return Schema.decode(message.header(new _Schema())!, new Map());
+            case MessageHeader.Schema: return Schema.decode(message.header(new _Schema())!);
             case MessageHeader.RecordBatch: return RecordBatch.decode(message.header(new _RecordBatch())!, message.version());
             case MessageHeader.DictionaryBatch: return DictionaryBatch.decode(message.header(new _DictionaryBatch())!, message.version());
         }
@@ -253,9 +262,9 @@ declare module './message' {
     }
 }
 
-function decodeSchema(_schema: _Schema, dictionaryTypes: Map<number, Dictionary>) {
-    const fields = decodeSchemaFields(_schema, dictionaryTypes);
-    return new Schema(fields, decodeCustomMetadata(_schema), dictionaryTypes);
+function decodeSchema(_schema: _Schema, dictionaries: Map<number, DataType> = new Map(), dictionaryFields: Map<number, Field<Dictionary<any, Int>>[]> = new Map()) {
+    const fields = decodeSchemaFields(_schema, dictionaries, dictionaryFields);
+    return new Schema(fields, decodeCustomMetadata(_schema), dictionaries, dictionaryFields);
 }
 
 function decodeRecordBatch(batch: _RecordBatch, version = MetadataVersion.V4) {
@@ -300,50 +309,55 @@ function v3Compat(version: MetadataVersion, decode: (buffer: _Buffer) => BufferR
     };
 }
 
-function decodeSchemaFields(schema: _Schema, dictionaryTypes: Map<number, Dictionary> | null) {
+function decodeSchemaFields(schema: _Schema, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary<any, Int>>[]>) {
     return Array.from(
         { length: schema.fieldsLength() },
         (_, i) => schema.fields(i)!
-    ).filter(Boolean).map((f) => Field.decode(f, dictionaryTypes));
+    ).filter(Boolean).map((f) => Field.decode(f, dictionaries, dictionaryFields));
 }
 
-function decodeFieldChildren(field: _Field, dictionaryTypes: Map<number, Dictionary> | null): Field[] {
+function decodeFieldChildren(field: _Field, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary<any, Int>>[]>): Field[] {
     return Array.from(
         { length: field.childrenLength() },
         (_, i) => field.children(i)!
-    ).filter(Boolean).map((f) => Field.decode(f, dictionaryTypes));
+    ).filter(Boolean).map((f) => Field.decode(f, dictionaries, dictionaryFields));
 }
 
-function decodeField(f: _Field, dictionaryTypes: Map<number, Dictionary> | null) {
+function decodeField(f: _Field, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary<any, Int>>[]>) {
 
     let id: number;
     let field: Field | void;
+    let type: DataType<any>;
     let keys: _Int | Int | null;
-    let type: DataType<any> | null;
-    let dict: _DictionaryEncoding | null;
+    let dictType: Dictionary<any, Int>;
+    let dictMeta: _DictionaryEncoding | null;
+    let dictField: Field<Dictionary<any, Int>>;
 
     // If no dictionary encoding, or in the process of decoding the children of a dictionary-encoded field
-    if (!dictionaryTypes || !(dict = f.dictionary())) {
-        type = decodeFieldType(f, decodeFieldChildren(f, dictionaryTypes));
+    if (!dictionaries || !dictionaryFields || !(dictMeta = f.dictionary())) {
+        type = decodeFieldType(f, decodeFieldChildren(f, dictionaries, dictionaryFields));
         field = new Field(f.name()!, type, f.nullable(), decodeCustomMetadata(f));
     }
     // tslint:disable
     // If dictionary encoded and the first time we've seen this dictionary id, decode
     // the data type and child fields, then wrap in a Dictionary type and insert the
     // data type into the dictionary types map.
-    else if (!dictionaryTypes.has(id = dict.id().low)) {
+    else if (!dictionaries.has(id = dictMeta.id().low)) {
         // a dictionary index defaults to signed 32 bit int if unspecified
-        keys = (keys = dict.indexType()) ? decodeIntType(keys) : new Int(true, 32);
-        type = new Dictionary(decodeFieldType(f, decodeFieldChildren(f, null)), keys, id, dict.isOrdered());
-        field = new Field(f.name()!, type, f.nullable(), decodeCustomMetadata(f));
-        dictionaryTypes.set(id, type as Dictionary);
+        keys = (keys = dictMeta.indexType()) ? decodeIntType(keys) : new Int(true, 32);
+        dictionaries.set(id, type = decodeFieldType(f, decodeFieldChildren(f)));
+        dictType = new Dictionary(type, keys, id, dictMeta.isOrdered());
+        dictField = new Field(f.name()!, dictType, f.nullable(), decodeCustomMetadata(f));
+        dictionaryFields.set(id, [field = dictField]);
     }
     // If dictionary encoded, and have already seen this dictionary Id in the schema, then reuse the
     // data type and wrap in a new Dictionary type and field.
     else {
         // a dictionary index defaults to signed 32 bit int if unspecified
-        keys = (keys = dict.indexType()) ? decodeIntType(keys) : new Int(true, 32);
-        field = new Field(f.name()!, dictionaryTypes.get(id)!, f.nullable(), decodeCustomMetadata(f));
+        keys = (keys = dictMeta.indexType()) ? decodeIntType(keys) : new Int(true, 32);
+        dictType = new Dictionary(dictionaries.get(id)!, keys, id, dictMeta.isOrdered());
+        dictField = new Field(f.name()!, dictType, f.nullable(), decodeCustomMetadata(f));
+        dictionaryFields.get(id)!.push(field = dictField);
     }
     return field || null;
 }
@@ -361,7 +375,7 @@ function decodeCustomMetadata(parent?: _Schema | _Field | null) {
 }
 
 function decodeIntType(_type: _Int) {
-    return new Int(_type.isSigned(), _type.bitWidth());
+    return new Int(_type.isSigned(), _type.bitWidth() as IntBitWidth);
 }
 
 function decodeFieldType(f: _Field, children?: Field[]): DataType<any> {
@@ -546,3 +560,7 @@ const platformIsLittleEndian = (function() {
     // Int16Array uses the platform's endianness.
     return new Int16Array(buffer)[0] === 256;
 })();
+
+type MessageHeaderDecoder = <T extends MessageHeader>() => T extends MessageHeader.Schema ? Schema
+                                                         : T extends MessageHeader.RecordBatch ? RecordBatch
+                                                         : T extends MessageHeader.DictionaryBatch ? DictionaryBatch : never;

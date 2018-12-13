@@ -34,7 +34,7 @@ export class Footer {
     static decode(buf: ArrayBufferViewInput) {
         buf = new ByteBuffer(toUint8Array(buf));
         const footer = _Footer.getRootAsFooter(buf);
-        const schema = Schema.decode(footer.schema()!, new Map());
+        const schema = Schema.decode(footer.schema()!);
         return new OffHeapFooter(schema, footer) as Footer;
     }
 
@@ -73,7 +73,7 @@ export class Footer {
                 public version: MetadataVersion = MetadataVersion.V4,
                 recordBatches?: FileBlock[], dictionaryBatches?: FileBlock[]) {
         recordBatches && (this._recordBatches = recordBatches);
-        dictionaryBatches && (this._recordBatches = dictionaryBatches);
+        dictionaryBatches && (this._dictionaryBatches = dictionaryBatches);
     }
 
     public *recordBatches(): Iterable<FileBlock> {

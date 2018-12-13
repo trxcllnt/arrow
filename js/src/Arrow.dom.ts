@@ -5,7 +5,7 @@ import { RecordBatchReader } from './ipc/reader';
 import { RecordBatchWriter } from './ipc/writer';
 import { ReadableDOMStreamOptions } from './io/interfaces';
 import { isIterable, isAsyncIterable } from './util/compat';
-import { AsyncReadableByteStream, AsyncWritableByteStream } from './io/stream';
+import { AsyncByteStream, AsyncByteQueue } from './io/stream';
 
 streamAdapters.toReadableDOMStream = toReadableDOMStream;
 RecordBatchReader.throughDOM = recordBatchReaderThroughDOMStream;
@@ -15,16 +15,16 @@ export * from './Arrow';
 
 function recordBatchReaderThroughDOMStream<T extends { [key: string]: DataType } = any>() {
 
-    let through = new AsyncWritableByteStream();
+    const through = new AsyncByteQueue();
     let reader: RecordBatchReader<T> | null = null;
 
     const readable = new ReadableStream<RecordBatch<T>>({
+        async cancel() { await through.close(); },
         async start(controller) { await next(controller, reader || (reader = await open())); },
-        async pull(controller) { reader ? await next(controller, reader) : controller.close(); },
-        async cancel() { (reader && (await reader.close()) || true) && (reader = null); },
+        async pull(controller) { reader ? await next(controller, reader) : controller.close(); }
     });
 
-    return { writable: new WritableStream<Uint8Array>(through), readable };
+    return { writable: new WritableStream(through), readable };
 
     async function open() {
         return await (await RecordBatchReader.from(through)).open();
@@ -33,35 +33,40 @@ function recordBatchReaderThroughDOMStream<T extends { [key: string]: DataType }
     async function next(controller: ReadableStreamDefaultController<RecordBatch<T>>, reader: RecordBatchReader<T>) {
         let size = controller.desiredSize;
         let r: IteratorResult<RecordBatch<T>> | null = null;
-        while ((size == null || size-- > 0) && !(r = await reader.next()).done) {
+        while (!(r = await reader.next()).done) {
             controller.enqueue(r.value);
+            if (size != null && --size <= 0) {
+                return;
+            }
         }
-        r && r.done && controller.close();
+        controller.close();
     }
 }
 
 function recordBatchWriterThroughDOMStream<T extends { [key: string]: DataType } = any>(
+    this: typeof RecordBatchWriter,
     writableStrategy?: QueuingStrategy<RecordBatch<T>>,
-    readableStrategy: { highWaterMark?: number, size?: any } = { highWaterMark: 2 ** 16 }
+    readableStrategy?: { highWaterMark?: number, size?: any }
 ) {
 
-    const through = new AsyncWritableByteStream();
-    const writer = new RecordBatchWriter<T>(through);
-    const reader = new AsyncReadableByteStream(through);
+    const through = new AsyncByteQueue();
+    const writer = new this<T>().reset(through);
+    const reader = new AsyncByteStream(through);
     const readable = new ReadableStream({
         type: 'bytes',
-        async pull(controller) { await next(controller, reader); },
-        async start(controller) { await next(controller, reader); },
-        async cancel() { (reader && (await reader.return()) || true); },
-    }, { highWaterMark: 2 ** 16, ...readableStrategy });
+        async cancel() { await through.close(); },
+        async pull(controller) { await next(controller); },
+        async start(controller) { await next(controller); },
+    }, readableStrategy);
 
-    return { writable: new WritableStream<RecordBatch<T>>(writer, writableStrategy), readable };
+    return { writable: new WritableStream(writer, writableStrategy), readable };
 
-    async function next(controller: ReadableStreamDefaultController<Uint8Array>, reader: AsyncReadableByteStream) {
+    async function next(controller: ReadableStreamDefaultController<Uint8Array>) {
         let buf: Uint8Array | null = null;
         let size = controller.desiredSize;
-        while (buf = await reader.read(size)) {
-            controller.enqueue(buf);
+        while (buf = await reader.read(size || null)) {
+            // Work around https://github.com/whatwg/streams/blob/0ebe4b042e467d9876d80ae045de3843092ad797/reference-implementation/lib/helpers.js#L126
+            controller.enqueue((buf.buffer.byteLength !== 0) ? buf : buf.slice());
             if (size != null && (size -= buf.byteLength) <= 0) {
                 return;
             }

@@ -27,6 +27,7 @@
 
 #include "arrow/status.h"
 #include "arrow/util/macros.h"
+#include "arrow/util/string_view.h"
 #include "arrow/util/type_traits.h"
 #include "arrow/util/visibility.h"
 
@@ -43,7 +44,7 @@ class ARROW_EXPORT Decimal128 {
  public:
   /// \brief Create an Decimal128 from the two's complement representation.
   constexpr Decimal128(int64_t high, uint64_t low) noexcept
-      : high_bits_(high), low_bits_(low) {}
+      : low_bits_(low), high_bits_(high) {}
 
   /// \brief Empty constructor creates an Decimal128 with a value of 0.
   constexpr Decimal128() noexcept : Decimal128(0, 0) {}
@@ -128,6 +129,10 @@ class ARROW_EXPORT Decimal128 {
   /// precision and scale if they're passed in and not null.
   static Status FromString(const std::string& s, Decimal128* out,
                            int32_t* precision = NULLPTR, int32_t* scale = NULLPTR);
+  static Status FromString(const util::string_view& s, Decimal128* out,
+                           int32_t* precision = NULLPTR, int32_t* scale = NULLPTR);
+  static Status FromString(const char* s, Decimal128* out, int32_t* precision = NULLPTR,
+                           int32_t* scale = NULLPTR);
 
   /// \brief Convert from a big endian byte representation. The length must be
   ///        between 1 and 16
@@ -153,8 +158,8 @@ class ARROW_EXPORT Decimal128 {
   }
 
  private:
-  int64_t high_bits_;
   uint64_t low_bits_;
+  int64_t high_bits_;
 };
 
 ARROW_EXPORT bool operator==(const Decimal128& left, const Decimal128& right);

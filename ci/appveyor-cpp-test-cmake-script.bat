@@ -32,6 +32,8 @@ set FLATBUFFERS_HOME=WrongPath
 
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. >nul 2>error.txt
@@ -49,6 +51,8 @@ set GFLAGS_HOME=WrongPath
 
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. >nul 2>error.txt
@@ -66,6 +70,8 @@ set SNAPPY_HOME=WrongPath
 
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. >nul 2>error.txt
@@ -83,6 +89,8 @@ set ZLIB_HOME=WrongPath
 
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. >nul 2>error.txt
@@ -100,6 +108,8 @@ set BROTLI_HOME=WrongPath
 
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. >nul 2>error.txt
@@ -117,11 +127,13 @@ set LZ4_HOME=WrongPath
 
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. >nul 2>error.txt
 
-FINDSTR /M /C:"No static or shared library provided for lz4_static" error.txt || exit /B
+FINDSTR /M /C:"No static or shared library provided for lz4" error.txt || exit /B
 set LZ4_HOME=
 
 popd
@@ -134,6 +146,8 @@ set ZSTD_HOME=WrongPath
 
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. >nul 2>error.txt
@@ -146,32 +160,33 @@ rmdir /S /Q %BUILD_DIR%
 call deactivate
 
 @rem Validate libs availability in conda toolchain
-mkdir %BUILD_DIR%
-pushd %BUILD_DIR%
-
 set CONDA_ENV=arrow-cmake-tests-toolchain
 conda create -n %CONDA_ENV% -q -y
 conda install -n %CONDA_ENV% -q -y -c conda-forge ^
-      flatbuffers rapidjson boost-cpp ^
-      thrift-cpp snappy zlib brotli gflags lz4-c zstd
+      --file=ci\conda_env_cpp.yml
 call activate %CONDA_ENV%
+
+mkdir %BUILD_DIR%
+pushd %BUILD_DIR%
 
 set ARROW_BUILD_TOOLCHAIN=%CONDA_PREFIX%\Library
 cmake -G "%GENERATOR%" ^
       -DARROW_BOOST_USE_SHARED=OFF ^
+      -DARROW_BUILD_TESTS=ON ^
+      -DARROW_BUILD_EXAMPLES=ON ^
       -DCMAKE_BUILD_TYPE=%CONFIGURATION% ^
       -DARROW_CXXFLAGS="/MP" ^
       .. 2>output.txt
 
 set LIBRARY_FOUND_MSG=Added static library dependency
-for %%x in (snappy gflags brotli_enc brotli_dec brotli_common lz4_static zstd_static) do (
+for %%x in (snappy gflags brotli_enc brotli_dec brotli_common lz4 zstd) do (
     echo Checking %%x library path
-    FINDSTR /C:"%LIBRARY_FOUND_MSG% %%x: %CONDA_PREFIX:\=/%" output.txt || exit /B
+    FINDSTR /C:"%LIBRARY_FOUND_MSG% %%x_static: %CONDA_PREFIX:\=/%" output.txt || exit /B
 )
 set LIBRARY_FOUND_MSG=Added shared library dependency
 for %%x in (zlib) do (
     echo Checking %%x library path
-    FINDSTR /C:"%LIBRARY_FOUND_MSG% %%x: %CONDA_PREFIX:\=/%" output.txt || exit /B
+    FINDSTR /C:"%LIBRARY_FOUND_MSG% %%x_shared: %CONDA_PREFIX:\=/%" output.txt || exit /B
 )
 
 popd

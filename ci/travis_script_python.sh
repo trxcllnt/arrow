@@ -38,7 +38,7 @@ conda activate $CONDA_ENV_DIR
 # We should use zlib in the target Python directory to avoid loading
 # wrong libpython on macOS at run-time. If we use zlib in
 # $ARROW_BUILD_TOOLCHAIN and libpython3.6m.dylib exists in both
-# $ARROW_BUILD_TOOLCHAIN and $CONDA_ENV_DIR, python-test uses
+# $ARROW_BUILD_TOOLCHAIN and $CONDA_ENV_DIR, arrow-python-test uses
 # libpython3.6m.dylib on $ARROW_BUILD_TOOLCHAIN not $CONDA_ENV_DIR.
 # libpython3.6m.dylib on $ARROW_BUILD_TOOLCHAIN doesn't have NumPy. So
 # python-test fails.
@@ -51,21 +51,15 @@ if [ $ARROW_TRAVIS_PYTHON_JVM == "1" ]; then
   CONDA_JVM_DEPS="jpype1"
 fi
 
-conda install -y -q pip \
-      nomkl \
-      cloudpickle \
+conda install -y -q \
+      --file $TRAVIS_BUILD_DIR/ci/conda_env_python.yml \
+      pip \
       numpy=1.13.1 \
-      ${CONDA_JVM_DEPS} \
-      pandas \
-      cython
+      ${CONDA_JVM_DEPS}
 
 if [ "$ARROW_TRAVIS_PYTHON_DOCS" == "1" ] && [ "$PYTHON_VERSION" == "3.6" ]; then
   # Install documentation dependencies
-  conda install -y -q \
-        ipython \
-        numpydoc \
-        sphinx=1.7.9 \
-        sphinx_rtd_theme
+  conda install -y -c conda-forge --file ci/conda_env_sphinx.yml
 fi
 
 # ARROW-2093: PyTorch increases the size of our conda dependency stack
@@ -96,6 +90,10 @@ if [ $ARROW_TRAVIS_COVERAGE == "1" ]; then
   CMAKE_COMMON_FLAGS="$CMAKE_COMMON_FLAGS -DARROW_GENERATE_COVERAGE=ON"
 fi
 
+if [ $ARROW_TRAVIS_PYTHON_GANDIVA == "1" ]; then
+  CMAKE_COMMON_FLAGS="$CMAKE_COMMON_FLAGS -DARROW_GANDIVA=ON -DARROW_GANDIVA_BUILD_TESTS=OFF"
+fi
+
 cmake -GNinja \
       $CMAKE_COMMON_FLAGS \
       -DARROW_BUILD_TESTS=on \
@@ -115,7 +113,7 @@ ninja install
 popd
 
 # python-test isn't run by travis_script_cpp.sh, exercise it here
-$ARROW_CPP_BUILD_DIR/$ARROW_BUILD_TYPE/python-test
+$ARROW_CPP_BUILD_DIR/$ARROW_BUILD_TYPE/arrow-python-test
 
 pushd $ARROW_PYTHON_DIR
 
@@ -136,6 +134,9 @@ export PYARROW_BUILD_TYPE=$ARROW_BUILD_TYPE
 export PYARROW_WITH_PARQUET=1
 export PYARROW_WITH_PLASMA=1
 export PYARROW_WITH_ORC=1
+if [ $ARROW_TRAVIS_PYTHON_GANDIVA == "1" ]; then
+  export PYARROW_WITH_GANDIVA=1
+fi
 
 python setup.py develop
 
@@ -183,7 +184,10 @@ if [ "$ARROW_TRAVIS_COVERAGE" == "1" ]; then
 fi
 
 if [ "$ARROW_TRAVIS_PYTHON_DOCS" == "1" ] && [ "$PYTHON_VERSION" == "3.6" ]; then
-  cd doc
+  pushd ../cpp/apidoc
+  doxygen
+  popd
+  cd ../docs
   sphinx-build -q -b html -d _build/doctrees -W source _build/html
 fi
 
@@ -201,6 +205,7 @@ if [ "$ARROW_TRAVIS_PYTHON_BENCHMARKS" == "1" ] && [ "$PYTHON_VERSION" == "3.6" 
   export PYARROW_WITH_PARQUET=1
   export PYARROW_WITH_PLASMA=1
   export PYARROW_WITH_ORC=0
+  export PYARROW_WITH_GANDIVA=0
 
   pushd $ARROW_PYTHON_DIR
   # Workaround for https://github.com/airspeed-velocity/asv/issues/631

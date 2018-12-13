@@ -17,9 +17,6 @@
 #
 # Includes code assembled from BSD/MIT/Apache-licensed code from some 3rd-party
 # projects, including Kudu, Impala, and libdynd. See python/LICENSE.txt
-#
-# TODO(ARROW-3209): rename arrow_gpu to arrow_cuda
-#
 
 cmake_minimum_required(VERSION 2.7)
 project(pyarrow)
@@ -130,6 +127,10 @@ else()
   # Converting to/from C++ bool is pretty wonky in Cython. The C4800 warning
   # seem harmless, and probably not worth the effort of working around it
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800")
+
+  # See https://github.com/cython/cython/issues/2731. Change introduced in
+  # Cython 0.29.1 causes "unsafe use of type 'bool' in operation"
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4804")
 endif()
 
 if ("${COMPILER_FAMILY}" STREQUAL "clang")
@@ -389,13 +390,13 @@ if (PYARROW_BUILD_CUDA)
       endif()
     endif()
     if (MSVC)
-      ADD_THIRDPARTY_LIB(arrow_gpu
+      ADD_THIRDPARTY_LIB(arrow_cuda
         SHARED_LIB ${ARROW_CUDA_SHARED_IMP_LIB})
     else()
-      ADD_THIRDPARTY_LIB(arrow_gpu
+      ADD_THIRDPARTY_LIB(arrow_cuda
         SHARED_LIB ${ARROW_CUDA_SHARED_LIB})
     endif()
-    set(LINK_LIBS ${LINK_LIBS} arrow_gpu_shared)
+    set(LINK_LIBS ${LINK_LIBS} arrow_cuda_shared)
     set(CYTHON_EXTENSIONS ${CYTHON_EXTENSIONS} _cuda)
   endif()
 endif()
@@ -487,6 +488,30 @@ if (PYARROW_BUILD_ORC)
       ${CYTHON_EXTENSIONS}
       _orc)
 endif()
+
+## Gandiva
+if (PYARROW_BUILD_GANDIVA)
+  find_package(Gandiva)
+
+  if(NOT GANDIVA_FOUND)
+    message(FATAL_ERROR "Unable to locate Gandiva libraries")
+  endif()
+
+  include_directories(SYSTEM ${GANDIVA_INCLUDE_DIR})
+
+  if (PYARROW_BUNDLE_ARROW_CPP)
+    bundle_arrow_lib(GANDIVA_SHARED_LIB
+      ABI_VERSION ${ARROW_ABI_VERSION}
+      SO_VERSION ${ARROW_SO_VERSION})
+  endif()
+
+  set(LINK_LIBS
+    ${LINK_LIBS}
+    ${GANDIVA_SHARED_LIB})
+
+  set(CYTHON_EXTENSIONS ${CYTHON_EXTENSIONS} gandiva)
+endif()
+
 
 ############################################################
 # Setup and build Cython modules

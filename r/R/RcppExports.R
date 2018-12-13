@@ -9,6 +9,10 @@ Array__as_vector <- function(array) {
     .Call(`_arrow_Array__as_vector`, array)
 }
 
+ChunkedArray__as_vector <- function(chunked_array) {
+    .Call(`_arrow_ChunkedArray__as_vector`, chunked_array)
+}
+
 Array__Slice1 <- function(array, offset) {
     .Call(`_arrow_Array__Slice1`, array, offset)
 }
@@ -93,6 +97,10 @@ ArrayData__get_offset <- function(x) {
     .Call(`_arrow_ArrayData__get_offset`, x)
 }
 
+ArrayData__buffers <- function(x) {
+    .Call(`_arrow_ArrayData__buffers`, x)
+}
+
 Buffer__is_mutable <- function(buffer) {
     .Call(`_arrow_Buffer__is_mutable`, buffer)
 }
@@ -137,10 +145,6 @@ ChunkedArray__type <- function(chunked_array) {
     .Call(`_arrow_ChunkedArray__type`, chunked_array)
 }
 
-ChunkedArray__as_vector <- function(chunked_array) {
-    .Call(`_arrow_ChunkedArray__as_vector`, chunked_array)
-}
-
 ChunkArray__Slice1 <- function(chunked_array, offset) {
     .Call(`_arrow_ChunkArray__Slice1`, chunked_array, offset)
 }
@@ -169,8 +173,32 @@ Column__data <- function(column) {
     .Call(`_arrow_Column__data`, column)
 }
 
-xptr_is_null <- function(xp) {
-    .Call(`_arrow_xptr_is_null`, xp)
+compute___CastOptions__initialize <- function(allow_int_overflow, allow_time_truncate, allow_float_truncate) {
+    .Call(`_arrow_compute___CastOptions__initialize`, allow_int_overflow, allow_time_truncate, allow_float_truncate)
+}
+
+Array__cast <- function(array, target_type, options) {
+    .Call(`_arrow_Array__cast`, array, target_type, options)
+}
+
+ChunkedArray__cast <- function(chunked_array, target_type, options) {
+    .Call(`_arrow_ChunkedArray__cast`, chunked_array, target_type, options)
+}
+
+RecordBatch__cast <- function(batch, schema, options) {
+    .Call(`_arrow_RecordBatch__cast`, batch, schema, options)
+}
+
+Table__cast <- function(table, schema, options) {
+    .Call(`_arrow_Table__cast`, table, schema, options)
+}
+
+shared_ptr_is_null <- function(xp) {
+    .Call(`_arrow_shared_ptr_is_null`, xp)
+}
+
+unique_ptr_is_null <- function(xp) {
+    .Call(`_arrow_unique_ptr_is_null`, xp)
 }
 
 Int8__initialize <- function() {
@@ -309,6 +337,10 @@ Schema__field <- function(s, i) {
     .Call(`_arrow_Schema__field`, s, i)
 }
 
+Schema__names <- function(schema) {
+    .Call(`_arrow_Schema__names`, schema)
+}
+
 ListType__ToString <- function(type) {
     .Call(`_arrow_ListType__ToString`, type)
 }
@@ -341,10 +373,6 @@ TimestampType__unit <- function(type) {
     .Call(`_arrow_TimestampType__unit`, type)
 }
 
-Object__pointer_address <- function(obj) {
-    .Call(`_arrow_Object__pointer_address`, obj)
-}
-
 DictionaryType__initialize <- function(type, array, ordered) {
     .Call(`_arrow_DictionaryType__initialize`, type, array, ordered)
 }
@@ -365,20 +393,88 @@ DictionaryType__ordered <- function(type) {
     .Call(`_arrow_DictionaryType__ordered`, type)
 }
 
-Field__initialize <- function(name, type, nullable = TRUE) {
-    .Call(`_arrow_Field__initialize`, name, type, nullable)
+ipc___feather___TableWriter__SetDescription <- function(writer, description) {
+    invisible(.Call(`_arrow_ipc___feather___TableWriter__SetDescription`, writer, description))
 }
 
-Field__ToString <- function(type) {
-    .Call(`_arrow_Field__ToString`, type)
+ipc___feather___TableWriter__SetNumRows <- function(writer, num_rows) {
+    invisible(.Call(`_arrow_ipc___feather___TableWriter__SetNumRows`, writer, num_rows))
 }
 
-Field__name <- function(type) {
-    .Call(`_arrow_Field__name`, type)
+ipc___feather___TableWriter__Append <- function(writer, name, values) {
+    invisible(.Call(`_arrow_ipc___feather___TableWriter__Append`, writer, name, values))
 }
 
-Field__nullable <- function(type) {
-    .Call(`_arrow_Field__nullable`, type)
+ipc___feather___TableWriter__Finalize <- function(writer) {
+    invisible(.Call(`_arrow_ipc___feather___TableWriter__Finalize`, writer))
+}
+
+ipc___feather___TableWriter__Open <- function(stream) {
+    .Call(`_arrow_ipc___feather___TableWriter__Open`, stream)
+}
+
+ipc___TableWriter__RecordBatch__WriteFeather <- function(writer, batch) {
+    invisible(.Call(`_arrow_ipc___TableWriter__RecordBatch__WriteFeather`, writer, batch))
+}
+
+ipc___feather___TableReader__GetDescription <- function(reader) {
+    .Call(`_arrow_ipc___feather___TableReader__GetDescription`, reader)
+}
+
+ipc___feather___TableReader__HasDescription <- function(reader) {
+    .Call(`_arrow_ipc___feather___TableReader__HasDescription`, reader)
+}
+
+ipc___feather___TableReader__version <- function(reader) {
+    .Call(`_arrow_ipc___feather___TableReader__version`, reader)
+}
+
+ipc___feather___TableReader__num_rows <- function(reader) {
+    .Call(`_arrow_ipc___feather___TableReader__num_rows`, reader)
+}
+
+ipc___feather___TableReader__num_columns <- function(reader) {
+    .Call(`_arrow_ipc___feather___TableReader__num_columns`, reader)
+}
+
+ipc___feather___TableReader__GetColumnName <- function(reader, i) {
+    .Call(`_arrow_ipc___feather___TableReader__GetColumnName`, reader, i)
+}
+
+ipc___feather___TableReader__GetColumn <- function(reader, i) {
+    .Call(`_arrow_ipc___feather___TableReader__GetColumn`, reader, i)
+}
+
+ipc___feather___TableReader__Read <- function(reader, columns) {
+    .Call(`_arrow_ipc___feather___TableReader__Read`, reader, columns)
+}
+
+ipc___feather___TableReader__Open <- function(stream) {
+    .Call(`_arrow_ipc___feather___TableReader__Open`, stream)
+}
+
+Field__initialize <- function(name, field, nullable = TRUE) {
+    .Call(`_arrow_Field__initialize`, name, field, nullable)
+}
+
+Field__ToString <- function(field) {
+    .Call(`_arrow_Field__ToString`, field)
+}
+
+Field__name <- function(field) {
+    .Call(`_arrow_Field__name`, field)
+}
+
+Field__Equals <- function(field, other) {
+    .Call(`_arrow_Field__Equals`, field, other)
+}
+
+Field__nullable <- function(field) {
+    .Call(`_arrow_Field__nullable`, field)
+}
+
+Field__type <- function(field) {
+    .Call(`_arrow_Field__type`, field)
 }
 
 io___Readable__Read <- function(x, nbytes) {
@@ -477,6 +573,50 @@ MemoryPool__max_memory <- function(pool) {
     .Call(`_arrow_MemoryPool__max_memory`, pool)
 }
 
+ipc___Message__body_length <- function(message) {
+    .Call(`_arrow_ipc___Message__body_length`, message)
+}
+
+ipc___Message__metadata <- function(message) {
+    .Call(`_arrow_ipc___Message__metadata`, message)
+}
+
+ipc___Message__body <- function(message) {
+    .Call(`_arrow_ipc___Message__body`, message)
+}
+
+ipc___Message__Verify <- function(message) {
+    .Call(`_arrow_ipc___Message__Verify`, message)
+}
+
+ipc___Message__type <- function(message) {
+    .Call(`_arrow_ipc___Message__type`, message)
+}
+
+ipc___Message__Equals <- function(x, y) {
+    .Call(`_arrow_ipc___Message__Equals`, x, y)
+}
+
+ipc___ReadRecordBatch__Message__Schema <- function(message, schema) {
+    .Call(`_arrow_ipc___ReadRecordBatch__Message__Schema`, message, schema)
+}
+
+ipc___ReadSchema_InputStream <- function(stream) {
+    .Call(`_arrow_ipc___ReadSchema_InputStream`, stream)
+}
+
+ipc___MessageReader__Open <- function(stream) {
+    .Call(`_arrow_ipc___MessageReader__Open`, stream)
+}
+
+ipc___MessageReader__ReadNextMessage <- function(reader) {
+    .Call(`_arrow_ipc___MessageReader__ReadNextMessage`, reader)
+}
+
+ipc___ReadMessage <- function(stream) {
+    .Call(`_arrow_ipc___ReadMessage`, stream)
+}
+
 RecordBatch__num_columns <- function(x) {
     .Call(`_arrow_RecordBatch__num_columns`, x)
 }
@@ -487,6 +627,10 @@ RecordBatch__num_rows <- function(x) {
 
 RecordBatch__schema <- function(x) {
     .Call(`_arrow_RecordBatch__schema`, x)
+}
+
+RecordBatch__columns <- function(batch) {
+    .Call(`_arrow_RecordBatch__columns`, batch)
 }
 
 RecordBatch__column <- function(batch, i) {
@@ -525,6 +669,14 @@ RecordBatch__Slice2 <- function(self, offset, length) {
     .Call(`_arrow_RecordBatch__Slice2`, self, offset, length)
 }
 
+ipc___SerializeRecordBatch__Raw <- function(batch) {
+    .Call(`_arrow_ipc___SerializeRecordBatch__Raw`, batch)
+}
+
+ipc___ReadRecordBatch__InputStream__Schema <- function(stream, schema) {
+    .Call(`_arrow_ipc___ReadRecordBatch__InputStream__Schema`, stream, schema)
+}
+
 RecordBatchReader__schema <- function(reader) {
     .Call(`_arrow_RecordBatchReader__schema`, reader)
 }
@@ -535,6 +687,10 @@ RecordBatchReader__ReadNext <- function(reader) {
 
 ipc___RecordBatchStreamReader__Open <- function(stream) {
     .Call(`_arrow_ipc___RecordBatchStreamReader__Open`, stream)
+}
+
+ipc___RecordBatchStreamReader__batches <- function(reader) {
+    .Call(`_arrow_ipc___RecordBatchStreamReader__batches`, reader)
 }
 
 ipc___RecordBatchFileReader__schema <- function(reader) {
@@ -561,16 +717,12 @@ Table__from_RecordBatchStreamReader <- function(reader) {
     .Call(`_arrow_Table__from_RecordBatchStreamReader`, reader)
 }
 
-ipc___RecordBatchFileWriter__Open <- function(stream, schema) {
-    .Call(`_arrow_ipc___RecordBatchFileWriter__Open`, stream, schema)
+ipc___RecordBatchFileReader__batches <- function(reader) {
+    .Call(`_arrow_ipc___RecordBatchFileReader__batches`, reader)
 }
 
-ipc___RecordBatchStreamWriter__Open <- function(stream, schema) {
-    .Call(`_arrow_ipc___RecordBatchStreamWriter__Open`, stream, schema)
-}
-
-ipc___RecordBatchWriter__WriteRecordBatch <- function(batch_writer, batch, allow_64bit) {
-    invisible(.Call(`_arrow_ipc___RecordBatchWriter__WriteRecordBatch`, batch_writer, batch, allow_64bit))
+ipc___RecordBatchWriter__WriteRecordBatch <- function(batch_writer, batch) {
+    invisible(.Call(`_arrow_ipc___RecordBatchWriter__WriteRecordBatch`, batch_writer, batch))
 }
 
 ipc___RecordBatchWriter__WriteTable <- function(batch_writer, table) {
@@ -579,6 +731,14 @@ ipc___RecordBatchWriter__WriteTable <- function(batch_writer, table) {
 
 ipc___RecordBatchWriter__Close <- function(batch_writer) {
     invisible(.Call(`_arrow_ipc___RecordBatchWriter__Close`, batch_writer))
+}
+
+ipc___RecordBatchFileWriter__Open <- function(stream, schema) {
+    .Call(`_arrow_ipc___RecordBatchFileWriter__Open`, stream, schema)
+}
+
+ipc___RecordBatchStreamWriter__Open <- function(stream, schema) {
+    .Call(`_arrow_ipc___RecordBatchStreamWriter__Open`, stream, schema)
 }
 
 Table__from_dataframe <- function(tbl) {
@@ -603,5 +763,9 @@ Table__to_dataframe <- function(table) {
 
 Table__column <- function(table, i) {
     .Call(`_arrow_Table__column`, table, i)
+}
+
+Table__columns <- function(table) {
+    .Call(`_arrow_Table__columns`, table)
 }
 

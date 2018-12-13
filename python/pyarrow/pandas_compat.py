@@ -316,10 +316,19 @@ def _index_level_name(index, i, column_names):
         return '__index_level_{:d}__'.format(i)
 
 
-def dataframe_to_arrays(df, schema, preserve_index, nthreads=1, columns=None,
-                        safe=True):
-    if columns is None:
+def _get_columns_to_convert(df, schema, preserve_index, columns):
+    if schema is not None and columns is not None:
+        raise ValueError('Schema and columns arguments are mutually '
+                         'exclusive, pass only one of them')
+    elif schema is not None:
+        columns = schema.names
+    elif columns is not None:
+        # columns is only for filtering, the function must keep the column
+        # ordering of either the dataframe or the passed schema
+        columns = [c for c in df.columns if c in columns]
+    else:
         columns = df.columns
+
     column_names = []
     index_columns = []
     index_column_names = []
@@ -354,6 +363,44 @@ def dataframe_to_arrays(df, schema, preserve_index, nthreads=1, columns=None,
         convert_types.append(None)
         name = _index_level_name(column, i, column_names)
         index_column_names.append(name)
+
+    names = column_names + index_column_names
+
+    return (names, column_names, index_columns, index_column_names,
+            columns_to_convert, convert_types)
+
+
+def dataframe_to_types(df, preserve_index, columns=None):
+    names, column_names, index_columns, index_column_names, \
+        columns_to_convert, _ = _get_columns_to_convert(
+            df, None, preserve_index, columns
+        )
+
+    types = []
+    # If pandas knows type, skip conversion
+    for c in columns_to_convert:
+        values = c.values
+        if isinstance(values, pd.Categorical):
+            type_ = pa.array(c, from_pandas=True).type
+        else:
+            values, type_ = get_datetimetz_type(values, c.dtype, None)
+            type_ = pa.lib._ndarray_to_arrow_type(values, type_)
+            if type_ is None:
+                type_ = pa.array(c, from_pandas=True).type
+        types.append(type_)
+
+    metadata = construct_metadata(df, column_names, index_columns,
+                                  index_column_names, preserve_index, types)
+
+    return names, types, metadata
+
+
+def dataframe_to_arrays(df, schema, preserve_index, nthreads=1, columns=None,
+                        safe=True):
+    names, column_names, index_columns, index_column_names, \
+        columns_to_convert, convert_types = _get_columns_to_convert(
+            df, schema, preserve_index, columns
+        )
 
     # NOTE(wesm): If nthreads=None, then we use a heuristic to decide whether
     # using a thread pool is worth it. Currently the heuristic is whether the
@@ -392,7 +439,7 @@ def dataframe_to_arrays(df, schema, preserve_index, nthreads=1, columns=None,
         df, column_names, index_columns, index_column_names, preserve_index,
         types
     )
-    names = column_names + index_column_names
+
     return names, arrays, metadata
 
 

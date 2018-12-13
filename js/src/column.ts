@@ -237,11 +237,15 @@ export class Row<T extends { [key: string]: DataType }> implements Iterable<T[ke
         Object.defineProperty(this, 'length', lengthDescriptor);
         fields.forEach((field, columnIndex) => {
             columnDescriptor.get = this._bindGetter(columnIndex);
+            // set configurable to true to ensure Object.defineProperty
+            // doesn't throw in the case of duplicate column names
+            columnDescriptor.configurable = true;
             columnDescriptor.enumerable = fieldsAreEnumerable;
             Object.defineProperty(this, field.name, columnDescriptor);
+            columnDescriptor.configurable = false;
             columnDescriptor.enumerable = !fieldsAreEnumerable;
             Object.defineProperty(this, columnIndex, columnDescriptor);
-            columnDescriptor.get = false as any;
+            columnDescriptor.get = null as any;
         });
     }
     *[Symbol.iterator](this: RowLike<T>) {

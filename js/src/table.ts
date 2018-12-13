@@ -19,9 +19,10 @@ import { Vector } from './vector';
 import { Schema, Field } from './schema';
 import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
-import { DataType, RowLike, Struct } from './type';
 import { Vector as VType } from './interfaces';
 import { ChunkedVector, Column } from './column';
+import { DataType, RowLike, Struct } from './type';
+import { RecordBatchFileWriter, RecordBatchStreamWriter } from './ipc/writer';
 import {
     RecordBatchReader,
     FromArg0, FromArg1, FromArg2, FromArg3, FromArg4, FromArgs
@@ -52,10 +53,11 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public static from<T extends { [key: string]: DataType } = any>(): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg0): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg1): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: PromiseLike<RecordBatchReader<T>>): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source?: any) {
 
         if (!source) { return Table.empty<T>(); }
@@ -85,10 +87,13 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     static async fromAsync<T extends { [key: string]: DataType; } = any>(source: FromArgs): Promise<Table<T>> {
         return await Table.from<T>(source as any);
     }
-    static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
-        const schema = new Schema(struct.type.children);
+    static fromVectors<T extends { [key: string]: DataType; } = any>(vectors: VType<T[keyof T]>[], names?: (keyof T)[]) {
+        return new Table(RecordBatch.from(vectors, names));
+     }
+     static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
+        const schema = new Schema<T>(struct.type.children);
         const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as VType<Struct<T>>[];
-        return new Table<T>(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
+        return new Table(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
     }
 
     public readonly schema: Schema;
@@ -215,13 +220,20 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     //     return str;
     // }
     // @ts-ignore
-    // public serialize(encoding = 'binary', stream = true) {
-    //     return writeTableBinary(this, stream);
-    // }
+    public serialize(encoding = 'binary', stream = true) {
+        const writer = !stream
+            ? RecordBatchFileWriter
+            : RecordBatchStreamWriter;
+        return writer.writeAll(this.batches).toUint8Array(true);
+    }
     // public rowsToString(separator = ' | '): PipeIterator<string|undefined> {
     //     return new PipeIterator(tableRowsToString(this, separator), 'utf8');
     // }
 }
+
+// // protect batches, batchesUnion from es2015/umd mangler
+// (<any> Table.prototype).batches = Object.freeze([]);
+// (<any> Table.prototype).batchesUnion = Object.freeze([]);
 
 // class FilteredDataFrame<T extends StructData = StructData> implements DataFrame<T> {
 //     private predicate: Predicate;

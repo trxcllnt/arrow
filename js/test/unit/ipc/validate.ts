@@ -70,6 +70,15 @@ export function testSimpleRecordBatchJSONReader(r: RecordBatchStreamReader) {
 
 export function testSimpleRecordBatchFileReader<T extends RecordBatchFileReader | RecordBatchStreamReader>(r: T) {
     const reader = r.open();
+    expect(reader.isFile()).toBe(true);
+    expect(reader.schema).toBeInstanceOf(Schema);
+    testSimpleRecordBatchIterator(reader[Symbol.iterator]());
+    expect(reader.closed).toBe(reader.autoClose);
+    return reader;
+}
+
+export function testSimpleRecordBatchStreamReader<T extends RecordBatchFileReader | RecordBatchStreamReader>(r: T) {
+    const reader = r.open();
     expect(reader.isStream()).toBe(true);
     expect(reader.schema).toBeInstanceOf(Schema);
     testSimpleRecordBatchIterator(reader[Symbol.iterator]());
@@ -82,15 +91,6 @@ export async function testSimpleAsyncRecordBatchFileReader<T extends RecordBatch
     expect(reader.isFile()).toBe(true);
     expect(reader.schema).toBeInstanceOf(Schema);
     await testSimpleAsyncRecordBatchIterator(reader[Symbol.asyncIterator]());
-    expect(reader.closed).toBe(reader.autoClose);
-    return reader;
-}
-
-export function testSimpleRecordBatchStreamReader<T extends RecordBatchFileReader | RecordBatchStreamReader>(r: T) {
-    const reader = r.open();
-    expect(reader.isStream()).toBe(true);
-    expect(reader.schema).toBeInstanceOf(Schema);
-    testSimpleRecordBatchIterator(reader[Symbol.iterator]());
     expect(reader.closed).toBe(reader.autoClose);
     return reader;
 }

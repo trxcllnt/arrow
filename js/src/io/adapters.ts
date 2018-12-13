@@ -55,9 +55,9 @@ const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { it
 
 function* fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
 
+    let done: boolean, threw = false;
+    let buffers: Uint8Array[] = [], buffer: Uint8Array;
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
-    let done: boolean, it: Iterator<Uint8Array> | null = null;
-    let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
 
     function byteRange() {
         if (cmd === 'peek') {
@@ -71,15 +71,16 @@ function* fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T):
     // Yield so the caller can inject the read command before creating the source Iterator
     ({ cmd, size } = yield <any> null);
 
+    // initialize the iterator
+    let it = toUint8ArrayIterator(source)[Symbol.iterator]();
+
     try {
-        // initialize the iterator
-        it = toUint8ArrayIterator(source)[Symbol.iterator]();
         do {
             // read the next value
             ({ done, value: buffer } = isNaN(size - bufferLength) ?
                 it.next(undefined) : it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
-            if ((buffer = toUint8Array(buffer)).byteLength > 0) {
+            if (!done && buffer.byteLength > 0) {
                 buffers.push(buffer);
                 bufferLength += buffer.byteLength;
             }
@@ -90,19 +91,18 @@ function* fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T):
                 } while (size < bufferLength);
             }
         } while (!done);
-        it && (typeof it.return === 'function') && (it.return());
     } catch (e) {
-        it && (typeof it!.throw === 'function') && (it!.throw!(e));
+        (threw = true) && (typeof it.throw === 'function') && (it.throw(e));
     } finally {
-        it && (typeof it.return === 'function') && (it.return());
+        (threw === false) && (typeof it.return === 'function') && (it.return());
     }
 }
 
 async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
 
+    let done: boolean, threw = false;
+    let buffers: Uint8Array[] = [], buffer: Uint8Array;
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
-    let done: boolean, it: AsyncIterator<Uint8Array> | null = null;
-    let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
 
     function byteRange() {
         if (cmd === 'peek') {
@@ -116,16 +116,17 @@ async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncI
     // Yield so the caller can inject the read command before creating the source AsyncIterator
     ({ cmd, size } = yield <any> null);
 
+    // initialize the iterator
+    let it = toUint8ArrayAsyncIterator(source)[Symbol.asyncIterator]();
+
     try {
-        // initialize the iterator
-        it = toUint8ArrayAsyncIterator(source)[Symbol.asyncIterator]();
         do {
             // read the next value
             ({ done, value: buffer } = isNaN(size - bufferLength)
                 ? await it.next(undefined)
                 : await it.next(size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
-            if ((buffer = toUint8Array(buffer)).byteLength > 0) {
+            if (!done && buffer.byteLength > 0) {
                 buffers.push(buffer);
                 bufferLength += buffer.byteLength;
             }
@@ -136,11 +137,10 @@ async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncI
                 } while (size < bufferLength);
             }
         } while (!done);
-        it && (typeof it.return === 'function') && (await it.return());
     } catch (e) {
-        it && (typeof it!.throw === 'function') && (await it!.throw!(e));
+        (threw = true) && (typeof it.throw === 'function') && (await it.throw(e));
     } finally {
-        it && (typeof it.return === 'function') && (await it.return());
+        (threw === false) && (typeof it.return === 'function') && (await it.return());
     }
 }
 
@@ -149,9 +149,9 @@ async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncI
 // https://github.com/domenic/proposal-arraybuffer-transfer
 async function* fromReadableDOMStream<T extends ArrayBufferViewInput>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
 
-    let done = false;
+    let done = false, threw = false;
+    let buffers: Uint8Array[] = [], buffer: Uint8Array;
     let cmd: 'peek' | 'read', size: number, bufferLength = 0;
-    let buffers: Uint8Array[] = [], buffer: Uint8Array | null = null;
 
     function byteRange() {
         if (cmd === 'peek') {
@@ -165,18 +165,17 @@ async function* fromReadableDOMStream<T extends ArrayBufferViewInput>(source: Re
     // Yield so the caller can inject the read command before we establish the ReadableStream lock
     ({ cmd, size } = yield <any> null);
 
-    let it: AdaptiveByteReader<T> | null = null;
+    // initialize the reader and lock the stream
+    let it = new AdaptiveByteReader(source);
 
     try {
-        // initialize the reader and lock the stream
-        it = new AdaptiveByteReader(source);
         do {
             // read the next value
             ({ done, value: buffer } = isNaN(size - bufferLength)
                 ? await it['read'](undefined)
                 : await it['read'](size - bufferLength));
             // if chunk is not null or empty, push it onto the queue
-            if (buffer && buffer.byteLength > 0) {
+            if (!done && buffer.byteLength > 0) {
                 buffers.push(toUint8Array(buffer));
                 bufferLength += buffer.byteLength;
             }
@@ -188,11 +187,10 @@ async function* fromReadableDOMStream<T extends ArrayBufferViewInput>(source: Re
             }
         } while (!done);
     } catch (e) {
-        buffer = buffers = <any> null;
-        source['locked'] && it && (await it!['cancel']());
+        (threw = true) && (await it['cancel'](e));
     } finally {
-        buffer = buffers = <any> null;
-        source['locked'] && it && it.releaseLock();
+        source['locked'] && it.releaseLock();
+        (threw === false) && (await it['cancel']());
     }
 }
 
@@ -331,13 +329,23 @@ async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
             [event, err] = await Promise.race(events.map((x) => x[2]));
 
             // if the stream emitted an Error, rethrow it
-            if (event === 'error') { throw err; }
+            if (event === 'error') { break; }
             if (!(done = event === 'end')) {
-                buffer = isNaN(size - bufferLength)
-                    ? toUint8Array(stream.read(undefined))
-                    : toUint8Array(stream.read(size - bufferLength));
+                // If the size is NaN, request to read everything in the stream's internal buffer
+                if (!isFinite(size - bufferLength)) {
+                    buffer = toUint8Array(stream['read'](undefined));
+                } else {
+                    buffer = toUint8Array(stream['read'](size - bufferLength));
+                    // If the byteLength is 0, then the requested amount is more than the stream has
+                    // in its internal buffer. In this case the stream needs a "kick" to tell it to
+                    // continue emitting readable events, so request to read everything the stream
+                    // has in its internal buffer right now.
+                    if (buffer.byteLength < (size - bufferLength)) {
+                        buffer = toUint8Array(stream['read'](undefined));
+                    }
+                }
                 // if chunk is not null or empty, push it onto the queue
-                if (buffer && buffer.byteLength > 0) {
+                if (buffer.byteLength > 0) {
                     buffers.push(buffer);
                     bufferLength += buffer.byteLength;
                 }
@@ -349,9 +357,9 @@ async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
                 } while (size < bufferLength);
             }
         } while (!done);
-    } catch (e) {
-        throw (err = await cleanup(events, event === 'error' ? err : e));
-    } finally { (err == null) && (await cleanup(events, err)); }
+    } finally {
+        await cleanup(events, event === 'error' ? err : null);
+    }
 
     function cleanup<T extends Error | null | void>(events: Event[], err?: T) {
         buffer = buffers = <any> null;

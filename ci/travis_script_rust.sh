@@ -27,14 +27,16 @@ pushd $RUST_DIR
 rustup show
 
 # raises on any formatting errors
-rustup component add rustfmt-preview
-cargo fmt --all -- --check
+cargo +stable fmt --all -- --check
 
 # raises on any warnings
 cargo rustc -- -D warnings
 
 cargo build
 cargo test
+cargo bench
+cargo run --example builders
 cargo run --example dynamic_types
+cargo run --example read_csv
 
 popd

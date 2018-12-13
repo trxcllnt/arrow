@@ -189,7 +189,12 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
 
 export class NullVector                                       extends BaseVector<Null> {}
 
-export class IntVector<T extends Int = any>                   extends BaseVector<T> {}
+export class IntVector<T extends Int = Int>                   extends BaseVector<T> {
+    constructor(data: Data<T>) {
+        super(data, undefined, data.type.bitWidth <= 32 ? 1 : 2);
+    }
+}
+
 export class Int8Vector                                       extends IntVector<Int8> {}
 export class Int16Vector                                      extends IntVector<Int16> {}
 export class Int32Vector                                      extends IntVector<Int32> {}
@@ -205,25 +210,45 @@ export class Float32Vector                                    extends FloatVecto
 export class Float64Vector                                    extends FloatVector<Float64> {}
 
 export class BoolVector                                       extends BaseVector<Bool> {}
-export class DecimalVector                                    extends BaseVector<Decimal> {}
+export class DecimalVector                                    extends BaseVector<Decimal> {
+    constructor(data: Data<Decimal>) {
+        super(data, undefined, 4);
+    }
+}
 
-export class DateVector<T extends Date_ = Date_>              extends BaseVector<T> {}
+export class DateVector<T extends Date_ = Date_>              extends BaseVector<T> {
+    constructor(data: Data<T>) {
+        super(data, undefined, data.type.unit + 1);
+    }
+}
 export class DateDayVector                                    extends DateVector<DateDay> {}
 export class DateMillisecondVector                            extends DateVector<DateMillisecond> {}
 
-export class TimeVector<T extends Time = Time>                extends BaseVector<T> {}
+export class TimeVector<T extends Time = Time>                extends BaseVector<T> {
+    constructor(data: Data<T>) {
+        super(data, undefined, data.type.bitWidth <= 32 ? 1 : 2);
+    }
+}
 export class TimeSecondVector                                 extends TimeVector<TimeSecond> {}
 export class TimeMillisecondVector                            extends TimeVector<TimeMillisecond> {}
 export class TimeMicrosecondVector                            extends TimeVector<TimeMicrosecond> {}
 export class TimeNanosecondVector                             extends TimeVector<TimeNanosecond> {}
 
-export class TimestampVector<T extends Timestamp = Timestamp> extends BaseVector<T> {}
+export class TimestampVector<T extends Timestamp = Timestamp> extends BaseVector<T> {
+    constructor(data: Data<T>) {
+        super(data, undefined, 2);
+    }
+}
 export class TimestampSecondVector                            extends TimestampVector<TimestampSecond> {}
 export class TimestampMillisecondVector                       extends TimestampVector<TimestampMillisecond> {}
 export class TimestampMicrosecondVector                       extends TimestampVector<TimestampMicrosecond> {}
 export class TimestampNanosecondVector                        extends TimestampVector<TimestampNanosecond> {}
 
-export class IntervalVector<T extends Interval = Interval>    extends BaseVector<T> {}
+export class IntervalVector<T extends Interval = Interval>    extends BaseVector<T> {
+    constructor(data: Data<T>) {
+        super(data, undefined, data.type.unit + 1);
+    }
+}
 export class IntervalDayTimeVector                            extends IntervalVector<IntervalDayTime> {}
 export class IntervalYearMonthVector                          extends IntervalVector<IntervalYearMonth> {}
 
