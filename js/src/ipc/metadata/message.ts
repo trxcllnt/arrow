@@ -144,14 +144,12 @@ export class RecordBatch {
  */
 export class DictionaryBatch {
 
-    private static atomicDictionaryId = 0;
     public readonly id: number;
     public readonly isDelta: boolean;
     public readonly data: RecordBatch;
     public get length(): number { return this.data.length; }
     public get nodes(): FieldNode[] { return this.data.nodes; }
     public get buffers(): BufferRegion[] { return this.data.buffers; }
-    public static getId() { return DictionaryBatch.atomicDictionaryId++; }
 
     constructor(data: RecordBatch, id: Long | number, isDelta: boolean = false) {
         this.data = data;

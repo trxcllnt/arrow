@@ -16,7 +16,7 @@
 // under the License.
 
 import streamAdapters from './adapters';
-import { ITERATOR_DONE, Readable, Writable,AsyncQueue } from './interfaces';
+import { ITERATOR_DONE, Readable, Writable, AsyncQueue } from './interfaces';
 import { toUint8Array, joinUint8Arrays, ArrayBufferViewInput } from '../util/buffer';
 import {
     isPromise, isFetchResponse,
@@ -75,6 +75,7 @@ export class AsyncByteStream implements Readable<Uint8Array> {
     private source: AsyncByteStreamSource<Uint8Array>;
     constructor(source?: PromiseLike<ArrayBufferViewInput> | Response | ReadableStream<ArrayBufferViewInput> | NodeJS.ReadableStream | AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput>) {
         if (!source) {}
+        else if (source instanceof AsyncByteStream) { this.source = (source as AsyncByteStream).source; }
         else if (source instanceof AsyncByteQueue) { this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source)); }
         else if (isReadableNodeStream(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromReadableNodeStream(source)); }
         else if (isFetchResponse(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromReadableDOMStream(source.body!)); }

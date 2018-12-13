@@ -28,7 +28,7 @@ import {
 
 const utf8Encoder = new TextEncoder('utf-8');
 
-const NAMES = ['f32', 'i32', 'dictionary'];
+const NAMES = ['f32', 'i32', 'dictionary'] as (keyof TestDataSchema)[];
 const F32 = 0, I32 = 1, DICT = 2;
 const test_data = [
     {

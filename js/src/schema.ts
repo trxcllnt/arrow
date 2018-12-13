@@ -20,8 +20,8 @@ import { DataType, Dictionary, Int } from './type';
 
 export class Schema<T extends { [key: string]: DataType } = any> {
 
-    public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: string[] = []) {
-        return new Schema<T>(vectors.map((v, i) => new Field(names[i] || ('' + i), v.type)));
+    public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: (keyof T)[] = []) {
+        return new Schema<T>(vectors.map((v, i) => new Field('' + (names[i] || i), v.type)));
     }
 
     public readonly fields: Field[];

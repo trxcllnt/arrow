@@ -24,9 +24,9 @@ import { Vector as VType } from './interfaces';
 
 export class RecordBatch<T extends { [key: string]: DataType } = any> extends Vector<Struct<T>> {
 
-    public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: string[] = []) {
-        return new RecordBatch<T>(
-            Schema.from<T>(vectors, names),
+    public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: (keyof T)[] = []) {
+        return new RecordBatch(
+            Schema.from(vectors, names),
             vectors.reduce((len, vec) => Math.max(len, vec.length), 0),
             vectors
         );

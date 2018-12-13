@@ -43,7 +43,7 @@
                 "test/integration/*",
 
                 // Uncomment any of these to run individual test suites
-                // "test/unit/table-tests.ts",
+                "test/unit/table-tests.ts",
                 // "test/unit/ipc/message-reader-tests.ts",
                 // "test/unit/ipc/reader/file-reader-tests.ts",
                 // "test/unit/ipc/reader/json-reader-tests.ts",
