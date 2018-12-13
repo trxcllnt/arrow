@@ -62,7 +62,5 @@ modulePath = path.resolve(`./targets`, modulePath);
 modulePath = path.join(modulePath, `Arrow.${format === 'umd' ? 'dom' : 'node'}`);
 
 const Arrow: typeof import('../src/Arrow') = require(modulePath);
-// export let Arrow: typeof import('../src/Arrow') = require(modulePath);
 
-// export default Arrow as typeof import('../src/Arrow');
 export = Arrow;
