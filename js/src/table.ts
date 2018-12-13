@@ -19,7 +19,6 @@ import { Vector } from './vector';
 import { Schema, Field } from './schema';
 import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
-import { AsyncByteQueue } from './io/stream';
 import { Vector as VType } from './interfaces';
 import { ChunkedVector, Column } from './column';
 import { DataType, RowLike, Struct } from './type';
@@ -219,13 +218,10 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     // }
     // @ts-ignore
     public serialize(encoding = 'binary', stream = true) {
-        const sink = new AsyncByteQueue();
         const writer = !stream
-            ? new RecordBatchFileWriter(sink)
-            : new RecordBatchStreamWriter(sink);
-        this.batches.forEach((b) => writer.write(b));
-        writer.close();
-        return sink.toUint8Array(true);
+            ? RecordBatchFileWriter
+            : RecordBatchStreamWriter;
+        return writer.writeAll(this.batches).toUint8Array(true);
     }
     // public rowsToString(separator = ' | '): PipeIterator<string|undefined> {
     //     return new PipeIterator(tableRowsToString(this, separator), 'utf8');

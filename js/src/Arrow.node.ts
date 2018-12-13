@@ -58,9 +58,9 @@ function recordBatchReaderThroughNodeStream<T extends { [key: string]: DataType 
 function recordBatchWriterThroughNodeStream<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter) {
 
     let reading = false;
-    let through = new AsyncByteQueue() as AsyncByteQueue | null;
-    let writer = new this<T>(through) as RecordBatchWriter<T> | null;
-    let reader = new AsyncByteStream(through!) as AsyncByteStream | null;
+    let through: AsyncByteQueue | null = new AsyncByteQueue();
+    let reader: AsyncByteStream | null = new AsyncByteStream(through);
+    let writer: RecordBatchWriter<T> | null = new this<T>().reset(through);
 
     return new Duplex({
         allowHalfOpen: false,

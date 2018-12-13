@@ -19,8 +19,8 @@ import * as fs from 'fs';
 import * as Path from 'path';
 
 import {
-    AsyncByteQueue,
     RecordBatchReader,
+    RecordBatchWriter,
     RecordBatchFileWriter,
     RecordBatchStreamWriter,
 } from '../../../Arrow';
@@ -38,39 +38,36 @@ const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
 
 describe('RecordBatchWriter', () => {
     it('should write RecordBatches to a stream', async () => {
-        const sink = new AsyncByteQueue();
-        const writer = new RecordBatchStreamWriter(sink);
+        const writer = new RecordBatchWriter();
         for (const batch of RecordBatchReader.from(simpleStreamData)) {
             writer.write(batch);
         }
         writer.close();
-        const reader = await RecordBatchReader.from(sink);
+        const reader = await RecordBatchReader.from(writer);
         await testSimpleAsyncRecordBatchStreamReader(reader);
     });
 });
 
 describe('RecordBatchFileWriter', () => {
     it('should write the Arrow file format', async () => {
-        const sink = new AsyncByteQueue();
-        const writer = new RecordBatchFileWriter(sink);
+        const writer = new RecordBatchFileWriter();
         for (const batch of RecordBatchReader.from(simpleStreamData)) {
             writer.write(batch);
         }
         writer.close();
-        const reader = RecordBatchReader.from(await sink.toUint8Array());
+        const reader = RecordBatchReader.from(await writer.toUint8Array());
         testSimpleRecordBatchFileReader(reader);
     });
 });
 
 describe('RecordBatchStreamWriter', () => {
     it('should write the Arrow stream format', async () => {
-        const sink = new AsyncByteQueue();
-        const writer = new RecordBatchStreamWriter(sink);
+        const writer = new RecordBatchStreamWriter();
         for (const batch of RecordBatchReader.from(simpleFileData)) {
             writer.write(batch);
         }
         writer.close();
-        const reader = RecordBatchReader.from(await sink.toUint8Array());
+        const reader = RecordBatchReader.from(await writer.toUint8Array());
         testSimpleRecordBatchStreamReader(reader);
     });
 });

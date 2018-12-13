@@ -37,7 +37,7 @@ export interface Observable<T> {
 
 const isObject = (x: any) => x != null && Object(x) === x;
 const hasFuncs = (x: any, ...fn: PropertyKey[]) => hasProps(x, ...fn.map((f) => [f, 'function'] as [PropertyKey, string]));
-const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.every(([k, t]) => t ? (typeof x[k] === t) : (k in x));
+const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.every(([k, t]) => t ? (x[k] != null && typeof x[k] === t) : (k in x));
 
 /** @ignore */ export const isPromise            = <T = any>(x: any): x is PromiseLike<T>        => hasFuncs(x, 'then');
 /** @ignore */ export const isObservable         = <T = any>(x: any): x is Observable<T>         => hasFuncs(x, 'subscribe');

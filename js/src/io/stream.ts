@@ -16,17 +16,12 @@
 // under the License.
 
 import streamAdapters from './adapters';
-import { memcpy, toUint8Array, joinUint8Arrays, ArrayBufferViewInput } from '../util/buffer';
-import {
-    ITERATOR_DONE,
-    Readable, Writable, ReadableWritable,
-    ReadableInterop, AsyncQueue, ReadableDOMStreamOptions
-} from './interfaces';
+import { ITERATOR_DONE, Readable, Writable,AsyncQueue } from './interfaces';
+import { toUint8Array, joinUint8Arrays, ArrayBufferViewInput } from '../util/buffer';
 import {
     isPromise, isFetchResponse,
     isIterable, isAsyncIterable,
-    isReadableDOMStream, isReadableNodeStream,
-    isWritableDOMStream, isWritableNodeStream
+    isReadableDOMStream, isReadableNodeStream
 } from '../util/compat';
 
 export type WritableSink<T> = Writable<T> | WritableStream<T> | NodeJS.WritableStream | null;
@@ -41,8 +36,8 @@ export class AsyncByteQueue<T extends ArrayBufferViewInput = Uint8Array> extends
             return super.write(value as T);
         }
     }
-    public toUint8Array(): Promise<Uint8Array>;
     public toUint8Array(sync: true): Uint8Array;
+    public toUint8Array(sync?: false): Promise<Uint8Array>;
     public toUint8Array(sync = false) {
         return sync ? joinUint8Arrays((this.values as any[]).slice())[0] : (async () => {
             let buffers = [], byteLength = 0;
@@ -80,6 +75,7 @@ export class AsyncByteStream implements Readable<Uint8Array> {
     private source: AsyncByteStreamSource<Uint8Array>;
     constructor(source?: PromiseLike<ArrayBufferViewInput> | Response | ReadableStream<ArrayBufferViewInput> | NodeJS.ReadableStream | AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput>) {
         if (!source) {}
+        else if (source instanceof AsyncByteQueue) { this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source)); }
         else if (isReadableNodeStream(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromReadableNodeStream(source)); }
         else if (isFetchResponse(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromReadableDOMStream(source.body!)); }
         else if (isIterable<ArrayBufferViewInput>(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromIterable(source)); }
@@ -94,98 +90,6 @@ export class AsyncByteStream implements Readable<Uint8Array> {
     public cancel(reason?: any) { return this.source.cancel(reason); }
     public peek(size?: number | null) { return this.source.peek(size); }
     public read(size?: number | null) { return this.source.read(size); }
-}
-
-/**
- * @ignore
- */
-export class AsyncArrowStream<TReadable = Uint8Array, TWritable = TReadable> extends ReadableInterop<TReadable>
-    implements ReadableWritable<TReadable, TWritable>,
-               ReadableStream<TReadable>,
-               WritableStream<TWritable> {
-
-    // @ts-ignore
-    private reader: Readable<TReadable>;
-    // @ts-ignore
-    private writer: Writable<TWritable>;
-
-    constructor(source?: ReadableSource<TReadable>, sink?: WritableSink<TWritable>) {
-        super();
-
-        let writer: AsyncQueue<TWritable> | AsyncArrowStream;
-
-        if ((sink instanceof AsyncQueue) || (sink instanceof AsyncArrowStream)) {
-            writer = sink;
-        } else if (writer = new AsyncQueue<TWritable>()) {
-            if (isWritableDOMStream(sink)) { writer.toReadableDOMStream().pipeTo(sink); }
-            else if (isWritableNodeStream(sink)) { writer.toReadableNodeStream().pipe(sink); }
-        }
-
-        this.writer = writer as Writable<TWritable>;
-        if ((source instanceof AsyncByteStream) || (source instanceof AsyncArrowStream)) {
-            this.reader = <any> source;
-        } else {
-            this.reader = <any> new AsyncByteStream(writer[Symbol.asyncIterator]() as any);
-        }
-    }
-
-    public get locked(): boolean { return false; }
-    public get closed() {
-        return Promise.all([this.writer.closed, this.reader.closed]).then(() => undefined);
-    }
-    public [Symbol.asyncIterator]() { return this; }
-    public getReader(): ReadableStreamDefaultReader<TReadable>;
-    public getReader(options: { mode: "byob" }): ReadableStreamBYOBReader;
-    public getReader(..._opt: { mode: "byob" }[]) { return new AsyncStreamReader(this.reader) as any; }
-    public getWriter(): WritableStreamDefaultWriter<TWritable> { return new AsyncStreamWriter(this.writer); }
-
-    public toReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<TReadable> {
-        return streamAdapters.toReadableDOMStream(this, options);
-    }
-    public toReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable {
-        return streamAdapters.toReadableNodeStream(this, options);
-    }
-
-    public close() { this.writer.close(); }
-    public abort(reason?: any): Promise<void> {
-        return Promise.resolve(this.writer.abort(reason));
-    }
-    public write(value: TWritable) { return this.writer.write(value); }
-
-    public async cancel(reason?: any) { await this.reader.cancel(reason); }
-    public async next(value?: any) { return await this.reader.next(value); }
-    public async throw(value?: any) { return await this.reader.throw(value); }
-    public async return(value?: any) { return await this.reader.return(value); }
-
-    public async peek(size?: number | null) { return await this.reader.peek(size); }
-    public async read(size?: number | null) { return await this.reader.read(size); }
-}
-
-class AsyncStreamReader<T> implements ReadableStreamDefaultReader<T>, ReadableStreamBYOBReader {
-    constructor(private reader: Readable<T>) {}
-    public releaseLock(): void {}
-    public get closed(): Promise<void> { return this.reader.closed; }
-    public async cancel(reason?: any): Promise<void> { await this.reader.return(reason); }
-    public async read(): Promise<ReadableStreamReadResult<T>>;
-    public async read<R extends ArrayBufferView>(view: R): Promise<ReadableStreamReadResult<T>>;
-    public async read<R extends ArrayBufferView>(arg?: R): Promise<ReadableStreamReadResult<T | R>> {
-        let result: IteratorResult<T | R> = await this.reader.next(arg ? arg.byteLength : arg);
-        if (ArrayBuffer.isView(arg) && ArrayBuffer.isView(result.value)) {
-            result.value = memcpy(arg, result.value);
-        }
-        return result;
-    }
-}
-
-class AsyncStreamWriter<T> implements WritableStreamDefaultWriter<T> {
-    constructor(private writer: Writable<T>) {}
-    public releaseLock(): void {}
-    public get desiredSize(): number | null { return Infinity; }
-    public get ready(): Promise<void> { return Promise.resolve(); }
-    public get closed(): Promise<void> { return this.writer.closed; }
-    public close(): Promise<void> { return Promise.resolve(this.writer.close()); }
-    public write(chunk: T): Promise<void> { return Promise.resolve(this.writer.write(chunk)); }
-    public abort(reason?: any): Promise<void> { return Promise.resolve(this.writer.abort(reason)); }
 }
 
 interface ByteStreamSourceIterator<T> extends IterableIterator<T> {

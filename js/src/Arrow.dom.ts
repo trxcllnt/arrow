@@ -50,7 +50,7 @@ function recordBatchWriterThroughDOMStream<T extends { [key: string]: DataType }
 ) {
 
     const through = new AsyncByteQueue();
-    const writer = new this<T>(through);
+    const writer = new this<T>().reset(through);
     const reader = new AsyncByteStream(through);
     const readable = new ReadableStream({
         type: 'bytes',

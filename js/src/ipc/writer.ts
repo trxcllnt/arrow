@@ -26,9 +26,10 @@ import { DataType, Dictionary } from '../type';
 import { FileBlock, Footer } from './metadata/file';
 import { ArrayBufferViewInput } from '../util/buffer';
 import { MessageHeader, MetadataVersion } from '../enum';
+import { WritableSink, AsyncByteQueue } from '../io/stream';
 import { VectorAssembler } from '../visitor/vectorassembler';
-import { WritableSink, AsyncByteQueue, AsyncArrowStream } from '../io/stream';
-import { Writable, FileHandle, ReadableInterop, ReadableWritable, ReadableDOMStreamOptions } from '../io/interfaces';
+import { isWritableDOMStream, isWritableNodeStream, isAsyncIterable } from '../util/compat';
+import { Writable, FileHandle, ReadableInterop, ReadableDOMStreamOptions } from '../io/interfaces';
 
 const kAlignmentBytes = new Uint8Array(64).fill(0);
 
@@ -41,23 +42,19 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
         throw new Error(`"throughDOM" not available in this environment`);
     }
 
-    constructor(sink?: WritableSink<ArrayBufferViewInput>) {
-        super();
-        if (!sink) {
-            this.sink = new AsyncByteQueue();
-        } else if (!((sink instanceof AsyncByteQueue) || (sink instanceof AsyncArrowStream))) {
-            this.sink = new AsyncArrowStream(null, sink);
-        } else {
-            this.sink = sink as ReadableWritable<Uint8Array, ArrayBufferViewInput>;
-        }
-    }
-
+    protected position = 0;
     protected started = false;
-    protected position: number = 0;
+    // @ts-ignore
+    protected sink = new AsyncByteQueue();
     protected schema: Schema | null = null;
     protected dictionaryBlocks: FileBlock[] = [];
     protected recordBatchBlocks: FileBlock[] = [];
-    protected sink: ReadableWritable<Uint8Array, ArrayBufferViewInput>;
+
+    public toUint8Array(sync: true): Uint8Array;
+    public toUint8Array(sync?: false): Promise<Uint8Array>;
+    public toUint8Array(sync: any = false) {
+        return this.sink.toUint8Array(sync) as Promise<Uint8Array> | Uint8Array;
+    }
 
     public get closed() { return this.sink.closed; }
     public [Symbol.asyncIterator]() { return this.sink[Symbol.asyncIterator](); }
@@ -66,13 +63,31 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
 
     public close() { return this.reset().sink.close(); }
     public abort(reason?: any) { return this.reset().sink.abort(reason); }
-    public reset(sink = this.sink, schema?: Schema<T>) {
+    public reset(sink: WritableSink<ArrayBufferViewInput> = this.sink, schema?: Schema<T>) {
+
+        if ((sink === this.sink) || (sink instanceof AsyncByteQueue)) {
+            this.sink = sink as AsyncByteQueue;
+        } else {
+            this.sink = new AsyncByteQueue();
+            if (sink && isWritableDOMStream(sink)) {
+                this.toReadableDOMStream().pipeTo(sink);
+            } else if (sink && isWritableNodeStream(sink)) {
+                this.toReadableNodeStream().pipe(sink);
+            }
+        }
+
         this.position = 0;
+        this.schema = null;
         this.started = false;
-        this.schema = <any> schema;
         this.dictionaryBlocks = [];
         this.recordBatchBlocks = [];
-        this.sink = sink || new AsyncByteQueue();
+
+        if (schema instanceof Schema) {
+            this.started = true;
+            this.schema = schema;
+            this._writeSchema(schema);
+        }
+
         return this;
     }
 
@@ -197,6 +212,19 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
 }
 
 export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
+
+    public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>>): RecordBatchFileWriter<T>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(batches: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchFileWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+        const writer = new RecordBatchFileWriter<T>();
+        if (!isAsyncIterable(batches)) {
+            for (const batch of batches) writer.write(batch); writer.close(); return writer;
+        }
+        return (async () => {
+            for await (const batch of batches) writer.write(batch); writer.close(); return writer;
+        })();
+    }
+
     public close() {
         this._writeFooter();
         return super.close();
@@ -208,4 +236,17 @@ export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> 
     }
 }
 
-export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {}
+export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
+
+    public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>>): RecordBatchStreamWriter<T>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(batches: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchStreamWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+        const writer = new RecordBatchStreamWriter<T>();
+        if (!isAsyncIterable(batches)) {
+            for (const batch of batches) writer.write(batch); writer.close(); return writer;
+        }
+        return (async () => {
+            for await (const batch of batches) writer.write(batch); writer.close(); return writer;
+        })();
+    }
+}
