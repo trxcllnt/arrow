@@ -86,8 +86,8 @@ const exists = async (p) => {
             return print_usage();
     }
 })()
-.then((x) => x || 0, (e) => {
-    process.stdout.write(`${e}`);
+.then((x) => +x || 0, (e) => {
+    e && process.stderr.write(`${e}`);
     return process.exitCode || 1;
 }).then((code) => process.exit(code));
 

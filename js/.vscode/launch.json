@@ -83,37 +83,64 @@
             "type": "node",
             "request": "launch",
             "name": "Debug bin/file-to-stream",
-            "env": { "ARROW_JS_DEBUG": "src" },
+            "env": { "ARROW_JS_DEBUG": "src", "TS_NODE_CACHE": "false" },
             "runtimeArgs": ["-r", "ts-node/register"],
+            "skipFiles": [
+                "<node_internals>/**/*.js",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ],
             "args": [
                 "${workspaceFolder}/bin/file-to-stream.js",
                 "./test/data/cpp/file/struct_example.arrow",
-                "./struct_example-file-out.arrow",
+                "./struct_example-stream-out.arrow",
             ]
         },
         {
             "type": "node",
             "request": "launch",
             "name": "Debug bin/stream-to-file",
-            "env": { "ARROW_JS_DEBUG": "src" },
+            "env": { "ARROW_JS_DEBUG": "src", "TS_NODE_CACHE": "false" },
             "runtimeArgs": ["-r", "ts-node/register"],
+            "skipFiles": [
+                "<node_internals>/**/*.js",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ],
             "args": [
                 "${workspaceFolder}/bin/stream-to-file.js",
-                "./test/data/cpp/stream/simple.arrow",
-                "./test/data/simple-file-out.arrow",
+                "./test/data/cpp/stream/struct_example.arrow",
+                "./struct_example-file-out.arrow",
             ]
         },
         {
             "type": "node",
             "request": "launch",
             "name": "Debug bin/json-to-arrow",
-            "env": { "ARROW_JS_DEBUG": "src" },
+            "env": { "ARROW_JS_DEBUG": "src", "TS_NODE_CACHE": "false" },
             "runtimeArgs": ["-r", "ts-node/register"],
+            "skipFiles": [
+                "<node_internals>/**/*.js",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ],
             "args": [
                 "${workspaceFolder}/bin/json-to-arrow.js",
-                "-j", "./test/data/json/union.json",
-                "-a", "./test/data/union-file.arrow",
-                "-f", "file"
+                "-j", "./test/data/json/struct_example.json",
+                "-a", "./struct_example-stream-out.arrow",
+                "-f", "stream"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug bin/print-buffer-alignment",
+            "env": { "ARROW_JS_DEBUG": "src", "TS_NODE_CACHE": "false" },
+            "runtimeArgs": ["-r", "ts-node/register"],
+            "skipFiles": [
+                "<node_internals>/**/*.js",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ],
+            "args": [
+                "${workspaceFolder}/bin/print-buffer-alignment.js",
+                "./test/data/cpp/stream/struct_example.arrow"
             ]
         }
     ]
