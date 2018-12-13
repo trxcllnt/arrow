@@ -39,11 +39,19 @@
             },
             "args": [
                 // "-i",
-                "test/unit/ipc/",
-                "test/integration/*",
+                "test/unit/",
+                "test/integration/",
 
                 // Uncomment any of these to run individual test suites
-                "test/unit/table-tests.ts",
+                // "test/unit/int-tests.ts",
+                // "test/unit/table-tests.ts",
+
+                // "test/unit/vector/vector-tests.ts",
+                // "test/unit/vector/bool-vector-tests.ts",
+                // "test/unit/vector/date-vector-tests.ts",
+                // "test/unit/vector/float16-vector-tests.ts",
+                // "test/unit/vector/numeric-vector-tests.ts",
+
                 // "test/unit/ipc/message-reader-tests.ts",
                 // "test/unit/ipc/reader/file-reader-tests.ts",
                 // "test/unit/ipc/reader/json-reader-tests.ts",

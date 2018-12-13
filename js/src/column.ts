@@ -32,7 +32,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     }
 
     static concat<T extends DataType>(...vectors: Vector<T>[]): Vector<T> {
-        return new ChunkedVector(ChunkedVector.flatten(...vectors));
+        return new ChunkedVector(vectors[0].type, ChunkedVector.flatten(...vectors));
     }
 
     public readonly length: number;
@@ -43,20 +43,24 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     protected _nullCount: number = -1;
     protected chunkOffsets: Uint32Array;
 
-    constructor(chunks: Vector<T>[] = [], offsets = calculateOffsets(chunks)) {
+    constructor(type:T, chunks: Vector<T>[] = [], offsets = calculateOffsets(chunks)) {
         super();
+        this.type = type;
         this.chunks = chunks;
         this.chunkOffsets = offsets;
         this.length = offsets[offsets.length - 1];
         this.numChildren = (this.type.children || []).length;
     }
 
-    public get data() { return this.chunks[0].data; }
-    public get type() { return this.chunks[0].type; }
-    public get TType() { return this.chunks[0].TType; }
-    public get TArray() { return this.chunks[0].TArray; }
-    public get TValue() { return this.chunks[0].TValue; }
-    public get ArrayType() { return this.chunks[0].ArrayType; }
+    protected bindDataAccessors() { /* do nothing */ }
+
+    public readonly type: T;
+    public get data() { return this.chunks[0] ? this.chunks[0].data : <any> null; }
+    public get stride() { return this.chunks[0] ? this.chunks[0].stride : 1; }
+    public get TType() { return this.type.TType; }
+    public get TArray() { return this.type.TArray; }
+    public get TValue() { return this.type.TValue; }
+    public get ArrayType() { return this.type.ArrayType; }
 
     public get nullCount() {
         let nullCount = this._nullCount;
@@ -97,7 +101,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     }
 
     public search(index: number): [number, number] | null;
-    public search<N extends SearchContinuation<ChunkedVector<T>>>(index: number, then?: N): ReturnType<N> | null;
+    public search<N extends SearchContinuation<ChunkedVector<T>>>(index: number, then?: N): ReturnType<N>;
     public search<N extends SearchContinuation<ChunkedVector<T>>>(index: number, then?: N) {
         let idx = index;
         // binary search to find the child vector and value indices
@@ -125,6 +129,10 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         return this.search(index, this.getInternal);
     }
 
+    public set(index: number, value: T['TValue'] | null): void {
+        this.search(index, ({ chunks }, i, j) => chunks[i].set(j, value));
+    }
+
     public indexOf(element: T['TValue'], offset?: number): number {
         if (offset && typeof offset === 'number') {
             return this.search(offset, (self, i, j) => this.indexOfInternal(self, i, j, element))!;
@@ -135,12 +143,15 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     public toArray(): T['TArray'] {
         const { chunks } = this;
         const n = chunks.length;
-        const { ArrayType } = this.type;
+        let { ArrayType } = this.type;
         if (n <= 0) { return new ArrayType(0); }
         if (n <= 1) { return chunks[0].toArray(); }
         let len = 0, src = new Array(n);
         for (let i = -1; ++i < n;) {
             len += (src[i] = chunks[i].toArray()).length;
+        }
+        if (ArrayType !== src[0].constructor) {
+            ArrayType = src[0].constructor;
         }
         let dst = new (ArrayType as any)(len);
         let set: any = ArrayType === Array ? arraySet : typedSet;
@@ -157,25 +168,26 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     protected getInternal({ chunks }: ChunkedVector<T>, i: number, j: number) { return chunks[i].get(j); }
     protected isValidInternal({ chunks }: ChunkedVector<T>, i: number, j: number) { return chunks[i].isValid(j); }
     protected indexOfInternal({ chunks }: ChunkedVector<T>, chunkIndex: number, fromIndex: number, element: T['TValue']) {
-        let start = fromIndex, found = -1;
         let i = chunkIndex - 1, n = chunks.length;
+        let start = fromIndex, offset = 0, found = -1;
         while (++i < n) {
             if (~(found = chunks[i].indexOf(element, start))) {
-                return found;
+                return offset + found;
             }
             start = 0;
+            offset += chunks[i].length;
         }
         return -1;
     }
 
     protected sliceInternal(column: ChunkedVector<T>, offset: number, length: number) {
         const slices: Vector<T>[] = [];
-        const { chunks, chunkOffsets } = column;
+        const { type, chunks, chunkOffsets } = column;
         for (let i = -1, n = chunks.length; ++i < n;) {
             const chunk = chunks[i];
-            const chunkOffset = chunkOffsets[i];
             const chunkLength = chunk.length;
-            // If the child is to the right of the slice boundary, exclude
+            const chunkOffset = chunkOffsets[i];
+            // If the child is to the right of the slice boundary, we can stop
             if (chunkOffset >= offset + length) { continue; }
             // If the child is to the left of of the slice boundary, exclude
             if (offset >= chunkOffset + chunkLength) { continue; }
@@ -189,14 +201,14 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
             const end = begin + Math.min(chunkLength - begin, (offset + length) - chunkOffset);
             slices.push(chunk.slice(begin, end) as Vector<T>);
         }
-        return new ChunkedVector(slices);
+        return new ChunkedVector(type, slices);
     }
 }
 
 export class Column<T extends DataType = any> extends ChunkedVector<T> {
 
     constructor(field: Field<T>, vectors: Vector<T>[] = [], offsets?: Uint32Array) {
-        super(ChunkedVector.flatten(...vectors), offsets);
+        super(field.type, ChunkedVector.flatten(...vectors), offsets);
         this.field = field;
     }
 

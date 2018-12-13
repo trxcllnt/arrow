@@ -16,7 +16,7 @@
 // under the License.
 
 import { DataType } from './type';
-import { Vector } from './interfaces';
+import { Vector } from './vector';
 import { popcnt_bit_range } from './util/bit';
 import { toArrayBufferView } from './util/buffer';
 import { Type, VectorType as BufferType, UnionMode } from './enum';
@@ -36,7 +36,7 @@ export type kUnknownNullCount = -1;
 export const kUnknownNullCount = -1;
 
 export type NullBuffer = Uint8Array | null | undefined;
-export type ValueOffsetsBuffer = Int32Array | ArrayLike<number> | Iterable<number>;
+export type ValueOffsetsBuffer = Int32Array  | ArrayLike<number> | Iterable<number>;
 export type DataBuffer<T extends DataType> = T['TArray'] | ArrayLike<number> | Iterable<number>;
 
 export interface Buffers<T extends DataType> {
@@ -99,13 +99,13 @@ export class Data<T extends DataType = DataType> {
     }
 
     protected sliceBuffers(offset: number, length: number): Buffers<T> {
-        let arr: any, buffers = {} as Buffers<T>;
+        let arr: any, buffers = Object.assign([], this._buffers) as Buffers<T>;
         // If typeIds exist, slice the typeIds buffer
-        (arr = this.typeIds) && (buffers[BufferType.TYPE] = this.sliceData(arr, offset, length));
+        (arr = buffers[BufferType.TYPE]) && (buffers[BufferType.TYPE] = this.sliceData(arr, offset, length));
         // If offsets exist, only slice the offsets buffer
-        (arr = this.valueOffsets) && (buffers[BufferType.OFFSET] = this.sliceOffsets(arr, offset, length)) ||
+        (arr = buffers[BufferType.OFFSET]) && (buffers[BufferType.OFFSET] = this.sliceOffsets(arr, offset, length)) ||
             // Otherwise if no offsets, slice the data buffer
-            (arr = this.values) && (buffers[BufferType.DATA] = this.sliceData(arr, offset, length));
+            (arr = buffers[BufferType.DATA]) && (buffers[BufferType.DATA] = this.sliceData(arr, offset, length));
         return buffers;
     }
 

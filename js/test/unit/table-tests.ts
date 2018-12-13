@@ -16,17 +16,14 @@
 // under the License.
 
 import '../jest-extensions';
-import { TextEncoder } from 'text-encoding-utf-8';
-
 import {
-    Schema, Table, RecordBatch, Vector, Data,
+    Data, Schema, Table, RecordBatch,
+    Vector, Utf8Vector, DictionaryVector,
     Struct, Float32, Int32, Dictionary, Utf8, Int8
 } from '../Arrow';
 
 // const { predicate, Table } = Arrow;
 // const { col, lit, custom, and, or, And, Or } = predicate;
-
-const utf8Encoder = new TextEncoder('utf-8');
 
 const NAMES = ['f32', 'i32', 'dictionary'] as (keyof TestDataSchema)[];
 const F32 = 0, I32 = 1, DICT = 2;
@@ -74,6 +71,20 @@ const test_data = [
     },
 ];
 
+function compareBatchAndTable(source: Table, offset: number, batch: RecordBatch, table: Table) {
+    expect(batch.length).toEqual(table.length);
+    expect(table.numCols).toEqual(source.numCols);
+    expect(batch.numCols).toEqual(source.numCols);
+    for (let i = -1, n = source.numCols; ++i < n;) {
+        const v0 = source.getColumnAt(i)!.slice(offset, offset + batch.length);
+        const v1 = batch.getChildAt(i);
+        const v2 = table.getColumnAt(i);
+        const name = source.schema.fields[i].name;
+        expect([v1, `batch`, name]).toEqualVector([v0, `source`]);
+        expect([v2, `table`, name]).toEqualVector([v0, `source`]);
+    }
+}
+
 describe(`Table`, () => {
     test(`can create an empty table`, () => {
         expect(Table.empty().length).toEqual(0);
@@ -84,6 +95,31 @@ describe(`Table`, () => {
     test(`Table.from() creates an empty table`, () => {
         expect(Table.from().length).toEqual(0);
     });
+
+    test(`Table.serialize() serializes sliced RecordBatches`, () => {
+
+        const table = getSingleRecordBatchTable();
+        const batch = table.batches[0], half = batch.length / 2 | 0;
+
+        // First compare what happens when slicing from the batch level
+        let [batch1, batch2] = [batch.slice(0, half), batch.slice(half)];
+
+        compareBatchAndTable(table,    0, batch1, Table.from(new Table(batch1).serialize()));
+        compareBatchAndTable(table, half, batch2, Table.from(new Table(batch2).serialize()));
+
+        // Then compare what happens when creating a RecordBatch by slicing each child individually
+        batch1 = new RecordBatch(batch1.schema, batch1.length, batch1.schema.fields.map((_, i) => {
+            return batch.getChildAt(i)!.slice(0, half);
+        }));
+
+        batch2 = new RecordBatch(batch2.schema, batch2.length, batch2.schema.fields.map((_, i) => {
+            return batch.getChildAt(i)!.slice(half);
+        }));
+
+        compareBatchAndTable(table,    0, batch1, Table.from(new Table(batch1).serialize()));
+        compareBatchAndTable(table, half, batch2, Table.from(new Table(batch2).serialize()));
+    });
+
     for (let datum of test_data) {
         describe(datum.name, () => {
             test(`has the correct length`, () => {
@@ -340,25 +376,13 @@ describe(`Table`, () => {
 
 type TestDataSchema = { f32: Float32; i32: Int32; dictionary: Dictionary<Utf8, Int8>; };
 
-function makeUtf8Vector(values: string[]) {
+function getTestVectors(f32Values: number[], i32Values: number[], dictIndices: number[]) {
 
-    const offsets = values.reduce((offsets, str, idx) => (
-        (!(offsets[idx + 1] = offsets[idx] + str.length) || true) && offsets
-    ), new Uint32Array(values.length + 1));
-
-    return Vector.new(Data.Utf8(new Utf8(), 0, values.length, 0, null, offsets, utf8Encoder.encode(values.join(''))));
-}
-
-function getTestVectors(f32Values: number[], i32Values: number[], dictionaryKeys: number[]) {
-
+    const values = Utf8Vector.from(['a', 'b', 'c']);
     const i32Data = Data.Int(new Int32(), 0, i32Values.length, 0, null, i32Values);
     const f32Data = Data.Float(new Float32(), 0, f32Values.length, 0, null, f32Values);
 
-    const dictionaryValues = makeUtf8Vector(['a', 'b', 'c']);
-    const dictionaryType = new Dictionary(new Utf8(), new Int8(), null, null, dictionaryValues);
-    const dictionaryData = Data.Dictionary(dictionaryType, 0, dictionaryKeys.length, 0, null, dictionaryKeys);
-
-    return [Vector.new(f32Data), Vector.new(i32Data), Vector.new(dictionaryData)];
+    return [Vector.new(f32Data), Vector.new(i32Data), DictionaryVector.from(values, new Int8(), dictIndices)];
 }
 
 export function getSingleRecordBatchTable() {
@@ -401,7 +425,7 @@ function getMultipleRecordBatchesTable() {
 
 function getStructTable() {
     const table = getSingleRecordBatchTable();
-    const children = table.schema.fields.map((_, i) => table.getColumnAt(i));
+    const children = table.schema.fields.map((_, i) => table.getColumnAt(i)! as Vector<any>);
     const structVec = Vector.new(Data.Struct(new Struct(table.schema.fields), 0, table.length, 0, null, children));
 
     return Table.fromVectors<{ struct: Struct<TestDataSchema> }>([structVec], ['struct']);

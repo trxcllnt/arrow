@@ -30,8 +30,15 @@ export * from './recordbatch';
 export * from './io/interfaces';
 export * from './builder/builders';
 
-import * as util from './util/int';
-export { util };
+import * as util_int_ from './util/int';
+import * as util_bit_ from './util/bit';
+import * as util_buffer_ from './util/buffer';
+
+export const util = {
+    ...util_int_,
+    ...util_bit_,
+    ...util_buffer_
+};
 
 // import * as enums from './enum';
 // import * as type_ from './type';
