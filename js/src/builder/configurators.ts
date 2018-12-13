@@ -1,3 +1,5 @@
+import { TextEncoder } from 'text-encoding-utf-8';
+
 export type Project<TValue, R = TValue> = ((value: TValue, indexPos: number, indexValue: number) => R);
 export type IsNull<T> = ((value: T, key: number, index: number) => boolean);
 export type GetKey<TKey, TValue> = ((key: TKey, value: TValue) => TValue | void);

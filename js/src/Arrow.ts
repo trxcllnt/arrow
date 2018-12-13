@@ -28,6 +28,7 @@ export * from './ipc/writer';
 export * from './ipc/message';
 export * from './recordbatch';
 export * from './io/interfaces';
+export * from './builder/builders';
 
 import * as util from './util/int';
 export { util };

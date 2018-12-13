@@ -15,7 +15,7 @@ export class DictionaryEncodeBinaryBuilder<T, TKey extends Int>
         project : Project<T, T>         = identityTransform,
         isNull  : IsNull<T>             = equalToNull,
         hashSet : GetKey<T, number>     = HashMap(),
-        encoder : EncodeBinary<T>       = utf8Encoder)
+        encoder : EncodeBinary<T>       = (value: T) => utf8Encoder(value))
     {
         this._keysCtor = keysCtor;
         this._project = project;
@@ -56,14 +56,15 @@ export class DictionaryEncodeBinaryBuilder<T, TKey extends Int>
             else {
                 // otherwise, increment the key, encode the values as binary, and add the offsets
                 indices[sourceIndex] = key = indexValue++;
-                offsets[sourceIndex] = data.push(...(this._encoder(value, key, sourceIndex) as number[]));
+                var encodedValues = this._encoder(value, key, sourceIndex);
+                offsets[sourceIndex] = data.push(...(encodedValues as number[]));
             }
 
             sourceIndex++;
         }
 
         let validityUint8Array = null_count > 0 ? new Uint8Array(validity) : new Uint8Array(0);
-        const dictData = Data.Binary(new Binary(), 0, offsets.length - 1, 0, null, new Uint8Array(data), offsets);
+        const dictData = Data.Binary(new Binary(), 0, offsets.length - 1, 0, null, new Uint8Array(data), new Uint8Array(offsets));
         const keysData = Data.Int(new this._keysCtor(), 0, indices.length, null_count, validityUint8Array, indices);
 
         return { dictData, keysData };
