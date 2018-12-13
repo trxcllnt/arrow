@@ -61,11 +61,11 @@ export class MessageReader implements IterableIterator<Message> {
         // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
         return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
-    public readSchema() {
+    public readSchema(throwIfNull = false) {
         const type = MessageHeader.Schema;
         const message = this.readMessage(type);
         const schema = message && message.header();
-        if (!message || !schema) {
+        if (throwIfNull && !schema) {
             throw new Error(nullMessage(type));
         }
         return schema;
@@ -122,11 +122,11 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
         // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
         return buf.byteOffset % 8 === 0 ? buf : buf.slice();
     }
-    public async readSchema() {
+    public async readSchema(throwIfNull = false) {
         const type = MessageHeader.Schema;
         const message = await this.readMessage(type);
         const schema = message && message.header();
-        if (!message || !schema) {
+        if (throwIfNull && !schema) {
             throw new Error(nullMessage(type));
         }
         return schema;

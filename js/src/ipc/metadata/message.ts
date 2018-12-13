@@ -49,10 +49,9 @@ import {
     Bool, Null, Int, Float, Date_, Time, Interval, Timestamp, IntBitWidth,
 } from '../../type';
 
-type MessageHeaderDecoder = <T extends MessageHeader>() => T extends MessageHeader.Schema ? Schema
-                                                         : T extends MessageHeader.RecordBatch ? RecordBatch
-                                                         : T extends MessageHeader.DictionaryBatch ? DictionaryBatch : never;
-
+/**
+ * @ignore
+ */
 export class Message<T extends MessageHeader = any> {
 
     static fromJSON<T extends MessageHeader>(msg: any, headerType: T): Message<T> {
@@ -125,6 +124,9 @@ export class Message<T extends MessageHeader = any> {
     }
 }
 
+/**
+ * @ignore
+ */
 export class RecordBatch {
     public readonly length: number;
     public readonly nodes: FieldNode[];
@@ -137,6 +139,9 @@ export class RecordBatch {
     }
 }
 
+/**
+ * @ignore
+ */
 export class DictionaryBatch {
 
     private static atomicDictionaryId = 0;
@@ -155,6 +160,9 @@ export class DictionaryBatch {
     }
 }
 
+/**
+ * @ignore
+ */
 export class BufferRegion {
     public offset: number;
     public length: number;
@@ -164,6 +172,9 @@ export class BufferRegion {
     }
 }
 
+/**
+ * @ignore
+ */
 export class FieldNode {
     public length: number;
     public nullCount: number;
@@ -551,3 +562,7 @@ const platformIsLittleEndian = (function() {
     // Int16Array uses the platform's endianness.
     return new Int16Array(buffer)[0] === 256;
 })();
+
+type MessageHeaderDecoder = <T extends MessageHeader>() => T extends MessageHeader.Schema ? Schema
+                                                         : T extends MessageHeader.RecordBatch ? RecordBatch
+                                                         : T extends MessageHeader.DictionaryBatch ? DictionaryBatch : never;

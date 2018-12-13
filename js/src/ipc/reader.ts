@@ -270,8 +270,9 @@ class RecordBatchStreamReaderImpl<T extends { [key: string]: DataType } = any>
     public open(autoClose = this.autoClose) {
         if (!this.closed) {
             this.autoClose = autoClose;
-            try { this.schema || (this.schema = this.reader.readSchema()); }
-            catch (e) { if (!autoClose) { throw e; } else { return this.close(); } }
+            if (!(this.schema || (this.schema = this.reader.readSchema(!autoClose)!))) {
+                return this.close();
+            }
         }
         return this;
     }
@@ -335,8 +336,9 @@ class AsyncRecordBatchStreamReaderImpl<T extends { [key: string]: DataType } = a
     public async open(autoClose = this.autoClose) {
         if (!this.closed) {
             this.autoClose = autoClose;
-            try { this.schema || (this.schema = await this.reader.readSchema()); }
-            catch (e) { if (!autoClose) { throw e; } else { return await this.close(); } }
+            if (!(this.schema || (this.schema = (await this.reader.readSchema(!autoClose))!))) {
+                return this.close();
+            }
         }
         return this;
     }
