@@ -1,6 +1,6 @@
 import { Data } from '../data';
 import { Binary, Int } from '../type';
-import { identityTransform, equalToNull, EncodeBinary, utf8Encoder, HashMap, Project, IsNull, GetKey } from './configurators';
+import { identityTransform, equalToNull, EncodeBinary, HashMap, Project, IsNull, GetKey } from './configurators';
 
 export class DictionaryEncodeBinaryBuilder<T, TKey extends Int>
 {
@@ -15,7 +15,7 @@ export class DictionaryEncodeBinaryBuilder<T, TKey extends Int>
         project : Project<T, T>         = identityTransform,
         isNull  : IsNull<T>             = equalToNull,
         hashSet : GetKey<T, number>     = HashMap(),
-        encoder : EncodeBinary<T>       = (value: T) => utf8Encoder(value))
+        encoder : EncodeBinary<T>       = (value: T) => [identityTransform(value)])
     {
         this._keysCtor = keysCtor;
         this._project = project;
@@ -64,7 +64,7 @@ export class DictionaryEncodeBinaryBuilder<T, TKey extends Int>
         }
 
         let validityUint8Array = null_count > 0 ? new Uint8Array(validity) : new Uint8Array(0);
-        const dictData = Data.Binary(new Binary(), 0, offsets.length - 1, 0, null, new Uint8Array(data), new Uint8Array(offsets));
+        const dictData = Data.Binary(new Binary(), 0, offsets.length - 1, 0, null, offsets, new Uint8Array(data));
         const keysData = Data.Int(new this._keysCtor(), 0, indices.length, null_count, validityUint8Array, indices);
 
         return { dictData, keysData };
