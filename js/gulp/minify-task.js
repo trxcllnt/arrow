@@ -29,9 +29,8 @@ const { memoizeTask } = require('./memoize-task');
 const { compileBinFiles } = require('./typescript-task');
 const { Observable, ReplaySubject } = require('rxjs');
 const TerserPlugin = require(`terser-webpack-plugin`);
-const esmRequire = require(`@std/esm`)(module, {
-    mode: `js`,
-    warnings: false,
+const esmRequire = require(`esm`)(module, {
+    mode: `auto`,
     cjs: {
         /* A boolean for storing ES modules in require.cache. */
         cache: true,

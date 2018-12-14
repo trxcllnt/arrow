@@ -53,7 +53,6 @@ export abstract class Vector<T extends DataType = any> implements Iterable<T['TV
         if (this.nullCount > 0) {
             this['get'] && (this['get'] = wrapNullable1(this['get']));
             this['set'] && (this['set'] = wrapNullableSet(this['set']));
-            // this['indexOf'] && (this['indexOf'] = wrapNullable2(this['indexOf']));
         }
     }
 
@@ -438,10 +437,6 @@ function partial2<T>(visit: (node: T, a: any, b: any) => any) {
 function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: number) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
     return function(this: V, i: number) { return this.isValid(i) ? fn.call(this, i) : null; };
 }
-
-// function wrapNullable2<T extends DataType, V extends Vector<T>, F extends (i: number, a: any) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
-//     return function(this: V, i: number, a: any) { return this.isValid(i) ? fn.call(this, i, a) : null; };
-// }
 
 function wrapNullableSet<T extends DataType, V extends BaseVector<T>, F extends (i: number, a: any) => void>(fn: F): (...args: Parameters<F>) => void {
     return function(this: V, i: number, a: any) {

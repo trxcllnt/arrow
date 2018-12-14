@@ -19,6 +19,7 @@ import { Field } from './schema';
 import { Vector } from './vector';
 import { clampRange } from './util/vector';
 import { DataType, RowLike } from './type';
+import { valueToString } from './util/pretty';
 import { MapVector, StructVector } from './vector';
 
 type SearchContinuation<T extends ChunkedVector> = (column: T, chunkIndex: number, valueIndex: number) => any;
@@ -279,6 +280,19 @@ export class Row<T extends { [key: string]: DataType }> implements Iterable<T[ke
         rowIndexDescriptor.value = null;
         rowParentDescriptor.value = null;
         return bound as RowLike<T>;
+    }
+    public toJSON(): any {
+        return DataType.isStruct(this.parent.type) ? [...this] :
+            Object.getOwnPropertyNames(this).reduce((props: any, prop: string) => {
+                return (props[prop] = (this as any)[prop]) && props || props
+            }, {});
+    }
+    public toString() {
+        return DataType.isStruct(this.parent.type) ?
+            [...this].map((x) => valueToString(x)).join(', ') :
+            Object.getOwnPropertyNames(this).reduce((props: any, prop: string) => {
+                return (props[prop] = valueToString((this as any)[prop])) && props || props
+            }, {});
     }
 }
 

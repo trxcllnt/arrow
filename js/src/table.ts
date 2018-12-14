@@ -176,16 +176,6 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public countBy<K extends keyof T>(name: Col | K) {
         return new Dataframe(this.batches).countBy(name);
     }
-    // public toString(separator?: string) {
-    //     let str = '';
-    //     for (const row of this.rowsToString(separator)) {
-    //         str += row + '\n';
-    //     }
-    //     return str;
-    // }
-    // public rowsToString(separator = ' | '): PipeIterator<string|undefined> {
-    //     return new PipeIterator(tableRowsToString(this, separator), 'utf8');
-    // }
 }
 
 // protect batches, batchesUnion from es2015/umd mangler
@@ -194,26 +184,3 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
 
 import { Predicate, Col } from './compute/predicate';
 import { NextFunc, BindFunc, CountByResult, Dataframe } from './compute/dataframe';
-
-// function* tableRowsToString(table: Table, separator = ' | ') {
-//     let rowOffset = 0;
-//     let firstValues = [];
-//     let maxColumnWidths: number[] = [];
-//     let iterators: IterableIterator<string>[] = [];
-//     // Gather all the `rowsToString` iterators into a list before iterating,
-//     // so that `maxColumnWidths` is filled with the maxWidth for each column
-//     // across all RecordBatches.
-//     for (const batch of table.batches) {
-//         const iterator = batch.rowsToString(separator, rowOffset, maxColumnWidths);
-//         const { done, value } = iterator.next();
-//         if (!done) {
-//             firstValues.push(value);
-//             iterators.push(iterator);
-//             rowOffset += batch.length;
-//         }
-//     }
-//     for (const iterator of iterators) {
-//         yield firstValues.shift();
-//         yield* iterator;
-//     }
-// }

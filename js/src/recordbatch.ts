@@ -70,7 +70,9 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     public get TValue() { return this.impl.TValue; }
     public get ArrayType() { return this.impl.ArrayType; }
 
-    public get(index: number) { return this.impl.get(index); }
+    public get(index: number): Struct<T>['TValue'] | null {
+        return this.impl.get(index);
+    }
     public set(index: number, value: Struct<T>['TValue'] | null) {
         this.impl.set(index, value);
     }
@@ -99,32 +101,4 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
         const structData = Data.Struct(new Struct(schema.fields), 0, this.length, 0, null, childData);
         return new RecordBatch<{ [P in K]: T[P] }>(schema, structData);
     }
-//     public rowsToString(separator = ' | ', rowOffset = 0, maxColumnWidths: number[] = []) {
-//         return new PipeIterator(recordBatchRowsToString(this, separator, rowOffset, maxColumnWidths), 'utf8');
-//     }
 }
-
-// function* recordBatchRowsToString(recordBatch: RecordBatch, separator = ' | ', rowOffset = 0, maxColumnWidths: number[] = []) {
-//     const fields = recordBatch.schema.fields;
-//     const header = ['row_id', ...fields.map((f) => `${f}`)].map(valueToString);
-//     header.forEach((x, i) => {
-//         maxColumnWidths[i] = Math.max(maxColumnWidths[i] || 0, x.length);
-//     });
-//     // Pass one to convert to strings and count max column widths
-//     for (let i = -1, n = recordBatch.length - 1; ++i < n;) {
-//         let val, row = [rowOffset + i, ...recordBatch.get(i) as Struct['TValue']];
-//         for (let j = -1, k = row.length; ++j < k; ) {
-//             val = valueToString(row[j]);
-//             maxColumnWidths[j] = Math.max(maxColumnWidths[j] || 0, val.length);
-//         }
-//     }
-//     for (let i = -1; ++i < recordBatch.length;) {
-//         if ((rowOffset + i) % 1000 === 0) {
-//             yield header.map((x, j) => leftPad(x, ' ', maxColumnWidths[j])).join(separator);
-//         }
-//         yield [rowOffset + i, ...recordBatch.get(i) as Struct['TValue']]
-//             .map((x) => valueToString(x))
-//             .map((x, j) => leftPad(x, ' ', maxColumnWidths[j]))
-//             .join(separator);
-//     }
-// }
