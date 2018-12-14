@@ -317,6 +317,9 @@ async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
     // add the listener for the source stream's 'readable' event.
     ({ cmd, size } = yield <any> null);
 
+    // ignore stdin if it's a TTY
+    if ((stream as any)['isTTY']) { return yield new Uint8Array(0); }
+
     try {
         // initialize the stream event handlers
         events[0] = onEvent(stream, 'end');
