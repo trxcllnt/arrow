@@ -39,7 +39,7 @@ import {
     IntervalDayTime, IntervalYearMonth,
     TimeSecond, TimeMillisecond, TimeMicrosecond, TimeNanosecond,
     TimestampSecond, TimestampMillisecond, TimestampMicrosecond, TimestampNanosecond,
-    Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64, Float16, Float32, Float64,
+    Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64, Float16, Float32, Float64, TKeys,
 } from './type';
 
 export abstract class Vector<T extends DataType = any> implements Iterable<T['TValue'] | null> {
@@ -200,6 +200,30 @@ export class BaseVector<T extends DataType = any> extends Vector<T> {
 export class NullVector                                       extends BaseVector<Null> {}
 
 export class IntVector<T extends Int = Int>                   extends BaseVector<T> {
+    public static from(data: Int8Array): V<Int8>;
+    public static from(data: Int16Array): V<Int16>;
+    public static from(data: Int32Array): V<Int32>;
+    public static from(data: Uint8Array): V<Uint8>;
+    public static from(data: Uint16Array): V<Uint16>;
+    public static from(data: Uint32Array): V<Uint32>;
+    public static from(data: Int32Array, is64: true): V<Int64>;
+    public static from(data: Uint32Array, is64: true): V<Uint64>;
+    public static from(data: any, is64?: boolean) {
+        if (is64 === true) {
+            return data instanceof Int32Array
+                ? Vector.new(Data.Int(new Int64(), 0, data.length, 0, null, data))
+                : Vector.new(Data.Int(new Uint64(), 0, data.length, 0, null, data));
+        }
+        switch (data.constructor) {
+            case Int8Array: return Vector.new(Data.Int(new Int8(), 0, data.length, 0, null, data));
+            case Int16Array: return Vector.new(Data.Int(new Int16(), 0, data.length, 0, null, data));
+            case Int32Array: return Vector.new(Data.Int(new Int32(), 0, data.length, 0, null, data));
+            case Uint8Array: return Vector.new(Data.Int(new Uint8(), 0, data.length, 0, null, data));
+            case Uint16Array: return Vector.new(Data.Int(new Uint16(), 0, data.length, 0, null, data));
+            case Uint32Array: return Vector.new(Data.Int(new Uint32(), 0, data.length, 0, null, data));
+        }
+        throw new TypeError('Unrecognized Int data');
+    }
     constructor(data: Data<T>) {
         super(data, undefined, data.type.bitWidth <= 32 ? 1 : 2);
     }
@@ -214,7 +238,19 @@ export class Uint16Vector                                     extends IntVector<
 export class Uint32Vector                                     extends IntVector<Uint32> {}
 export class Uint64Vector                                     extends IntVector<Uint64> {}
 
-export class FloatVector<T extends Float = any>               extends BaseVector<T> {}
+export class FloatVector<T extends Float = any>               extends BaseVector<T> {
+    public static from(data: Uint16Array): V<Float16>;
+    public static from(data: Float32Array): V<Float32>;
+    public static from(data: Float64Array): V<Float64>;
+    public static from(data: any) {
+        switch (data.constructor) {
+            case Uint16Array: return Vector.new(Data.Float(new Float16(), 0, data.length, 0, null, data));
+            case Float32Array: return Vector.new(Data.Float(new Float32(), 0, data.length, 0, null, data));
+            case Float64Array: return Vector.new(Data.Float(new Float64(), 0, data.length, 0, null, data));
+        }
+        throw new TypeError('Unrecognized Float data');
+    }
+}
 export class Float16Vector                                    extends FloatVector<Float16> {}
 export class Float32Vector                                    extends FloatVector<Float32> {}
 export class Float64Vector                                    extends FloatVector<Float64> {}
@@ -340,19 +376,22 @@ export class MapVector<T extends { [key: string]: DataType } = any> extends Base
     }
 }
 
-export class DictionaryVector<T extends DataType = any> extends BaseVector<Dictionary<T>> {
-    public static from<TVal extends DataType<any>, TKey extends Int>(values: Vector<TVal>, indices: TKey, keys: ArrayLike<number> | TKey['TArray']) {
-        const dictType = new Dictionary(values.type, indices, null, null, values);
-        return Vector.new(Data.Dictionary(dictType, 0, keys.length, 0, null, keys as TKey['TArray']));
+export class DictionaryVector<T extends DataType = any, TKey extends TKeys = TKeys> extends BaseVector<Dictionary<T, TKey>> {
+    public static from<T extends DataType<any>, TKey extends TKeys = TKeys>(
+        values: Vector<T>, indices: TKey,
+        keys: ArrayLike<number> | TKey['TArray']
+    ) {
+        const type = new Dictionary(values.type, indices, null, null, values);
+        return Vector.new(Data.Dictionary(type, 0, keys.length, 0, null, keys));
     }
-    public readonly indices: Vector<Dictionary<T>['indices']>;
-    constructor(data: Data<Dictionary<T>>) {
+    public readonly indices: V<TKey>;
+    constructor(data: Data<Dictionary<T, TKey>>) {
         super(data, void 0, 1);
         this.indices = Vector.new(data.clone(this.type.indices));
     }
     public get dictionary() { return this.type.dictionaryVector; }
-    public getKey(index: number) { return this.indices.get(index); }
-    public getValue(key: number) { return this.dictionary.get(key); }
+    public getKey(index: number): TKey['TValue'] | null { return this.indices.get(index); }
+    public getValue(key: number): T['TValue'] | null { return this.dictionary.get(key); }
     public isValid(index: number) { return this.indices.isValid(index); }
     public reverseLookup(value: T) { return this.dictionary.indexOf(value); }
 }

@@ -21,14 +21,14 @@ import {
     DataType, Dictionary, TimeBitWidth,
     Utf8, Binary, Decimal, FixedSizeBinary,
     List, FixedSizeList, Map_, Struct, Union,
-    Bool, Null, Int, Float, Date_, Time, Interval, Timestamp, IntBitWidth,
+    Bool, Null, Int, Float, Date_, Time, Interval, Timestamp, IntBitWidth, Int32, TKeys,
 } from '../../type';
 
 import Type = Schema_.org.apache.arrow.flatbuf.Type;
 import { DictionaryBatch, RecordBatch, FieldNode, BufferRegion } from './message';
 import { TimeUnit, Precision, IntervalUnit, UnionMode, DateUnit } from '../../enum';
 
-export function schemaFromJSON(_schema: any, dictionaries: Map<number, DataType> = new Map(), dictionaryFields: Map<number, Field<Dictionary<any, Int>>[]> = new Map()) {
+export function schemaFromJSON(_schema: any, dictionaries: Map<number, DataType> = new Map(), dictionaryFields: Map<number, Field<Dictionary>[]> = new Map()) {
     return new Schema(
         schemaFieldsFromJSON(_schema, dictionaries, dictionaryFields),
         customMetadataFromJSON(_schema['customMetadata']),
@@ -51,11 +51,11 @@ export function dictionaryBatchFromJSON(b: any) {
     );
 }
 
-function schemaFieldsFromJSON(_schema: any, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary<any, Int>>[]>) {
+function schemaFieldsFromJSON(_schema: any, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary>[]>) {
     return (_schema['fields'] || []).filter(Boolean).map((f: any) => Field.fromJSON(f, dictionaries, dictionaryFields));
 }
 
-function fieldChildrenFromJSON(_field: any, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary<any, Int>>[]>): Field[] {
+function fieldChildrenFromJSON(_field: any, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary>[]>): Field[] {
     return (_field['children'] || []).filter(Boolean).map((f: any) => Field.fromJSON(f, dictionaries, dictionaryFields));
 }
 
@@ -86,15 +86,15 @@ function nullCountFromJSON(validity: number[]) {
     return (validity || []).reduce((sum, val) => sum + +(val === 0), 0);
 }
 
-export function fieldFromJSON(_field: any, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary<any, Int>>[]>) {
+export function fieldFromJSON(_field: any, dictionaries?: Map<number, DataType>, dictionaryFields?: Map<number, Field<Dictionary>[]>) {
 
     let id: number;
+    let keys: TKeys | null;
     let field: Field | void;
-    let keys: any | Int | null;
     let dictMeta: any;
     let type: DataType<any>;
-    let dictType: Dictionary<any, Int>;
-    let dictField: Field<Dictionary<any, Int>>;
+    let dictType: Dictionary;
+    let dictField: Field<Dictionary>;
 
     // If no dictionary encoding, or in the process of decoding the children of a dictionary-encoded field
     if (!dictionaries || !dictionaryFields || !(dictMeta = _field['dictionary'])) {
@@ -107,7 +107,7 @@ export function fieldFromJSON(_field: any, dictionaries?: Map<number, DataType>,
     // data type into the dictionary types map.
     else if (!dictionaries.has(id = dictMeta['id'])) {
         // a dictionary index defaults to signed 32 bit int if unspecified
-        keys = (keys = dictMeta['indexType']) ? intTypeFromJSON(keys) : new Int(true, 32);
+        keys = (keys = dictMeta['indexType']) ? indexTypeFromJSON(keys) as TKeys : new Int32();
         dictionaries.set(id, type = typeFromJSON(_field, fieldChildrenFromJSON(_field)));
         dictType = new Dictionary(type, keys, id, dictMeta['isOrdered']);
         dictField = new Field(_field['name'], dictType, _field['nullable'], customMetadataFromJSON(_field['customMetadata']));
@@ -117,7 +117,7 @@ export function fieldFromJSON(_field: any, dictionaries?: Map<number, DataType>,
     // data type and wrap in a new Dictionary type and field.
     else {
         // a dictionary index defaults to signed 32 bit int if unspecified
-        keys = (keys = dictMeta['indexType']) ? intTypeFromJSON(keys) : new Int(true, 32);
+        keys = (keys = dictMeta['indexType']) ? indexTypeFromJSON(keys) as TKeys : new Int32();
         dictType = new Dictionary(dictionaries.get(id)!, keys, id, dictMeta['isOrdered']);
         dictField = new Field(_field['name'], dictType, _field['nullable'], customMetadataFromJSON(_field['customMetadata']));
         dictionaryFields.get(id)!.push(field = dictField);
@@ -129,7 +129,7 @@ function customMetadataFromJSON(_metadata?: object) {
     return new Map<string, string>(Object.entries(_metadata || {}));
 }
 
-function intTypeFromJSON(_type: any) {
+function indexTypeFromJSON(_type: any) {
     return new Int(_type['isSigned'], _type['bitWidth']);
 }
 

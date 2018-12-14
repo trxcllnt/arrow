@@ -93,7 +93,7 @@ export class Null extends DataType<Type.Null> {
 
 type Ints = Type.Int | Type.Int8 | Type.Int16 | Type.Int32 | Type.Int64 | Type.Uint8 | Type.Uint16 | Type.Uint32 | Type.Uint64;
 type IType = {
-    [Type.Int   ]: { bitWidth: IntBitWidth; isSigned: true | false; TArray: IntArray;    TValue: number | IntArray; };
+    [Type.Int   ]: { bitWidth: IntBitWidth; isSigned: true | false; TArray: IntArray;    TValue: number | Int32Array | Uint32Array; };
     [Type.Int8  ]: { bitWidth:           8; isSigned: true;         TArray: Int8Array;   TValue: number;            };
     [Type.Int16 ]: { bitWidth:          16; isSigned: true;         TArray: Int16Array;  TValue: number;            };
     [Type.Int32 ]: { bitWidth:          32; isSigned: true;         TArray: Int32Array;  TValue: number;            };
@@ -393,8 +393,10 @@ export class Map_<T extends { [key: string]: DataType; } = any> extends DataType
 
 const getId = ((atomicDictionaryId) => () => ++atomicDictionaryId)(-1);
 
-export interface Dictionary<T extends DataType = any, TKey extends Int = Int> extends DataType<Type.Dictionary> { TArray: TKey['TArray']; TValue: T['TValue']; }
-export class Dictionary<T extends DataType = any, TKey extends Int = Int> extends DataType<Type.Dictionary> {
+export type TKeys = Int8 | Int16 | Int32 | Uint8 | Uint16 | Uint32;
+
+export interface Dictionary<T extends DataType = any, TKey extends TKeys = TKeys> extends DataType<Type.Dictionary> { TArray: TKey['TArray']; TValue: T['TValue']; }
+export class Dictionary<T extends DataType = any, TKey extends TKeys = TKeys> extends DataType<Type.Dictionary> {
     public readonly id: number;
     public readonly indices: TKey;
     public readonly dictionary: T;

@@ -15,8 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { DataType, Dictionary } from './type';
 import { Vector as VType } from './interfaces';
-import { DataType, Dictionary, Int } from './type';
 
 export class Schema<T extends { [key: string]: DataType } = any> {
 
@@ -27,12 +27,12 @@ export class Schema<T extends { [key: string]: DataType } = any> {
     public readonly fields: Field[];
     public readonly metadata: Map<string, string>;
     public readonly dictionaries: Map<number, DataType>;
-    public readonly dictionaryFields: Map<number, Field<Dictionary<any, Int>>[]>;
+    public readonly dictionaryFields: Map<number, Field<Dictionary>[]>;
 
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
                 dictionaries?: Map<number, DataType>,
-                dictionaryFields?: Map<number, Field<Dictionary<any, Int>>[]>) {
+                dictionaryFields?: Map<number, Field<Dictionary>[]>) {
         this.fields = fields;
         this.metadata = metadata || Schema.prototype.metadata;
         if (!dictionaries || !dictionaryFields) {
@@ -72,7 +72,7 @@ export class Field<T extends DataType = DataType> {
     }
 }
 
-function generateDictionaryMap(fields: Field[], dictionaries: Map<number, DataType>, dictionaryFields: Map<number, Field<Dictionary<any, Int>>[]>) {
+function generateDictionaryMap(fields: Field[], dictionaries: Map<number, DataType>, dictionaryFields: Map<number, Field<Dictionary>[]>) {
 
     for (let i = -1, n = fields.length; ++i < n;) {
         const field = fields[i];

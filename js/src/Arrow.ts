@@ -22,17 +22,21 @@ export * from './table';
 export * from './column';
 export * from './schema';
 export * from './vector';
+export * from './visitor';
 export * from './io/stream';
 export * from './ipc/reader';
 export * from './ipc/writer';
 export * from './ipc/message';
 export * from './recordbatch';
 export * from './io/interfaces';
+export * from './compute/dataframe';
 
 import * as util_int_ from './util/int';
 import * as util_bit_ from './util/bit';
 import * as util_buffer_ from './util/buffer';
+import * as predicate from './compute/predicate';
 
+export { predicate };
 export const util = {
     ...util_int_,
     ...util_bit_,
