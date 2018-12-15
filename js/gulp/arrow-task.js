@@ -29,11 +29,11 @@ const { memoizeTask } = require('./memoize-task');
 const exec = promisify(require('child_process').exec);
 const { Observable, ReplaySubject } = require('rxjs');
 
-const arrowTask = ((cache) => memoizeTask(cache, function copyMain(target, format) {
+const arrowTask = ((cache) => memoizeTask(cache, function copyMain(target) {
     const out = targetDir(target);
     const dtsGlob = `${targetDir(`es2015`, `cjs`)}/**/*.ts`;
     const cjsGlob = `${targetDir(`es2015`, `cjs`)}/**/*.js`;
-    const esmGlob = `${targetDir(`es2015`, `esm`)}/**/*.js`;
+    const esmGlob = `${targetDir(`esnext`, `esm`)}/**/*.js`;
     const es5UmdGlob = `${targetDir(`es5`, `umd`)}/*.js`;
     const es5UmdMaps = `${targetDir(`es5`, `umd`)}/*.map`;
     const es2015UmdGlob = `${targetDir(`es2015`, `umd`)}/*.js`;

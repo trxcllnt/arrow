@@ -25,16 +25,16 @@ const {
 
 const gulp = require('gulp');
 const path = require('path');
+const { ReplaySubject } = require('rxjs');
 const sourcemaps = require('gulp-sourcemaps');
 const { memoizeTask } = require('./memoize-task');
 const { compileBinFiles } = require('./typescript-task');
-const { Observable, ReplaySubject } = require('rxjs');
 const closureCompiler = require('google-closure-compiler').gulp();
 
 const closureTask = ((cache) => memoizeTask(cache, function closure(target, format) {
     const src = targetDir(target, `cls`);
     const out = targetDir(target, format);
-    const entry = path.join(src, mainExport);
+    const entry = path.join(src, `${mainExport}.dom`);
     const externs = path.join(`src/Arrow.externs.js`);
     return observableFromStreams(
         gulp.src([
@@ -65,6 +65,7 @@ const createClosureArgs = (entry, externs) => ({
     rewrite_polyfills: false,
     entry_point: `${entry}.js`,
     module_resolution: `NODE`,
+    process_common_js_modules: true,
     // formatting: `PRETTY_PRINT`,
     // debug: true,
     compilation_level: `ADVANCED`,

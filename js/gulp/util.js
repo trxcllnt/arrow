@@ -17,7 +17,7 @@
 
 const fs = require('fs');
 const path = require(`path`);
-const pump = require(`pump`);
+const pump = require(`stream`).pipeline;
 const { Observable, ReplaySubject } = require('rxjs');
 
 const mainExport = `Arrow`;
@@ -109,15 +109,9 @@ function targetDir(target, format) {
     return path.join(releasesRootDir, ...(!format ? [target] : [target, format]));
 }
 
-function logAndDie(e) {
-    if (e) {
-        process.exit(1);
-    }
-}
-
 function observableFromStreams(...streams) {
     if (streams.length <= 0) { return Observable.empty(); }
-    const pumped = streams.length <= 1 ? streams[0] : pump(...streams, logAndDie);
+    const pumped = streams.length <= 1 ? streams[0] : pump(...streams, (e) => e && process.exit(1));
     const fromEvent = Observable.fromEvent.bind(null, pumped);
     const streamObs = fromEvent(`data`)
                .merge(fromEvent(`error`).flatMap((e) => Observable.throw(e)))

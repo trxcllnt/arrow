@@ -50,7 +50,7 @@ const createMainPackageJson = (target, format) => (orig) => ({
     types: `${mainExport}.d.ts`,
     module: `${mainExport}.mjs`,
     unpkg: `${mainExport}.es5.min.js`,
-    [`@std/esm`]: { mode: `all`, warnings: false, sourceMap: true }
+    [`esm`]: { mode: `all`, sourceMap: true }
 });
   
 const createTypeScriptPackageJson = (target, format) => (orig) => ({
@@ -71,7 +71,7 @@ const createScopedPackageJSON = (target, format) => (({ name, ...orig }) =>
             {
                 name: `${npmOrgName}/${packageName(target, format)}`,
                 version: undefined, main: `${mainExport}.js`, types: `${mainExport}.d.ts`,
-                unpkg: undefined, module: undefined, [`@std/esm`]: undefined
+                unpkg: undefined, module: undefined, [`esm`]: undefined
             }
         )
     )
@@ -80,6 +80,5 @@ const createScopedPackageJSON = (target, format) => (({ name, ...orig }) =>
 const conditionallyAddStandardESMEntry = (target, format) => (packageJSON) => (
     format !== `esm` && format !== `cls`
         ?      packageJSON
-        : { ...packageJSON, [`@std/esm`]: { mode: `js`, warnings: false, sourceMap: true } }
+        : { ...packageJSON, [`esm`]: { mode: `auto`, sourceMap: true } }
 );
-  

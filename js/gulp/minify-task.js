@@ -62,7 +62,7 @@ const minifyTask = ((cache, commonConfig) => memoizeTask(cache, function minifyJ
     ].map(([entry, reserved]) => ({
         ...targetConfig,
         name: entry,
-        entry: { [entry]: path.resolve(`${src}/${entry}.js`) },
+        entry: { [entry]: path.resolve(`${src}/${entry}.dom.js`) },
         plugins: [
             ...(targetConfig.plugins || []),
             new webpack.SourceMapDevToolPlugin({
@@ -107,11 +107,15 @@ const reservePublicNames = ((ESKeywords) => function reservePublicNames(target, 
         `../${src}/data.js`,
         `../${src}/type.js`,
         `../${src}/table.js`,
+        `../${src}/column.js`,
+        `../${src}/schema.js`,
         `../${src}/vector.js`,
+        `../${src}/visitor.js`,
         `../${src}/util/int.js`,
-        `../${src}/predicate.js`,
         `../${src}/recordbatch.js`,
-        `../${src}/${mainExport}.js`,
+        `../${src}/compute/dataframe.js`,
+        `../${src}/compute/predicate.js`,
+        `../${src}/${mainExport}.dom.js`,
     ];
     return publicModulePaths.reduce((keywords, publicModulePath) => [
         ...keywords, ...reserveExportedNames(esmRequire(publicModulePath, { warnings: false }))
