@@ -20,7 +20,6 @@ const path = require('path');
 const { argv } = require('./argv');
 const { promisify } = require('util');
 const glob = promisify(require('glob'));
-const stat = promisify(require('fs').stat);
 const mkdirp = promisify(require('mkdirp'));
 const rimraf = promisify(require('rimraf'));
 const child_process = require(`child_process`);

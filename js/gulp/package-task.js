@@ -46,10 +46,10 @@ const createMainPackageJson = (target, format) => (orig) => ({
     ...createTypeScriptPackageJson(target, format)(orig),
     bin: orig.bin,
     name: npmPkgName,
-    main: mainExport,
-    types: `${mainExport}.d.ts`,
-    module: `${mainExport}.mjs`,
-    unpkg: `${mainExport}.es5.min.js`,
+    main: `${mainExport}.node`,
+    types: `${mainExport}.node.d.ts`,
+    module: `${mainExport}.node.mjs`,
+    unpkg: `${mainExport}.dom.es5.min.js`,
     [`esm`]: { mode: `all`, sourceMap: true }
 });
   
@@ -70,8 +70,9 @@ const createScopedPackageJSON = (target, format) => (({ name, ...orig }) =>
             (xs, key) => ({ ...xs, [key]: xs[key] || orig[key] }),
             {
                 name: `${npmOrgName}/${packageName(target, format)}`,
-                version: undefined, main: `${mainExport}.js`, types: `${mainExport}.d.ts`,
-                unpkg: undefined, module: undefined, [`esm`]: undefined
+                types: format === 'umd' ? undefined : `${mainExport}.node.d.ts`,
+                main: format === 'umd' ? `${mainExport}.dom.js` : `${mainExport}.node.js`,
+                version: undefined, unpkg: undefined, module: undefined, [`esm`]: undefined,
             }
         )
     )

@@ -19,7 +19,6 @@ const {
     targetDir, tsconfigName, observableFromStreams
 } = require('./util');
 
-const del = require('del');
 const gulp = require('gulp');
 const path = require('path');
 const ts = require(`gulp-typescript`);

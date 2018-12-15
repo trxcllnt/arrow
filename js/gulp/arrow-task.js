@@ -16,13 +16,11 @@
 // under the License.
 
 const {
-    mainExport, gCCLanguageNames,
     targetDir, observableFromStreams
 } = require('./util');
 
 const del = require('del');
 const gulp = require('gulp');
-const path = require('path');
 const { promisify } = require('util');
 const gulpRename = require(`gulp-rename`);
 const { memoizeTask } = require('./memoize-task');

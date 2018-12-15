@@ -19,7 +19,6 @@ const {
     targetDir,
     mainExport,
     gCCLanguageNames,
-    UMDSourceTargets,
     observableFromStreams
 } = require('./util');
 
@@ -72,7 +71,7 @@ const createClosureArgs = (entry, externs) => ({
     allow_method_call_decomposing: true,
     package_json_entry_names: `module,jsnext:main,main`,
     assume_function_wrapper: true,
-    js_output_file: `${mainExport}.js`,
+    js_output_file: `${mainExport}.dom.js`,
     language_in: gCCLanguageNames[`es2015`],
     language_out: gCCLanguageNames[`es5`],
     output_wrapper:

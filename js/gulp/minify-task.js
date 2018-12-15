@@ -58,11 +58,11 @@ const minifyTask = ((cache, commonConfig) => memoizeTask(cache, function minifyJ
             path: path.resolve(`./${out}`) } };
 
     const webpackConfigs = [
-        [mainExport, PublicNames]
+        [`${mainExport}.dom`, PublicNames]
     ].map(([entry, reserved]) => ({
         ...targetConfig,
         name: entry,
-        entry: { [entry]: path.resolve(`${src}/${entry}.dom.js`) },
+        entry: { [entry]: path.resolve(`${src}/${entry}.js`) },
         plugins: [
             ...(targetConfig.plugins || []),
             new webpack.SourceMapDevToolPlugin({
