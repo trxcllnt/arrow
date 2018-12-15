@@ -143,17 +143,17 @@ const setInt = <T extends Int>(vector: Vector<T>, index: number, value: T['TValu
         : setNumericX2(<any> vector, index, value as Numeric2X['TValue'])
 };
 
-const setFloat = <T extends Float> (vector: Vector<T>, index: number, value: T['TValue']): void => (
+const setFloat = <T extends Float>(vector: Vector<T>, index: number, value: T['TValue']): void => {
     vector.type.precision !== Precision.HALF
-        ? setNumeric(vector, index, value)
-        : setFloat16(vector, index, value)
-);
+        ? setNumeric(<any> vector, index, value)
+        : setFloat16(<any> vector, index, value)
+};
 
-const getDate = <T extends Date_> (vector: Vector<T>, index: number, value: T['TValue']): void => (
+const getDate = <T extends Date_> (vector: Vector<T>, index: number, value: T['TValue']): void => {
     vector.type.unit === DateUnit.DAY
         ? setDateDay(vector, index, value)
         : setDateMillisecond(vector, index, value)
-);
+};
 
 const setTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToSeconds(values, index * 2, value);
 const setTimestampMillisecond = <T extends TimestampMillisecond>({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToMillisecondsLong(values, index * 2, value);
@@ -280,7 +280,7 @@ SetVisitor.prototype.visitUnion                =                setUnion;
 SetVisitor.prototype.visitDenseUnion           =           setDenseUnion;
 SetVisitor.prototype.visitSparseUnion          =          setSparseUnion;
 SetVisitor.prototype.visitDictionary           =           setDictionary;
-SetVisitor.prototype.visitInterval             =             setIntervalValue;
+SetVisitor.prototype.visitInterval             =        setIntervalValue;
 SetVisitor.prototype.visitIntervalDayTime      =      setIntervalDayTime;
 SetVisitor.prototype.visitIntervalYearMonth    =    setIntervalYearMonth;
 SetVisitor.prototype.visitFixedSizeList        =        setFixedSizeList;

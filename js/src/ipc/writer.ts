@@ -18,11 +18,11 @@
 import { MAGIC } from './message';
 import { Vector } from '../vector';
 import { Schema, Field } from '../schema';
-import { ChunkedVector } from '../column';
 import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
 import * as metadata from './metadata/message';
 import { DataType, Dictionary } from '../type';
+import { ChunkedVector } from '../vector/chunked';
 import { FileBlock, Footer } from './metadata/file';
 import { ArrayBufferViewInput } from '../util/buffer';
 import { MessageHeader, MetadataVersion } from '../enum';

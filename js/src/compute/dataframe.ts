@@ -16,7 +16,7 @@
 // under the License.
 
 import { Vector } from '../vector';
-import { IntVector } from '../vector';
+import { IntVector } from '../vector/int';
 import { Field, Schema } from '../schema';
 import { Vector as V } from '../interfaces';
 import { Predicate, Col } from './predicate';
@@ -27,6 +27,18 @@ import { DataType, Int, Struct, Dictionary } from '../type';
 export type BindFunc = (batch: RecordBatch) => void;
 export type NextFunc = (idx: number, batch: RecordBatch) => void;
 
+Table.prototype.scan = tableScan;
+Table.prototype.filter = tableFilter;
+Table.prototype.countBy = tableCountBy;
+
+declare module '../table' {
+    interface Table<T extends { [key: string]: DataType } = any> {
+        filter(predicate: Predicate): DF;
+        countBy(name: Col | string): CountByResult;
+        scan(next: NextFunc, bind?: BindFunc): void;
+    }
+}
+  
 export class Dataframe<T extends { [key: string]: DataType } = any> extends Table<T> {
     public filter(predicate: Predicate): DF<T> {
         return new FilteredDataFrame<T>(this.batches, predicate);
@@ -43,19 +55,22 @@ export class Dataframe<T extends { [key: string]: DataType } = any> extends Tabl
             }
         }
     }
-    public countBy<K extends keyof T>(name: Col | K) {
+    public countBy(name: Col | string) {
         const batches = this.batches, numBatches = batches.length;
         const count_by = typeof name === 'string' ? new Col(name) : name as Col;
         // Assume that all dictionary batches are deltas, which means that the
         // last record batch has the most complete dictionary
         count_by.bind(batches[numBatches - 1]);
-        const vector = count_by.vector as V<Dictionary<T[K]>>;
+        const vector = count_by.vector as V<Dictionary>;
         if (!DataType.isDictionary(vector.type)) {
             throw new Error('countBy currently only supports dictionary-encoded columns');
         }
-        // TODO: Adjust array byte width based on overall length
-        // (e.g. if this.length <= 255 use Uint8Array, etc...)
-        const counts: Uint32Array = new Uint32Array(vector.dictionary.length);
+
+        const countByteLength = Math.ceil(Math.log(vector.dictionary.length) / Math.log(256));
+        const CountsArrayType = countByteLength == 4 ? Uint32Array :
+                                countByteLength >= 2 ? Uint16Array : Uint8Array;
+
+        const counts = new CountsArrayType(vector.dictionary.length);
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
             // load batches
             const batch = batches[batchIndex];
@@ -72,14 +87,13 @@ export class Dataframe<T extends { [key: string]: DataType } = any> extends Tabl
     }
 }
 
-export class CountByResult<T extends DataType = any> extends Table<{ values: T,  counts: Int }> {
-    constructor(values: Vector<T>, counts: V<Int>) {
-        super(
-            new RecordBatch<{ values: T, counts: Int }>(new Schema([
-                new Field('values', values.type),
-                new Field('counts', counts.type)
-            ]), counts.length, [values, counts])
-        );
+export class CountByResult<T extends DataType = any, TCount extends Int = Int> extends Table<{ values: T,  counts: TCount }> {
+    constructor(values: Vector<T>, counts: V<TCount>) {
+        const schema = new Schema<{ values: T, counts: TCount }>([
+            new Field('values', values.type),
+            new Field('counts', counts.type)
+        ]);
+        super(new RecordBatch(schema, counts.length, [values, counts]));
     }
     public toJSON(): Object {
         const values = this.getColumnAt(0)!;
@@ -167,7 +181,7 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
             this.predicate.and(predicate)
         );
     }
-    public countBy<K extends keyof T>(name: Col | K) {
+    public countBy(name: Col | string) {
         const batches = this.batches, numBatches = batches.length;
         const count_by = typeof name === 'string' ? new Col(name) : name as Col;
         // Assume that all dictionary batches are deltas, which means that the
@@ -177,9 +191,13 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         if (!DataType.isDictionary(vector.type)) {
             throw new Error('countBy currently only supports dictionary-encoded columns');
         }
-        // TODO: Adjust array byte width based on overall length
-        // (e.g. if this.length <= 255 use Uint8Array, etc...)
-        const counts: Uint32Array = new Uint32Array(vector.dictionary.length);
+
+        const countByteLength = Math.ceil(Math.log(vector.dictionary.length) / Math.log(256));
+        const CountsArrayType = countByteLength == 4 ? Uint32Array :
+                                countByteLength >= 2 ? Uint16Array : Uint8Array;
+    
+        const counts = new CountsArrayType(vector.dictionary.length);
+
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
             // load batches
             const batch = batches[batchIndex];
@@ -195,4 +213,17 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         }
         return new CountByResult(vector.dictionary, IntVector.from(counts));
     }
+}
+
+
+function tableScan(this: Table, next: NextFunc, bind?: BindFunc) {
+    return new Dataframe(this.batches).scan(next, bind);
+}
+
+function tableFilter(this: Table, predicate: Predicate): DF {
+    return new Dataframe(this.batches).filter(predicate);
+}
+
+function tableCountBy(this: Table, name: Col | string) {
+    return new Dataframe(this.batches).countBy(name);
 }

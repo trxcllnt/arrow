@@ -161,7 +161,7 @@ function arrayIndexOf<T extends DataType>(vector: Vector<T>, searchElement?: T['
 function listIndexOf<
     T extends DataType,
     R extends List<T> | FixedSizeList<T>
->(vector: Vector<R>, searchElement?: Vector<T> | ArrayLike<T> | null, fromIndex?: number): number {
+>(vector: Vector<R>, searchElement?: R['TValue'] | null, fromIndex?: number): number {
     if (searchElement === undefined) { return -1; }
     if (searchElement === null) { return indexOfNull(vector, fromIndex); }
     const getSearchElement = (Array.isArray(searchElement) || ArrayBuffer.isView(searchElement))
@@ -181,7 +181,10 @@ function listIndexOf<
     return -1;
 }
 
-function indexOfNested<T extends { [key: string]: DataType }>(vector: Vector<Map_<T> | Struct<T>>, searchElement?: RowLike<T> | null, fromIndex?: number): number {
+function indexOfNested<
+    T extends { [key: string]: DataType },
+    R extends Map_<T> | Struct<T>
+>(vector: Vector<R>, searchElement?: RowLike<T> | null, fromIndex?: number): number {
     if (searchElement === undefined) { return -1; }
     if (searchElement === null) { return indexOfNull(vector, fromIndex); }
     searching:

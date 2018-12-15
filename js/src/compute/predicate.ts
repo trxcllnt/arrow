@@ -15,8 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Vector } from '../vector';
 import { RecordBatch } from '../recordbatch';
-import { Vector, DictionaryVector } from '../vector';
+import { DictionaryVector } from '../vector/dictionary';
 
 export type ValueFunc<T> = (idx: number, cols: RecordBatch) => T | null;
 export type PredicateFunc = (idx: number, cols: RecordBatch) => boolean;

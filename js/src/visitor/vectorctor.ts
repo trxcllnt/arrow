@@ -17,9 +17,9 @@
 
 import { Data } from '../data';
 import { Type } from '../enum';
-import * as vecs from '../vector';
 import { DataType } from '../type';
 import { Visitor } from '../visitor';
+import * as vecs from '../vector/all';
 import { Vector, VectorCtor } from '../interfaces';
 
 export interface GetVectorConstructor extends Visitor {

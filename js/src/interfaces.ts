@@ -18,8 +18,8 @@
 import { Data } from './data';
 import { Type } from './enum';
 import * as type from './type';
-import * as vecs from './vector';
 import { DataType } from './type';
+import * as vecs from './vector/all';
 
 export interface ArrayBufferViewConstructor<T extends ArrayBufferView> {
     readonly prototype: T;

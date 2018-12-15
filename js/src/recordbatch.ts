@@ -18,8 +18,8 @@
 import { Data } from './data';
 import { Vector } from './vector';
 import { Schema, Field } from './schema';
-import { StructVector } from './vector';
 import { DataType, Struct } from './type';
+import { StructVector } from './vector/struct';
 import { Vector as VType } from './interfaces';
 
 export class RecordBatch<T extends { [key: string]: DataType } = any> extends Vector<Struct<T>> {

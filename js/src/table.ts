@@ -15,24 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Vector } from './vector';
+import { Column } from './column';
 import { Schema, Field } from './schema';
 import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
 import { Vector as VType } from './interfaces';
-import { ChunkedVector, Column } from './column';
+import { RecordBatchReader } from './ipc/reader';
 import { DataType, RowLike, Struct } from './type';
+import { Vector, ChunkedVector } from './vector/index';
 import { RecordBatchFileWriter, RecordBatchStreamWriter } from './ipc/writer';
-import {
-    RecordBatchReader,
-    FromArg0, FromArg1, FromArg2, FromArg3, FromArg4, FromArgs
-} from './ipc/reader';
 
 export interface DataFrame<T extends { [key: string]: DataType; } = any> {
     count(): number;
-    filter(predicate: Predicate): DataFrame<T>;
-    scan(next: NextFunc, bind?: BindFunc): void;
-    countBy<K extends keyof T>(name: Col | K): CountByResult;
+    filter(predicate: import('./compute/predicate').Predicate): DataFrame<T>;
+    countBy(name: import('./compute/predicate').Col | string): import('./compute/dataframe').CountByResult;
+    scan(next: import('./compute/dataframe').NextFunc, bind?: import('./compute/dataframe').BindFunc): void;
     [Symbol.iterator](): IterableIterator<RowLike<T>>;
 }
 
@@ -41,12 +38,12 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public static empty<T extends { [key: string]: DataType; } = any>() { return new Table<T>(new Schema([]), []); }
 
     public static from<T extends { [key: string]: DataType } = any>(): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg0): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg1): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<Table<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg0): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg1): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg2): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg3): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg4): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: PromiseLike<RecordBatchReader<T>>): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source?: any) {
 
@@ -74,7 +71,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         })(reader.open());
     }
 
-    static async fromAsync<T extends { [key: string]: DataType; } = any>(source: FromArgs): Promise<Table<T>> {
+    static async fromAsync<T extends { [key: string]: DataType; } = any>(source: import('./ipc/reader').FromArgs): Promise<Table<T>> {
         return await Table.from<T>(source as any);
     }
     static fromVectors<T extends { [key: string]: DataType; } = any>(vectors: VType<T[keyof T]>[], names?: (keyof T)[]) {
@@ -167,20 +164,8 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public select(...columnNames: string[]) {
         return new Table(this.batches.map((batch) => batch.select(...columnNames)));
     }
-    public scan(next: NextFunc, bind?: BindFunc) {
-        return new Dataframe(this.batches).scan(next, bind);
-    }
-    public filter(predicate: Predicate): DataFrame {
-        return new Dataframe(this.batches).filter(predicate);
-    }
-    public countBy<K extends keyof T>(name: Col | K) {
-        return new Dataframe(this.batches).countBy(name);
-    }
 }
 
 // protect batches, batchesUnion from es2015/umd mangler
 (<any> Table.prototype).batches = Object.freeze([]);
 (<any> Table.prototype).batchesUnion = Object.freeze([]);
-
-import { Predicate, Col } from './compute/predicate';
-import { NextFunc, BindFunc, CountByResult, Dataframe } from './compute/dataframe';

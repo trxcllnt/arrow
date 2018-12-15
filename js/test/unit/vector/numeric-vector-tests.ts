@@ -83,7 +83,7 @@ function testFloatVector<T extends Float>(DataType: new () => T) {
     slices_the_array_from_0_to_length_plus_20(vector, values);
 }
 
-function gets_expected_values<T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function gets_expected_values<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`gets expected values`, () => {
         expect.hasAssertions();
         let i = -1, n = vector.length;
@@ -93,7 +93,7 @@ function gets_expected_values<T extends DataType>(vector: Vector<T>, values: T['
     });
 }
 
-function iterates_expected_values<T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function iterates_expected_values<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`iterates expected values`, () => {
         let i = -1, n = vector.length;
         if (vector.stride === 1) {
@@ -110,7 +110,7 @@ function iterates_expected_values<T extends DataType>(vector: Vector<T>, values:
     });
 }
 
-function indexof_returns_expected_values<T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function indexof_returns_expected_values<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`indexOf returns expected values`, () => {
 
         // Create a set of test data composed of all of the actual values and a few random values
@@ -141,31 +141,31 @@ function slice_returns_a_typedarray<T extends DataType>(vector: Vector<T>) {
     });
 }
 
-function slices_the_entire_array<T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function slices_the_entire_array<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`slices the entire array`, () => {
         expect(vector.slice().toArray()).toEqual(values);
     });
 }
 
-function slices_from_minus_20_to_length<T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function slices_from_minus_20_to_length<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`slices from -20 to length`, () => {
         expect(vector.slice(-20).toArray()).toEqual(values.slice(-(20 * vector.stride)));
     });
 }
 
-function slices_from_0_to_minus_20<T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function slices_from_0_to_minus_20<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`slices from 0 to -20`, () => {
         expect(vector.slice(0, -20).toArray()).toEqual(values.slice(0, -(20 * vector.stride)));
     });
 }
 
-function slices_the_array_from_0_to_length_minus_20 <T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function slices_the_array_from_0_to_length_minus_20 <T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`slices the array from 0 to length - 20`, () => {
         expect(vector.slice(0, vector.length - 20).toArray()).toEqual(values.slice(0, values.length - (20 * vector.stride)));
     });
 }
 
-function slices_the_array_from_0_to_length_plus_20<T extends DataType>(vector: Vector<T>, values: T['TValue']) {
+function slices_the_array_from_0_to_length_plus_20<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`slices the array from 0 to length + 20`, () => {
         expect(vector.slice(0, vector.length + 20).toArray()).toEqual(values.slice(0, values.length + (20 * vector.stride)));
     });
