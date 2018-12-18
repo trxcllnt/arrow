@@ -29,6 +29,8 @@ const { parse } = require('json-bignum');
 const argv = require(`command-line-args`)(cliOpts(), { partial: true });
 const files = argv.help ? [] : [...(argv.file || []), ...(argv._unknown || [])].filter(Boolean);
 
+process.stdout.on('error', (err) => err.code === 'EPIPE' && process.exit());
+
 (async () => {
 
     const state = { ...argv, hasRecords: false };
