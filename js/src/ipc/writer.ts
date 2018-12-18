@@ -253,4 +253,8 @@ export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any
             for await (const batch of batches) writer.write(batch); writer.close(); return writer;
         })();
     }
+    public close() {
+        this._writePadding(4);
+        return super.close();
+    }
 }
