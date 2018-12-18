@@ -31,10 +31,9 @@ import {
 
 (() => {
 
-    if (process.env.TEST_DOM_STREAMS !== 'true') { return; }
-
-    /* tslint:disable */
-    require('../../../../src/Arrow.dom');
+    if (process.env.TEST_DOM_STREAMS !== 'true') {
+        return test('not testing DOM streams because process.env.TEST_DOM_STREAMS !== "true"', () => {});
+    }
 
     /* tslint:disable */
     const { concatStream } = require('web-stream-tools').default;

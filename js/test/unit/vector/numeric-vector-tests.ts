@@ -87,26 +87,30 @@ function gets_expected_values<T extends DataType>(vector: Vector<T>, values: T['
     test(`gets expected values`, () => {
         expect.hasAssertions();
         let i = -1, n = vector.length;
-        if (vector.stride === 1)
-             while (++i < n) { expect(vector.get(i)).toEqual(values[i]); }
-        else while (++i < n) { expect(vector.get(i)).toEqual(values.slice(2 * i, 2 * (i + 1))); }
+        try {
+            if (vector.stride === 1)
+                while (++i < n) { expect(vector.get(i)).toEqual(values[i]); }
+            else while (++i < n) { expect(vector.get(i)).toEqual(values.slice(2 * i, 2 * (i + 1))); }
+        } catch (e) { throw new Error(`${i}: ${e}`); }
     });
 }
 
 function iterates_expected_values<T extends DataType>(vector: Vector<T>, values: T['TArray']) {
     test(`iterates expected values`, () => {
         let i = -1, n = vector.length;
-        if (vector.stride === 1) {
-            for (let v of vector) {
-                expect(++i).toBeLessThan(n);
-                expect(v).toEqual(values[i]);
+        try {
+            if (vector.stride === 1) {
+                for (let v of vector) {
+                    expect(++i).toBeLessThan(n);
+                    expect(v).toEqual(values[i]);
+                }
+            } else {
+                for (let v of vector) {
+                    expect(++i).toBeLessThan(n);
+                    expect(v).toEqual(values.slice(2 * i, 2 * (i + 1)));
+                }
             }
-        } else {
-            for (let v of vector) {
-                expect(++i).toBeLessThan(n);
-                expect(v).toEqual(values.slice(2 * i, 2 * (i + 1)));
-            }
-        }
+        } catch (e) { throw new Error(`${i}: ${e}`); }
     });
 }
 
@@ -118,20 +122,24 @@ function indexof_returns_expected_values<T extends DataType>(vector: Vector<T>, 
             ...bytes,
             ...[randomBytes(8 * 2 * vector.ArrayType.BYTES_PER_ELEMENT)]
         ])[0].buffer);
-
-        if (vector.stride === 1) {
-            for (const value of testValues) {
-                const expected = values.indexOf(value);
-                expect(vector.indexOf(value)).toEqual(expected);
+        
+        let i = -1, n;
+        try {
+            if (vector.stride === 1) {
+                for (const value of testValues) {
+                    ++i;
+                    const expected = values.indexOf(value);
+                    expect(vector.indexOf(value)).toEqual(expected);
+                }
+            } else {
+                for (i = -1, n = testValues.length / 2 | 0; ++i < n;) {
+                    const value = testValues.slice(2 * i, 2 * (i + 1));
+                    const expected = values.findIndex((d: number, i: number) =>
+                        i % 2 === 0 && d === value[0] && testValues[i + 1] === value[1]);
+                    expect(vector.indexOf(value)).toEqual(expected >= 0 ? expected / 2 : -1);
+                }
             }
-        } else {
-            for (let i = -1, n = testValues.length / 2 | 0; ++i < n;) {
-                const value = testValues.slice(2 * i, 2 * (i + 1));
-                const expected = values.findIndex((d: number, i: number) =>
-                    i % 2 === 0 && d === value[0] && testValues[i + 1] === value[1]);
-                expect(vector.indexOf(value)).toEqual(expected >= 0 ? expected / 2 : -1);
-            }
-        }
+        } catch (e) { throw new Error(`${i}: ${e}`); }
     });
 }
 

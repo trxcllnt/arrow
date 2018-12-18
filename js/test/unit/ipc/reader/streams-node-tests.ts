@@ -25,10 +25,10 @@ import {
 
 (() => {
 
-    if (process.env.TEST_NODE_STREAMS !== 'true') { return; }
+    if (process.env.TEST_NODE_STREAMS !== 'true') {
+        return test('not testing node streams because process.env.TEST_NODE_STREAMS !== "true"', () => {});
+    }
 
-    /* tslint:disable */
-    require('../../../../src/Arrow.node');
     /* tslint:disable */
     const concatStream = require('multistream');
     /* tslint:disable */

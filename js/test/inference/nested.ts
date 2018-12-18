@@ -1,8 +1,8 @@
 import { Data } from '../../src/data';
-import { Row } from '../../src/column';
 import { Field } from '../../src/schema';
 import { DataType } from '../../src/type';
-import { Vector, BoolVector } from '../../src/vector';
+import { Row } from '../../src/vector/row';
+import { Vector, BoolVector } from '../../src/vector/index';
 import { Bool, Int8, Utf8, List, Dictionary, Struct, Map_ } from '../../src/type';
 
 type NamedSchema = { a: Int8, b: Utf8, c: Dictionary<List<Bool>>; [idx: string]: DataType; };

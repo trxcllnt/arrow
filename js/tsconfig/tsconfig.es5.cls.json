@@ -3,7 +3,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "target": "es2015",
-    "module": "commonjs",
+    "module": "es2015",
     "declaration": false,
     "noEmitHelpers": true,
     "importHelpers": true

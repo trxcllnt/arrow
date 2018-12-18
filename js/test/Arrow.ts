@@ -37,30 +37,23 @@ Object.defineProperty(ArrayBuffer, Symbol.hasInstance, {
     }
 });
 
-const path = require('path');
-const target = process.env.TEST_TARGET!;
-const format = process.env.TEST_MODULE!;
-const useSrc = process.env.TEST_TS_SOURCE === `true`;
-
 // these are duplicated in the gulpfile :<
 const targets = [`es5`, `es2015`, `esnext`];
 const formats = [`cjs`, `esm`, `cls`, `umd`];
 
-function throwInvalidImportError(name: string, value: string, values: string[]) {
-    throw new Error('Unrecognized ' + name + ' \'' + value + '\'. Please run tests with \'--' + name + ' <any of ' + values.join(', ') + '>\'');
-}
+const path = require('path');
+const target = process.env.TEST_TARGET!;
+const format = process.env.TEST_MODULE!;
+const useSrc = process.env.TEST_TS_SOURCE === `true` || (!~targets.indexOf(target) || !~formats.indexOf(format));
 
 let modulePath = ``;
 
 if (useSrc) modulePath = '../src';
 else if (target === `ts` || target === `apache-arrow`) modulePath = target;
-else if (!~targets.indexOf(target)) throwInvalidImportError('target', target, targets);
-else if (!~formats.indexOf(format)) throwInvalidImportError('module', format, formats);
 else modulePath = path.join(target, format);
 
 modulePath = path.resolve(`./targets`, modulePath);
-modulePath = path.join(modulePath, `Arrow.${format === 'umd' ? 'dom' : 'node'}`);
-
+modulePath = path.join(modulePath, `Arrow${format === 'umd' ? '' : '.node'}`);
 const Arrow: typeof import('../src/Arrow') = require(modulePath);
 
 export = Arrow;

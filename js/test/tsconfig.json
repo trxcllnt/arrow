@@ -8,11 +8,11 @@
     "declaration": false,
     "importHelpers": false,
     "noEmitHelpers": false,
+    "noEmitOnError": false,
 
     "sourceMap": false,
-    "inlineSources": true,
-    "inlineSourceMap": true,
+    "inlineSources": false,
+    "inlineSourceMap": false,
     "downlevelIteration": false
-
   }
 }

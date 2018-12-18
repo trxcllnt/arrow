@@ -9,7 +9,7 @@
   "scripts": {
     "lerna": "lerna",
     "test": "gulp test",
-    "build": "NODE_OPTIONS=--max-old-space-size=8000 gulp build",
+    "build": "gulp build",
     "clean": "gulp clean",
     "debug": "gulp debug",
     "perf": "node ./perf/index.js",
@@ -19,7 +19,7 @@
     "clean:all": "run-p clean clean:testdata",
     "clean:testdata": "gulp clean:testdata",
     "create:testdata": "gulp create:testdata",
-    "test:coverage": "gulp test -t ts --coverage",
+    "test:coverage": "gulp test -t src --coverage",
     "doc": "shx rm -rf ./doc && typedoc --mode file --out doc src/Arrow.ts",
     "lint": "run-p lint:*",
     "lint:src": "tslint --fix --project -p tsconfig.json -c tslint.json \"src/**/*.ts\"",
@@ -83,6 +83,7 @@
     "ix": "2.3.5",
     "jest": "23.6.0",
     "jest-environment-node-debug": "2.0.0",
+    "jest-silent-reporter": "0.1.1",
     "json": "9.0.6",
     "lerna": "3.6.0",
     "lint-staged": "8.1.0",
@@ -108,50 +109,10 @@
   "engines": {
     "node": ">=10.0"
   },
-  "@std/esm": {
-    "warnings": false
-  },
   "lint-staged": {
     "*.@(ts)": [
       "tslint --fix",
       "git add"
     ]
-  },
-  "jest": {
-    "verbose": false,
-    "testEnvironment": "node",
-    "globals": {
-      "ts-jest": {
-        "diagnostics": false,
-        "tsConfig": "test/tsconfig.json"
-      }
-    },
-    "roots": [
-      "<rootDir>/test/"
-    ],
-    "moduleFileExtensions": [
-      "js",
-      "ts",
-      "tsx"
-    ],
-    "coverageReporters": [
-      "lcov"
-    ],
-    "coveragePathIgnorePatterns": [
-      "fb\\/(File|Message|Schema|Tensor)_generated\\.(js|ts)$",
-      "test\\/.*\\.(ts|tsx|js)$",
-      "/node_modules/"
-    ],
-    "transform": {
-      "^.+\\.jsx?$": "ts-jest",
-      "^.+\\.tsx?$": "ts-jest"
-    },
-    "transformIgnorePatterns": [
-      "/(es2015|esnext)/umd/",
-      "/node_modules/(?!web-stream-tools).+\\.js$"
-    ],
-    "testRegex": "(.*(-|\\.)(test|spec)s?)\\.(ts|tsx|js)$",
-    "preset": "ts-jest",
-    "testMatch": null
   }
 }

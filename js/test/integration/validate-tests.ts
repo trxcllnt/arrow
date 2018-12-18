@@ -15,40 +15,42 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { jsonAndArrowPaths } from './test-config';
-
-if (!jsonAndArrowPaths.length) {
-    throw new Error('Integration tests need paths to both json and arrow files');
-}
-
 import '../jest-extensions';
-
 import * as path from 'path';
 import { zip } from 'ix/iterable/zip';
+import { jsonAndArrowPaths } from './test-config';
 import {
     Table,
     RecordBatchReader
 } from '../Arrow';
 
-describe(`Integration`, () => {
-    for (const [json, file] of jsonAndArrowPaths) {
+(() => {
 
-        let { name, dir } = path.parse(file.path);
-        dir = dir.split(path.sep).slice(-2).join(path.sep);
-
-        const jsonData = json.data;
-        const fileData = file.data;
-
-        describe(path.join(dir, name), () => {
-            testReaderIntegration(jsonData, fileData);
-            testTableFromBuffersIntegration(jsonData, fileData);
-            testTableToBuffersIntegration('json', 'file')(jsonData, fileData);
-            testTableToBuffersIntegration('json', 'file')(jsonData, fileData);
-            testTableToBuffersIntegration('binary', 'file')(jsonData, fileData);
-            testTableToBuffersIntegration('binary', 'file')(jsonData, fileData);
-        });
+    if (!jsonAndArrowPaths.length) {
+        return test('skipping integration tests because no json and arrow files were provided', () => {});
     }
-});
+
+    describe(`Integration`, () => {
+        for (const [json, file] of jsonAndArrowPaths) {
+
+            let { name, dir } = path.parse(file.path);
+            dir = dir.split(path.sep).slice(-2).join(path.sep);
+
+            const jsonData = json.data;
+            const fileData = file.data;
+
+            describe(path.join(dir, name), () => {
+                testReaderIntegration(jsonData, fileData);
+                testTableFromBuffersIntegration(jsonData, fileData);
+                testTableToBuffersIntegration('json', 'file')(jsonData, fileData);
+                testTableToBuffersIntegration('json', 'file')(jsonData, fileData);
+                testTableToBuffersIntegration('binary', 'file')(jsonData, fileData);
+                testTableToBuffersIntegration('binary', 'file')(jsonData, fileData);
+            });
+        }
+    });
+    
+})();
 
 function testReaderIntegration(jsonData: any, arrowBuffer: Uint8Array) {
     test(`json and arrow record batches report the same values`, () => {

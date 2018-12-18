@@ -106,24 +106,24 @@ export async function testSimpleAsyncRecordBatchStreamReader<T extends RecordBat
 
 export function testSimpleRecordBatchIterator(iterator: IterableIterator<RecordBatch>) {
     let i = 0;
-    for (const recordBatch of iterator) {
-        i++;
-        try {
+    try {
+        for (const recordBatch of iterator) {
             expect(recordBatch).toBeInstanceOf(RecordBatch);
-        } catch (e) { throw new Error(`${i}: ${e}`); }
-    }
+            i++;
+        }
+    } catch (e) { throw new Error(`${i}: ${e}`); }
     expect(i).toBe(3);
     iterator.return!();
 }
 
 export async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterableIterator<RecordBatch>) {
     let i = 0;
-    for await (const recordBatch of iterator) {
-        i++;
-        try {
+    try {
+        for await (const recordBatch of iterator) {
             expect(recordBatch).toBeInstanceOf(RecordBatch);
-        } catch (e) { throw new Error(`${i}: ${e}`); }
-    }
+            i++;
+        }
+    } catch (e) { throw new Error(`${i}: ${e}`); }
     expect(i).toBe(3);
     await iterator.return!();
 }
