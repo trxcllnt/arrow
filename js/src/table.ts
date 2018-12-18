@@ -178,7 +178,3 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         return new Table(this.batches.map((batch) => batch.select(...columnNames)));
     }
 }
-
-// protect batches, batchesUnion from es2015/umd mangler
-// (<any> Table.prototype)._batches = Object.freeze([]);
-// (<any> Table.prototype)._batchesUnion = Object.freeze([]);

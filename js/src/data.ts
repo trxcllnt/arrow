@@ -264,6 +264,3 @@ export class Data<T extends DataType = DataType> {
         return new Data(type, offset, length, nullCount, buffers, childData);
     }
 }
-
-// (Data as any).prototype._type = Object.freeze({});
-// (Data as any).prototype._buffers = Object.freeze([]);

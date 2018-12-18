@@ -201,7 +201,6 @@ function messageHeaderFromJSON(message: any, type: MessageHeader) {
             case MessageHeader.RecordBatch: return RecordBatch.fromJSON(message);
             case MessageHeader.DictionaryBatch: return DictionaryBatch.fromJSON(message);
         }
-        // return null;
         throw new Error(`Unrecognized Message type: { name: ${MessageHeader[type]}, type: ${type} }`);
     }) as MessageHeaderDecoder;
 }
@@ -213,7 +212,6 @@ function decodeMessageHeader(message: _Message, type: MessageHeader) {
             case MessageHeader.RecordBatch: return RecordBatch.decode(message.header(new _RecordBatch())!, message.version());
             case MessageHeader.DictionaryBatch: return DictionaryBatch.decode(message.header(new _DictionaryBatch())!, message.version());
         }
-        // return null;
         throw new Error(`Unrecognized Message type: { name: ${MessageHeader[type]}, type: ${type} }`);
     }) as MessageHeaderDecoder;
 }

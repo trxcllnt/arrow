@@ -18,20 +18,6 @@
 /**
  * @ignore
  */
-export function align(value: number, alignment: number) {
-    return value + padding(value, alignment);
-}
-
-/**
- * @ignore
- */
-export function padding(value: number, alignment: number) {
-    return (value % alignment === 0 ? 0 : alignment - value % alignment);
-}
-
-/**
- * @ignore
- */
 export function getBool(_data: any, _index: number, byte: number, bit: number) {
     return (byte & 1 << bit) !== 0;
 }

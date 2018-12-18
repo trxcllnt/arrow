@@ -31,11 +31,6 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
 
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
         super();
-        // const VectorCtor = getVectorConstructor.getVisitFn(data.type)();
-        // // Return the correct Vector subclass based on the Arrow Type
-        // if (VectorCtor && !(this instanceof VectorCtor)) {
-        //     return Reflect.construct(BaseVector, arguments, VectorCtor);
-        // }
         this._children = children;
         this.bindDataAccessors(this._data = data);
         this._numChildren = data.childData.length;
