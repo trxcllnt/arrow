@@ -29,18 +29,18 @@ import { MetadataVersion } from '../../enum';
 import { toUint8Array } from '../../util/buffer';
 import { ArrayBufferViewInput } from '../../util/buffer';
 
-export class Footer {
+class Footer_ {
 
     /** @nocollapse */
     public static decode(buf: ArrayBufferViewInput) {
         buf = new ByteBuffer(toUint8Array(buf));
         const footer = _Footer.getRootAsFooter(buf);
         const schema = Schema.decode(footer.schema()!);
-        return new OffHeapFooter(schema, footer) as Footer;
+        return new OffHeapFooter(schema, footer) as Footer_;
     }
 
     /** @nocollapse */
-    public static encode(footer: Footer) {
+    public static encode(footer: Footer_) {
 
         const b: Builder = new Builder();
         const schemaOffset = Schema.encode(b, footer.schema);
@@ -103,7 +103,9 @@ export class Footer {
     }
 }
 
-class OffHeapFooter extends Footer {
+export { Footer_ as Footer };
+
+class OffHeapFooter extends Footer_ {
 
     public get numRecordBatches() { return this._footer.recordBatchesLength(); }
     public get numDictionaries() { return this._footer.dictionariesLength(); }
