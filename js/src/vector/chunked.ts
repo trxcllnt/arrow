@@ -24,19 +24,22 @@ type SearchContinuation<T extends ChunkedVector> = (column: T, chunkIndex: numbe
 
 export class ChunkedVector<T extends DataType = any> extends Vector<T> {
 
-    static flatten<T extends DataType>(...vectors: Vector<T>[]) {
+    /** @nocollapse */
+    public static flatten<T extends DataType>(...vectors: Vector<T>[]) {
         return vectors.reduce(function flatten(xs: any[], x: any): any[] {
             return x instanceof ChunkedVector ? x.chunks.reduce(flatten, xs) : [...xs, x];
         }, []).filter((x: any): x is Vector<T> => x instanceof Vector);
     }
 
-    static concat<T extends DataType>(...vectors: Vector<T>[]): Vector<T> {
+    /** @nocollapse */
+    public static concat<T extends DataType>(...vectors: Vector<T>[]): Vector<T> {
         return new ChunkedVector(vectors[0].type, ChunkedVector.flatten(...vectors));
     }
 
-    public readonly length: number;
-    public readonly numChildren: number;
-    public readonly chunks: Vector<T>[];
+    protected _type: T;
+    protected _length: number;
+    protected _numChildren: number;
+    protected _chunks: Vector<T>[];
 
     protected _nullCount: number = -1;
     protected _children?: ChunkedVector[];
@@ -44,33 +47,37 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
 
     constructor(type:T, chunks: Vector<T>[] = [], offsets = calculateOffsets(chunks)) {
         super();
-        this.type = type;
-        this.chunks = chunks;
+        this._type = type;
+        this._chunks = chunks;
         this._chunkOffsets = offsets;
-        this.length = offsets[offsets.length - 1];
-        this.numChildren = (this.type.children || []).length;
+        this._length = offsets[offsets.length - 1];
+        this._numChildren = (this._type.children || []).length;
     }
 
     protected bindDataAccessors() { /* do nothing */ }
 
-    public readonly type: T;
-    public get data() { return this.chunks[0] ? this.chunks[0].data : <any> null; }
-    public get stride() { return this.chunks[0] ? this.chunks[0].stride : 1; }
-    public get TType() { return this.type.TType; }
-    public get TArray() { return this.type.TArray; }
-    public get TValue() { return this.type.TValue; }
-    public get ArrayType() { return this.type.ArrayType; }
+    public get type() { return this._type; }
+    public get length() { return this._length; }
+    public get chunks() { return this._chunks; }
+    public get TType() { return this._type.TType; }
+    public get TArray() { return this._type.TArray; }
+    public get TValue() { return this._type.TValue; }
+    public get ArrayType() { return this._type.ArrayType; }
+    public get numChildren() { return this._numChildren; }
+
+    public get data() { return this._chunks[0] ? this._chunks[0].data : <any> null; }
+    public get stride() { return this._chunks[0] ? this._chunks[0].stride : 1; }
 
     public get nullCount() {
         let nullCount = this._nullCount;
         if (nullCount < 0) {
-            this._nullCount = nullCount = this.chunks.reduce((x, { nullCount }) => x + nullCount, 0);
+            this._nullCount = nullCount = this._chunks.reduce((x, { nullCount }) => x + nullCount, 0);
         }
         return nullCount;
     }
 
     public *[Symbol.iterator](): IterableIterator<T['TValue'] | null> {
-        for (const chunk of this.chunks) {
+        for (const chunk of this._chunks) {
             yield* chunk;
         }
     }
@@ -87,8 +94,8 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         let child: ChunkedVector<R>, field: Field<R>, chunks: Vector<R>[];
 
         if (child = columns[index]) { return child; }
-        if (field = ((this.type.children || [])[index] as Field<R>)) {
-            chunks = this.chunks
+        if (field = ((this._type.children || [])[index] as Field<R>)) {
+            chunks = this._chunks
                 .map((vector) => vector.getChildAt<R>(index))
                 .filter((vec): vec is Vector<R> => vec != null);
             if (chunks.length > 0) {
@@ -142,7 +149,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     public toArray(): T['TArray'] {
         const { chunks } = this;
         const n = chunks.length;
-        let { ArrayType } = this.type;
+        let { ArrayType } = this._type;
         if (n <= 0) { return new ArrayType(0); }
         if (n <= 1) { return chunks[0].toArray(); }
         let len = 0, src = new Array(n);

@@ -15,7 +15,28 @@
 // specific language governing permissions and limitations
 // under the License.
 
-export * from './all';
+export { Row } from './all';
+export { Vector } from './all';
+export { BaseVector } from './all';
+export { BinaryVector } from './all';
+export { BoolVector } from './all';
+export { ChunkedVector } from './all';
+export { DateVector, DateDayVector, DateMillisecondVector } from './all';
+export { DecimalVector } from './all';
+export { DictionaryVector } from './all';
+export { FixedSizeBinaryVector } from './all';
+export { FixedSizeListVector } from './all';
+export { FloatVector, Float16Vector, Float32Vector, Float64Vector } from './all';
+export { IntervalVector, IntervalDayTimeVector, IntervalYearMonthVector } from './all';
+export { IntVector, Int8Vector, Int16Vector, Int32Vector, Int64Vector, Uint8Vector, Uint16Vector, Uint32Vector, Uint64Vector } from './all';
+export { ListVector } from './all';
+export { MapVector } from './all';
+export { NullVector } from './all';
+export { StructVector } from './all';
+export { TimestampVector, TimestampSecondVector, TimestampMillisecondVector, TimestampMicrosecondVector, TimestampNanosecondVector } from './all';
+export { TimeVector, TimeSecondVector, TimeMillisecondVector, TimeMicrosecondVector, TimeNanosecondVector } from './all';
+export { UnionVector, DenseUnionVector, SparseUnionVector } from './all';
+export { Utf8Vector } from './all';
 
 import { Data } from '../data';
 import { Type } from '../enum';
@@ -49,6 +70,7 @@ declare module './base' {
     }
 }
 
+/** @nocollapse */
 Vector.new = newVector;
 
 function newVector<T extends DataType>(data: Data<T>, ...args: VectorCtorArgs<V<T>>): V<T> {
@@ -75,33 +97,33 @@ BaseVector.prototype.indexOf = function baseVectorIndexOf<T extends DataType>(th
     return indexOfVisitor.visit(this, value, fromIndex);
 };
 
-BaseVector.prototype.toArray = function baseVectorToArray<T extends DataType>(this: BaseVector<T>, ): T['TArray'] {
+BaseVector.prototype.toArray = function baseVectorToArray<T extends DataType>(this: BaseVector<T>): T['TArray'] {
     return toArrayVisitor.visit(this);
 };
 
-BaseVector.prototype.getByteWidth = function baseVectorGetByteWidth<T extends DataType>(this: BaseVector<T>, ): number {
-    return byteWidthVisitor.visit(this);
+BaseVector.prototype.getByteWidth = function baseVectorGetByteWidth<T extends DataType>(this: BaseVector<T>): number {
+    return byteWidthVisitor.visit(this.type);
 };
 
-BaseVector.prototype[Symbol.iterator] = function baseVectorSymbolIterator<T extends DataType>(this: BaseVector<T>, ): IterableIterator<T['TValue'] | null> {
+BaseVector.prototype[Symbol.iterator] = function baseVectorSymbolIterator<T extends DataType>(this: BaseVector<T>): IterableIterator<T['TValue'] | null> {
     return iteratorVisitor.visit(this);
 };
 
 // Perf: bind and assign the operator Visitor methods to each of the Vector subclasses for each Type
 (Object.keys(Type) as any[])
     .filter((TType) => TType !== Type.NONE && TType !== Type[Type.NONE])
-    .filter((T: any): T is Type => typeof Type[T] === 'number')
+    .map((T: any) => Type[T] as any).filter((T: any): T is Type => typeof T === 'number')
     .forEach((TType) => {
         let typeIds: Type[];
         switch (TType) {
-            case Type.Int:       typeIds = [Type.Int8, Type.Int16, Type.Int32, Type.Int64, Type.Uint8, Type.Uint16, Type.Uint32, Type.Uint64]; break;
-            case Type.Float:     typeIds = [Type.Float16, Type.Float32, Type.Float64]; break;
-            case Type.Date:      typeIds = [Type.DateDay, Type.DateMillisecond]; break;
-            case Type.Time:      typeIds = [Type.TimeSecond, Type.TimeMillisecond, Type.TimeMicrosecond, Type.TimeNanosecond]; break;
-            case Type.Timestamp: typeIds = [Type.TimestampSecond, Type.TimestampMillisecond, Type.TimestampMicrosecond, Type.TimestampNanosecond]; break;
-            case Type.Interval:  typeIds = [Type.IntervalDayTime, Type.IntervalYearMonth]; break;
-            case Type.Union:     typeIds = [Type.DenseUnion, Type.SparseUnion]; break;
-            default:             typeIds = [TType]; break;
+            case Type['Int']:       typeIds = [Type['Int8'], Type['Int16'], Type['Int32'], Type['Int64'], Type['Uint8'], Type['Uint16'], Type['Uint32'], Type['Uint64']]; break;
+            case Type['Float']:     typeIds = [Type['Float16'], Type['Float32'], Type['Float64']]; break;
+            case Type['Date']:      typeIds = [Type['DateDay'], Type['DateMillisecond']]; break;
+            case Type['Time']:      typeIds = [Type['TimeSecond'], Type['TimeMillisecond'], Type['TimeMicrosecond'], Type['TimeNanosecond']]; break;
+            case Type['Timestamp']: typeIds = [Type['TimestampSecond'], Type['TimestampMillisecond'], Type['TimestampMicrosecond'], Type['TimestampNanosecond']]; break;
+            case Type['Interval']:  typeIds = [Type['IntervalDayTime'], Type['IntervalYearMonth']]; break;
+            case Type['Union']:     typeIds = [Type['DenseUnion'], Type['SparseUnion']]; break;
+            default:                typeIds = [TType]; break;
         }
         typeIds.forEach((TType) => {
             const VectorCtor = getVectorConstructor.visit(TType);

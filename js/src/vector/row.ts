@@ -28,7 +28,8 @@ const rowParentDescriptor = { writable: false, enumerable: false, configurable: 
 const row = { parent: rowParentDescriptor, rowIndex: rowIndexDescriptor };
 
 export class Row<T extends { [key: string]: DataType }> implements Iterable<T[keyof T]['TValue']> {
-    static new<T extends { [key: string]: DataType }>(schemaOrFields: T | Field[], fieldsAreEnumerable = false): RowLike<T> & Row<T> {
+    /** @nocollapse */
+    public static new<T extends { [key: string]: DataType }>(schemaOrFields: T | Field[], fieldsAreEnumerable = false): RowLike<T> & Row<T> {
         let schema: T, fields: Field[];
         if (Array.isArray(schemaOrFields)) {
             fields = schemaOrFields;

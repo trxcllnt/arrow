@@ -31,14 +31,16 @@ import { ArrayBufferViewInput } from '../../util/buffer';
 
 export class Footer {
 
-    static decode(buf: ArrayBufferViewInput) {
+    /** @nocollapse */
+    public static decode(buf: ArrayBufferViewInput) {
         buf = new ByteBuffer(toUint8Array(buf));
         const footer = _Footer.getRootAsFooter(buf);
         const schema = Schema.decode(footer.schema()!);
         return new OffHeapFooter(schema, footer) as Footer;
     }
 
-    static encode(footer: Footer) {
+    /** @nocollapse */
+    public static encode(footer: Footer) {
 
         const b: Builder = new Builder();
         const schemaOffset = Schema.encode(b, footer.schema);
@@ -129,11 +131,13 @@ class OffHeapFooter extends Footer {
 
 export class FileBlock {
 
-    static decode(block: _Block) {
+    /** @nocollapse */
+    public static decode(block: _Block) {
         return new FileBlock(block.metaDataLength(), block.bodyLength(), block.offset());
     }
 
-    static encode(b: Builder, fileBlock: FileBlock) {
+    /** @nocollapse */
+    public static encode(b: Builder, fileBlock: FileBlock) {
         const { metaDataLength } = fileBlock;
         const offset = new Long(fileBlock.offset, 0);
         const bodyLength = new Long(fileBlock.bodyLength, 0);

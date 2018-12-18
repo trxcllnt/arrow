@@ -33,6 +33,10 @@ export class ArrowJSON {
     public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
 }
 
+Object.defineProperty(ArrowJSON.prototype, 'schema', { get() { return this._json['schema']; }});
+Object.defineProperty(ArrowJSON.prototype, 'batches', { get() { return (this._json['batches'] || []) as any[]; }});
+Object.defineProperty(ArrowJSON.prototype, 'dictionaries', { get() { return (this._json['dictionaries'] || []) as any[]; }});
+
 /**
  * @ignore
  */

@@ -54,13 +54,15 @@ import {
  */
 export class Message<T extends MessageHeader = any> {
 
-    static fromJSON<T extends MessageHeader>(msg: any, headerType: T): Message<T> {
+    /** @nocollapse */
+    public static fromJSON<T extends MessageHeader>(msg: any, headerType: T): Message<T> {
         const message = new Message(0, MetadataVersion.V4, headerType);
         message._createHeader = messageHeaderFromJSON(msg, headerType);
         return message;
     }
 
-    static decode(buf: ArrayBufferViewInput) {
+    /** @nocollapse */
+    public static decode(buf: ArrayBufferViewInput) {
         buf = new ByteBuffer(toUint8Array(buf));
         const _message = _Message.getRootAsMessage(buf);
         const bodyLength: Long = _message.bodyLength()!;
@@ -71,7 +73,8 @@ export class Message<T extends MessageHeader = any> {
         return message;
     }
 
-    static encode<T extends MessageHeader>(message: Message<T>) {
+    /** @nocollapse */
+    public static encode<T extends MessageHeader>(message: Message<T>) {
         let b = new Builder(), headerOffset = -1;
         if (message.isSchema()) {
             headerOffset = Schema.encode(b, message.header() as Schema);
@@ -89,7 +92,8 @@ export class Message<T extends MessageHeader = any> {
         return b.asUint8Array();
     }
 
-    static from(header: Schema | RecordBatch | DictionaryBatch, bodyLength = 0) {
+    /** @nocollapse */
+    public static from(header: Schema | RecordBatch | DictionaryBatch, bodyLength = 0) {
         if (header instanceof Schema) {
             return new Message(0, MetadataVersion.V4, MessageHeader.Schema, header);
         }
@@ -104,10 +108,13 @@ export class Message<T extends MessageHeader = any> {
 
     // @ts-ignore
     public body: Uint8Array;
-    public readonly headerType: T;
-    public readonly bodyLength: number;
-    public readonly version: MetadataVersion;
+    protected _headerType: T;
+    protected _bodyLength: number;
+    protected _version: MetadataVersion;
     public get type() { return this.headerType; }
+    public get version() { return this._version; }
+    public get headerType() { return this._headerType; }
+    public get bodyLength() { return this._bodyLength; }
     // @ts-ignore
     protected _createHeader: MessageHeaderDecoder;
     public header() { return this._createHeader<T>(); }
@@ -116,11 +123,11 @@ export class Message<T extends MessageHeader = any> {
     public isDictionaryBatch(): this is Message<MessageHeader.DictionaryBatch> { return this.headerType === MessageHeader.DictionaryBatch; }
 
     constructor(bodyLength: Long | number, version: MetadataVersion, headerType: T, header?: any) {
-        this.version = version;
-        this.headerType = headerType;
+        this._version = version;
+        this._headerType = headerType;
         this.body = new Uint8Array(0);
         header && (this._createHeader = () => header);
-        this.bodyLength = typeof bodyLength === 'number' ? bodyLength : bodyLength.low;
+        this._bodyLength = typeof bodyLength === 'number' ? bodyLength : bodyLength.low;
     }
 }
 
@@ -128,14 +135,16 @@ export class Message<T extends MessageHeader = any> {
  * @ignore
  */
 export class RecordBatch {
-    public readonly length: number;
-    public readonly nodes: FieldNode[];
-    public readonly buffers: BufferRegion[];
-
+    protected _length: number;
+    protected _nodes: FieldNode[];
+    protected _buffers: BufferRegion[];
+    public get nodes() { return this._nodes; }
+    public get length() { return this._length; }
+    public get buffers() { return this._buffers; }
     constructor(length: Long | number, nodes: FieldNode[], buffers: BufferRegion[]) {
-        this.nodes = nodes;
-        this.buffers = buffers;
-        this.length = typeof length === 'number' ? length : length.low;
+        this._nodes = nodes;
+        this._buffers = buffers;
+        this._length = typeof length === 'number' ? length : length.low;
     }
 }
 
@@ -144,17 +153,20 @@ export class RecordBatch {
  */
 export class DictionaryBatch {
 
-    public readonly id: number;
-    public readonly isDelta: boolean;
-    public readonly data: RecordBatch;
+    protected _id: number;
+    protected _isDelta: boolean;
+    protected _data: RecordBatch;
+    public get id() { return this._id; }
+    public get data() { return this._data; }
+    public get isDelta() { return this._isDelta; }
     public get length(): number { return this.data.length; }
     public get nodes(): FieldNode[] { return this.data.nodes; }
     public get buffers(): BufferRegion[] { return this.data.buffers; }
 
     constructor(data: RecordBatch, id: Long | number, isDelta: boolean = false) {
-        this.data = data;
-        this.isDelta = isDelta;
-        this.id = typeof id === 'number' ? id : id.low;
+        this._data = data;
+        this._isDelta = isDelta;
+        this._id = typeof id === 'number' ? id : id.low;
     }
 }
 
@@ -206,27 +218,27 @@ function decodeMessageHeader(message: _Message, type: MessageHeader) {
     }) as MessageHeaderDecoder;
 }
 
-Field.encode = encodeField;
-Field.decode = decodeField;
-Field.fromJSON = fieldFromJSON;
+Field['encode'] = encodeField;
+Field['decode'] = decodeField;
+Field['fromJSON'] = fieldFromJSON;
 
-Schema.encode = encodeSchema;
-Schema.decode = decodeSchema;
-Schema.fromJSON = schemaFromJSON;
+Schema['encode'] = encodeSchema;
+Schema['decode'] = decodeSchema;
+Schema['fromJSON'] = schemaFromJSON;
 
-RecordBatch.encode = encodeRecordBatch;
-RecordBatch.decode = decodeRecordBatch;
-RecordBatch.fromJSON = recordBatchFromJSON;
+RecordBatch['encode'] = encodeRecordBatch;
+RecordBatch['decode'] = decodeRecordBatch;
+RecordBatch['fromJSON'] = recordBatchFromJSON;
 
-DictionaryBatch.encode = encodeDictionaryBatch;
-DictionaryBatch.decode = decodeDictionaryBatch;
-DictionaryBatch.fromJSON = dictionaryBatchFromJSON;
+DictionaryBatch['encode'] = encodeDictionaryBatch;
+DictionaryBatch['decode'] = decodeDictionaryBatch;
+DictionaryBatch['fromJSON'] = dictionaryBatchFromJSON;
 
-FieldNode.encode = encodeFieldNode;
-FieldNode.decode = decodeFieldNode;
+FieldNode['encode'] = encodeFieldNode;
+FieldNode['decode'] = decodeFieldNode;
 
-BufferRegion.encode = encodeBufferRegion;
-BufferRegion.decode = decodeBufferRegion;
+BufferRegion['encode'] = encodeBufferRegion;
+BufferRegion['decode'] = decodeBufferRegion;
 
 declare module '../../schema' {
     namespace Field {

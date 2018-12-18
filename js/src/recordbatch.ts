@@ -24,6 +24,7 @@ import { Vector as VType } from './interfaces';
 
 export class RecordBatch<T extends { [key: string]: DataType } = any> extends Vector<Struct<T>> {
 
+    /** @nocollapse */
     public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: (keyof T)[] = []) {
         return new RecordBatch(
             Schema.from(vectors, names),
@@ -32,14 +33,14 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
         );
     }
   
+    protected _schema: Schema;
     private impl: StructVector<T>;
-    public readonly schema: Schema;
 
     constructor(schema: Schema<T>, numRows: number, childData: (Data | Vector)[]);
     constructor(schema: Schema<T>, data: Data<Struct<T>>, children?: Vector[]);
     constructor(...args: any[]) {
         super();
-        this.schema = args[0];
+        this._schema = args[0];
         let data: Data<Struct<T>>;
         let children: Vector[] | undefined;
         if (typeof args[1] === 'number') {
@@ -56,6 +57,7 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
         return new RecordBatch<R>(this.schema, data, children);
     }
 
+    public get schema() { return this._schema; }
     public get type() { return this.impl.type; }
     public get data() { return this.impl.data; }
     public get length() { return this.impl.length; }

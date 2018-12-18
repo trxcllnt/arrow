@@ -20,56 +20,65 @@ import { Vector as VType } from './interfaces';
 
 export class Schema<T extends { [key: string]: DataType } = any> {
 
+    /** @nocollapse */
     public static from<T extends { [key: string]: DataType } = any>(vectors: VType<T[keyof T]>[], names: (keyof T)[] = []) {
         return new Schema<T>(vectors.map((v, i) => new Field('' + (names[i] || i), v.type)));
     }
 
-    public readonly fields: Field[];
-    public readonly metadata: Map<string, string>;
-    public readonly dictionaries: Map<number, DataType>;
-    public readonly dictionaryFields: Map<number, Field<Dictionary>[]>;
+    protected _fields: Field[];
+    protected _metadata: Map<string, string>;
+    protected _dictionaries: Map<number, DataType>;
+    protected _dictionaryFields: Map<number, Field<Dictionary>[]>;
+    public get fields(): Field[] { return this._fields; }
+    public get metadata(): Map<string, string> { return this._metadata; }
+    public get dictionaries(): Map<number, DataType> { return this._dictionaries; }
+    public get dictionaryFields(): Map<number, Field<Dictionary>[]> { return this._dictionaryFields; }
 
     constructor(fields: Field[],
                 metadata?: Map<string, string>,
                 dictionaries?: Map<number, DataType>,
                 dictionaryFields?: Map<number, Field<Dictionary>[]>) {
-        this.fields = fields;
-        this.metadata = metadata || Schema.prototype.metadata;
+        this._fields = fields;
+        this._metadata = metadata || Schema.prototype._metadata;
         if (!dictionaries || !dictionaryFields) {
             ({ dictionaries, dictionaryFields } = generateDictionaryMap(
                 fields, dictionaries || new Map(), dictionaryFields || new Map()
             ));
         }
-        this.dictionaries = dictionaries;
-        this.dictionaryFields = dictionaryFields;
+        this._dictionaries = dictionaries;
+        this._dictionaryFields = dictionaryFields;
     }
     public select<K extends keyof T = any>(...columnNames: K[]) {
         const names = columnNames.reduce((xs, x) => (xs[x] = true) && xs, Object.create(null));
         return new Schema<{ [P in K]: T[P] }>(this.fields.filter((f) => names[f.name]), this.metadata);
     }
     public static [Symbol.toStringTag] = ((prototype: Schema) => {
-        (prototype as any).metadata = Object.freeze(new Map());
+        (prototype as any)._metadata = Object.freeze(new Map());
         return 'Schema';
     })(Schema.prototype);
 }
 
 export class Field<T extends DataType = DataType> {
-    public readonly type: T;
-    public readonly name: string;
-    public readonly nullable: true | false;
-    public readonly metadata?: Map<string, string> | null;
+    protected _type: T;
+    protected _name: string;
+    protected _nullable: true | false;
+    protected _metadata?: Map<string, string> | null;
     constructor(name: string, type: T, nullable: true | false = false, metadata?: Map<string, string> | null) {
-        this.name = name;
-        this.type = type;
-        this.nullable = nullable;
-        this.metadata = metadata;
+        this._name = name;
+        this._type = type;
+        this._nullable = nullable;
+        this._metadata = metadata;
     }
-    public toString() { return `${this.name}: ${this.type}`; }
-    public get typeId(): T['TType'] { return this.type.TType; }
+    public get type() { return this._type; }
+    public get name() { return this._name; }
+    public get typeId() { return this.type.TType; }
+    public get nullable() { return this._nullable; }
+    public get metadata() { return this._metadata; }
     public get [Symbol.toStringTag](): string { return 'Field'; }
     public get indices() {
         return DataType.isDictionary(this.type) ? this.type.indices : this.type;
     }
+    public toString() { return `${this.name}: ${this.type}`; }
 }
 
 function generateDictionaryMap(fields: Field[], dictionaries: Map<number, DataType>, dictionaryFields: Map<number, Field<Dictionary>[]>) {

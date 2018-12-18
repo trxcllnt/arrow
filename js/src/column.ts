@@ -24,11 +24,13 @@ export class Column<T extends DataType = any> extends ChunkedVector<T> {
 
     constructor(field: Field<T>, vectors: Vector<T>[] = [], offsets?: Uint32Array) {
         super(field.type, ChunkedVector.flatten(...vectors), offsets);
-        this.field = field;
+        this._field = field;
     }
 
     protected _children?: Column[];
-    public readonly field: Field<T>;
+    protected _field: Field<T>;
+
+    public get field() { return this._field; }
     public get name() { return this.field.name; }
 
     public slice(begin?: number, end?: number): Column<T> {

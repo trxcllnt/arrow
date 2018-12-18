@@ -35,6 +35,7 @@ export interface DataFrame<T extends { [key: string]: DataType; } = any> {
 
 export class Table<T extends { [key: string]: DataType; } = any> implements DataFrame<T> {
 
+    /** @nocollapse */
     public static empty<T extends { [key: string]: DataType; } = any>() { return new Table<T>(new Schema([]), []); }
 
     public static from<T extends { [key: string]: DataType } = any>(): Table<T>;
@@ -45,6 +46,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg3): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg4): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: PromiseLike<RecordBatchReader<T>>): Promise<Table<T>>;
+    /** @nocollapse */
     public static from<T extends { [key: string]: DataType } = any>(source?: any) {
 
         if (!source) { return Table.empty<T>(); }
@@ -71,23 +73,28 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
         })(reader.open());
     }
 
-    static async fromAsync<T extends { [key: string]: DataType; } = any>(source: import('./ipc/reader').FromArgs): Promise<Table<T>> {
+    /** @nocollapse */
+    public static async fromAsync<T extends { [key: string]: DataType; } = any>(source: import('./ipc/reader').FromArgs): Promise<Table<T>> {
         return await Table.from<T>(source as any);
     }
-    static fromVectors<T extends { [key: string]: DataType; } = any>(vectors: VType<T[keyof T]>[], names?: (keyof T)[]) {
+
+    /** @nocollapse */
+    public static fromVectors<T extends { [key: string]: DataType; } = any>(vectors: VType<T[keyof T]>[], names?: (keyof T)[]) {
         return new Table(RecordBatch.from(vectors, names));
-     }
-     static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
+    }
+
+    /** @nocollapse */
+    public static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
         const schema = new Schema<T>(struct.type.children);
         const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as VType<Struct<T>>[];
         return new Table(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
     }
 
-    public readonly schema: Schema;
-    public readonly length: number;
-    public readonly numCols: number;
+    protected _schema: Schema;
+    protected _length: number;
+    protected _numCols: number;
     // List of inner RecordBatches
-    public readonly batches: RecordBatch<T>[];
+    protected _batches: RecordBatch<T>[];
     // List of inner Vectors, possibly spanning batches
     protected readonly _columns: Vector<any>[] = [];
     // Union of all inner RecordBatches into one RecordBatch, possibly chunked.
@@ -95,7 +102,7 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     // If the Table has multiple inner RecordBatches, then this is a Chunked view
     // over the list of RecordBatches. This allows us to delegate the responsibility
     // of indexing, iterating, slicing, and visiting to the Nested/Chunked Data/Views.
-    public readonly batchesUnion: Vector<Struct<T>>;
+    protected _batchesUnion: Vector<Struct<T>>;
 
     constructor(batches: RecordBatch<T>[]);
     constructor(...batches: RecordBatch<T>[]);
@@ -117,16 +124,22 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
             throw new TypeError('Table must be initialized with a Schema or at least one RecordBatch with a Schema');
         }
 
-        this.schema = schema;
-        this.batches = batches;
-        this.batchesUnion = batches.length == 0
+        this._schema = schema;
+        this._batches = batches;
+        this._batchesUnion = batches.length == 0
             ? new RecordBatch<T>(schema, 0, [])
             : batches.length === 1 ? batches[0]
             : ChunkedVector.concat<Struct<T>>(...batches) as Vector<Struct<T>>;
 
-        this.length = this.batchesUnion.length;
-        this.numCols = this.schema.fields.length;
+        this._length = this.batchesUnion.length;
+        this._numCols = this.schema.fields.length;
     }
+
+    public get schema() { return this._schema; }
+    public get length() { return this._length; }
+    public get numCols() { return this._numCols; }
+    public get batches() { return this._batches; }
+    public get batchesUnion() { return this._batchesUnion; }
 
     public get(index: number): Struct<T>['TValue'] {
         return this.batchesUnion.get(index)!;
@@ -167,5 +180,5 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
 }
 
 // protect batches, batchesUnion from es2015/umd mangler
-(<any> Table.prototype).batches = Object.freeze([]);
-(<any> Table.prototype).batchesUnion = Object.freeze([]);
+// (<any> Table.prototype)._batches = Object.freeze([]);
+// (<any> Table.prototype)._batchesUnion = Object.freeze([]);

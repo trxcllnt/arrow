@@ -24,6 +24,7 @@ import { Int, Uint8, Uint16, Uint32, Uint64, Int8, Int16, Int32, Int64 } from '.
 export class IntVector<T extends Int = Int> extends BaseVector<T> {
     public static from<T extends Int>(data: T['TArray']): V<T>;
     public static from<T extends Int32 | Uint32>(data: T['TArray'], is64: true): V<T>;
+    /** @nocollapse */
     public static from(data: any, is64?: boolean) {
         if (is64 === true) {
             return data instanceof Int32Array

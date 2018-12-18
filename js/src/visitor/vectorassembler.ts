@@ -37,10 +37,28 @@ export interface VectorAssembler extends Visitor {
     getVisitFn<T extends DataType>(node: VType<T>): (vector: VType<T>) => this;
     getVisitFn<T extends DataType>(node: Data<T> ): (vector: VType<T>) => this;
     getVisitFn<T extends DataType>(node: T       ): (vector: VType<T>) => this;
+
+    visitBool                 <T extends Bool>            (vector: VType<T>): this;
+    visitInt                  <T extends Int>             (vector: VType<T>): this;
+    visitFloat                <T extends Float>           (vector: VType<T>): this;
+    visitUtf8                 <T extends Utf8>            (vector: VType<T>): this;
+    visitBinary               <T extends Binary>          (vector: VType<T>): this;
+    visitFixedSizeBinary      <T extends FixedSizeBinary> (vector: VType<T>): this;
+    visitDate                 <T extends Date_>           (vector: VType<T>): this;
+    visitTimestamp            <T extends Timestamp>       (vector: VType<T>): this;
+    visitTime                 <T extends Time>            (vector: VType<T>): this;
+    visitDecimal              <T extends Decimal>         (vector: VType<T>): this;
+    visitList                 <T extends List>            (vector: VType<T>): this;
+    visitStruct               <T extends Struct>          (vector: VType<T>): this;
+    visitUnion                <T extends Union>           (vector: VType<T>): this;
+    visitInterval             <T extends Interval>        (vector: VType<T>): this;
+    visitFixedSizeList        <T extends FixedSizeList>   (vector: VType<T>): this;
+    visitMap                  <T extends Map_>            (vector: VType<T>): this;
 }
 
 export class VectorAssembler extends Visitor {
 
+    /** @nocollapse */
     public static assemble<T extends Vector | RecordBatch>(...args: (T | T[])[]) {
 
         const vectors = args.reduce(function flatten(xs: any[], x: any): any[] {
@@ -68,24 +86,11 @@ export class VectorAssembler extends Visitor {
         return super.visit(vector);
     }
 
-    public visitNull                 <T extends Null>            (_nullV: VType<T>) { return this;                                      }
-    public visitBool                 <T extends Bool>            (vector: VType<T>) { return     assembleBoolVector.call(this, vector); }
-    public visitInt                  <T extends Int>             (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitFloat                <T extends Float>           (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitUtf8                 <T extends Utf8>            (vector: VType<T>) { return assembleFlatListVector.call(this, vector); }
-    public visitBinary               <T extends Binary>          (vector: VType<T>) { return assembleFlatListVector.call(this, vector); }
-    public visitFixedSizeBinary      <T extends FixedSizeBinary> (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitDate                 <T extends Date_>           (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitTimestamp            <T extends Timestamp>       (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitTime                 <T extends Time>            (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitDecimal              <T extends Decimal>         (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitList                 <T extends List>            (vector: VType<T>) { return     assembleListVector.call(this, vector); }
-    public visitStruct               <T extends Struct>          (vector: VType<T>) { return   assembleNestedVector.call(this, vector); }
-    public visitUnion                <T extends Union>           (vector: VType<T>) { return          assembleUnion.call(this, vector); }
-    public visitDictionary           <T extends Dictionary>      (vector: VType<T>) { return                this.visit(vector.indices); } // Assemble the indices here, Dictionary assembled separately.
-    public visitInterval             <T extends Interval>        (vector: VType<T>) { return     assembleFlatVector.call(this, vector); }
-    public visitFixedSizeList        <T extends FixedSizeList>   (vector: VType<T>) { return     assembleListVector.call(this, vector); }
-    public visitMap                  <T extends Map_>            (vector: VType<T>) { return   assembleNestedVector.call(this, vector); }
+    public visitNull<T extends Null>(_nullV: VType<T>) { return this; }
+    public visitDictionary<T extends Dictionary>(vector: VType<T>) {
+        // Assemble the indices here, Dictionary assembled separately.
+        return this.visit(vector.indices);
+    }
 
     public get nodes() { return this._nodes; }
     public get buffers() { return this._buffers; }

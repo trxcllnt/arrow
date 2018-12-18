@@ -210,7 +210,7 @@ class AdaptiveByteReader<T extends ArrayBufferViewInput> {
     }
 
     get closed(): Promise<void> {
-        return this.reader ? this.reader.closed.catch(() => {}) : Promise.resolve();
+        return this.reader ? this.reader['closed'].catch(() => {}) : Promise.resolve();
     }
 
     releaseLock(): void {
@@ -225,7 +225,7 @@ class AdaptiveByteReader<T extends ArrayBufferViewInput> {
         this.reader = null;
         this.releaseLock();
         if (reader) {
-            await reader.cancel(reason);
+            await reader['cancel'](reason);
         }
     }
 
@@ -243,13 +243,13 @@ class AdaptiveByteReader<T extends ArrayBufferViewInput> {
     private getDefaultReader() {
         if (this.byobReader) { this.releaseLock(); }
         if (!this.defaultReader) {
-            this.defaultReader = this.source.getReader();
+            this.defaultReader = this.source['getReader']();
             // We have to catch and swallow errors here to avoid uncaught promise rejection exceptions
             // that seem to be raised when we call `releaseLock()` on this reader. I'm still mystified
             // about why these errors are raised, but I'm sure there's some important spec reason that
             // I haven't considered. I hate to employ such an anti-pattern here, but it seems like the
             // only solution in this case :/
-            this.defaultReader.closed.catch(() => {});
+            this.defaultReader['closed'].catch(() => {});
         }
         return (this.reader = this.defaultReader);
     }
@@ -257,13 +257,13 @@ class AdaptiveByteReader<T extends ArrayBufferViewInput> {
     private getBYOBReader() {
         if (this.defaultReader) { this.releaseLock(); }
         if (!this.byobReader) {
-            this.byobReader = this.source.getReader({ mode: 'byob' });
+            this.byobReader = this.source['getReader']({ mode: 'byob' });
             // We have to catch and swallow errors here to avoid uncaught promise rejection exceptions
             // that seem to be raised when we call `releaseLock()` on this reader. I'm still mystified
             // about why these errors are raised, but I'm sure there's some important spec reason that
             // I haven't considered. I hate to employ such an anti-pattern here, but it seems like the
             // only solution in this case :/
-            this.byobReader.closed.catch(() => {});
+            this.byobReader['closed'].catch(() => {});
         }
         return (this.reader = this.byobReader);
     }
@@ -292,7 +292,7 @@ const onEvent = <T extends string>(stream: NodeJS.ReadableStream, event: T) => {
     let handler = (_: any) => resolve([event, _]);
     let resolve: (value?: [T, any] | PromiseLike<[T, any]>) => void;
     return [event, handler, new Promise<[T, any]>(
-        (r) => (resolve = r) && stream.once(event, handler)
+        (r) => (resolve = r) && stream['once'](event, handler)
     )] as Event;
 };
 
@@ -367,19 +367,19 @@ async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
     function cleanup<T extends Error | null | void>(events: Event[], err?: T) {
         buffer = buffers = <any> null;
         return new Promise<T>(async (resolve, reject) => {
-            while (events.length > 0) {
-                (stream as any).off(...(events.pop() || []));
+            for (const [evt, fn] of events) {
+                stream['off'](evt, fn);
             }
             const [evt, fn, closed] = onEvent(stream, 'close');
             const destroyed = new Promise((resolve, reject) => {
-                const destroy = (stream as any).destroy || ((e: T, cb: any) => cb(e));
+                const destroy = (stream as any)['destroy'] || ((e: T, cb: any) => cb(e));
                 destroy.call(stream, err, (e: T) => e != null ? reject(e) : resolve());
             });
             try {
                 await Promise.race([closed, destroyed]);
                 err = undefined;
             } catch (e) { err = e || err; } finally {
-                stream.off(evt, fn);
+                stream['off'](evt, fn);
                 err != null ? reject(err) : resolve();
             }
         });

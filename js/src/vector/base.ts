@@ -24,9 +24,9 @@ import { clampRange } from '../util/vector';
 export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
 
     // @ts-ignore
-    public readonly data: Data<T>;
-    public readonly stride: number = 1;
-    public readonly numChildren: number = 0;
+    protected _data: Data<T>;
+    protected _stride: number = 1;
+    protected _numChildren: number = 0;
     protected _children?: Vector[];
 
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
@@ -37,10 +37,14 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
         //     return Reflect.construct(BaseVector, arguments, VectorCtor);
         // }
         this._children = children;
-        this.bindDataAccessors(this.data = data);
-        this.numChildren = data.childData.length;
-        this.stride = Math.floor(Math.max(stride || 1, 1));
+        this.bindDataAccessors(this._data = data);
+        this._numChildren = data.childData.length;
+        this._stride = Math.floor(Math.max(stride || 1, 1));
     }
+
+    public get data() { return this._data; }
+    public get stride() { return this._stride; }
+    public get numChildren() { return this._numChildren; }
 
     public get type() { return this.data.type; }
     public get length() { return this.data.length; }

@@ -40,57 +40,55 @@ export interface IndexOfVisitor extends Visitor {
     getVisitFn<T extends DataType>(node: Vector<T> ): (vector: Vector<T>, value:         T['TValue'] | null, index?: number) => number;
     getVisitFn<T extends DataType>(node: Data<T>   ): (vector: Vector<T>, value:         T['TValue'] | null, index?: number) => number;
     getVisitFn<T extends DataType>(node: T         ): (vector: Vector<T>, value:         T['TValue'] | null, index?: number) => number;
+    visitNull                 <T extends Null>                (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitBool                 <T extends Bool>                (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitInt                  <T extends Int>                 (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitInt8                 <T extends Int8>                (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitInt16                <T extends Int16>               (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitInt32                <T extends Int32>               (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitInt64                <T extends Int64>               (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitUint8                <T extends Uint8>               (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitUint16               <T extends Uint16>              (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitUint32               <T extends Uint32>              (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitUint64               <T extends Uint64>              (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitFloat                <T extends Float>               (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitFloat16              <T extends Float16>             (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitFloat32              <T extends Float32>             (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitFloat64              <T extends Float64>             (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitUtf8                 <T extends Utf8>                (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitBinary               <T extends Binary>              (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitFixedSizeBinary      <T extends FixedSizeBinary>     (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitDate                 <T extends Date_>               (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitDateDay              <T extends DateDay>             (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitDateMillisecond      <T extends DateMillisecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimestamp            <T extends Timestamp>           (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimestampSecond      <T extends TimestampSecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimestampMillisecond <T extends TimestampMillisecond>(vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimestampMicrosecond <T extends TimestampMicrosecond>(vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimestampNanosecond  <T extends TimestampNanosecond> (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTime                 <T extends Time>                (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimeSecond           <T extends TimeSecond>          (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimeMillisecond      <T extends TimeMillisecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimeMicrosecond      <T extends TimeMicrosecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitTimeNanosecond       <T extends TimeNanosecond>      (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitDecimal              <T extends Decimal>             (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitList                 <T extends List>                (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitStruct               <T extends Struct>              (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitUnion                <T extends Union>               (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitDenseUnion           <T extends DenseUnion>          (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitSparseUnion          <T extends SparseUnion>         (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitDictionary           <T extends Dictionary>          (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitInterval             <T extends Interval>            (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitIntervalDayTime      <T extends IntervalDayTime>     (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitIntervalYearMonth    <T extends IntervalYearMonth>   (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitFixedSizeList        <T extends FixedSizeList>       (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
+    visitMap                  <T extends Map_>                (vector: Vector<T>, value: T['TValue'] | null, index?: number): number;
 }
 
 export class IndexOfVisitor extends Visitor {
-    public visitNull                 <T extends Null>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       nullIndexOf(vector, value, index || 0); }
-    public visitBool                 <T extends Bool>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitInt                  <T extends Int>                 (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitInt8                 <T extends Int8>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitInt16                <T extends Int16>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitInt32                <T extends Int32>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitInt64                <T extends Int64>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
-    public visitUint8                <T extends Uint8>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitUint16               <T extends Uint16>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitUint32               <T extends Uint32>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitUint64               <T extends Uint64>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
-    public visitFloat                <T extends Float>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitFloat16              <T extends Float16>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitFloat32              <T extends Float32>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitFloat64              <T extends Float64>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitUtf8                 <T extends Utf8>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitBinary               <T extends Binary>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
-    public visitFixedSizeBinary      <T extends FixedSizeBinary>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
-    public visitDate                 <T extends Date_>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       dateIndexOf(vector, value, index || 0); }
-    public visitDateDay              <T extends DateDay>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       dateIndexOf(vector, value, index || 0); }
-    public visitDateMillisecond      <T extends DateMillisecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       dateIndexOf(vector, value, index || 0); }
-    public visitTimestamp            <T extends Timestamp>           (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimestampSecond      <T extends TimestampSecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimestampMillisecond <T extends TimestampMillisecond>(vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimestampMicrosecond <T extends TimestampMicrosecond>(vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimestampNanosecond  <T extends TimestampNanosecond> (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTime                 <T extends Time>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimeSecond           <T extends TimeSecond>          (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimeMillisecond      <T extends TimeMillisecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimeMicrosecond      <T extends TimeMicrosecond>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitTimeNanosecond       <T extends TimeNanosecond>      (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitDecimal              <T extends Decimal>             (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      arrayIndexOf(vector, value, index || 0); }
-    public visitList                 <T extends List>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       listIndexOf(vector, value, index || 0); }
-    public visitStruct               <T extends Struct>              (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return     indexOfNested(vector, value, index || 0); }
-    public visitUnion                <T extends Union>               (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitDenseUnion           <T extends DenseUnion>          (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitSparseUnion          <T extends SparseUnion>         (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitDictionary           <T extends Dictionary>          (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return dictionaryIndexOf(vector, value, index || 0); }
-    public visitInterval             <T extends Interval>            (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitIntervalDayTime      <T extends IntervalDayTime>     (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitIntervalYearMonth    <T extends IntervalYearMonth>   (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return      valueIndexOf(vector, value, index || 0); }
-    public visitFixedSizeList        <T extends FixedSizeList>       (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return       listIndexOf(vector, value, index || 0); }
-    public visitMap                  <T extends Map_>                (vector: Vector<T>, value: T['TValue'] | null, index?: number) { return     indexOfNested(vector, value, index || 0); }
 }
 
-export const instance = new IndexOfVisitor();
-
-function nullIndexOf(vector: Vector<Null>, searchElement?: null, fromIndex?: number) {
+function nullIndexOf(vector: Vector<Null>, searchElement?: null, fromIndex: number = -1) {
      // if you're looking for nulls and the vector isn't empty, we've got 'em!
     return searchElement === null && vector.length > 0 ? fromIndex : -1;
 }
@@ -244,3 +242,5 @@ IndexOfVisitor.prototype.visitIntervalDayTime      =      valueIndexOf;
 IndexOfVisitor.prototype.visitIntervalYearMonth    =      valueIndexOf;
 IndexOfVisitor.prototype.visitFixedSizeList        =       listIndexOf;
 IndexOfVisitor.prototype.visitMap                  =     indexOfNested;
+
+export const instance = new IndexOfVisitor();

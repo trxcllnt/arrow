@@ -23,7 +23,8 @@ import * as IntUtil from '../util/int';
 import { Date_, DateDay, DateMillisecond  } from '../type';
 
 export class DateVector<T extends Date_ = Date_> extends BaseVector<T> {
-    static from<T extends Date_ = DateMillisecond>(data: Date[], unit: T['unit'] = DateUnit.MILLISECOND) {
+    /** @nocollapse */
+    public static from<T extends Date_ = DateMillisecond>(data: Date[], unit: T['unit'] = DateUnit.MILLISECOND) {
         switch (unit) {
             case DateUnit.DAY: {
                 const values = Int32Array.from(data.map((d) => d.valueOf() / 86400000));
@@ -42,4 +43,3 @@ export class DateVector<T extends Date_ = Date_> extends BaseVector<T> {
 }
 export class DateDayVector extends DateVector<DateDay> {}
 export class DateMillisecondVector extends DateVector<DateMillisecond> {}
-

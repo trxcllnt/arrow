@@ -21,6 +21,7 @@ import { BaseVector } from './base';
 import { Float, Float16, Float32, Float64 } from '../type';
 
 export class FloatVector<T extends Float = Float> extends BaseVector<T> {
+    /** @nocollapse */
     public static from<T extends Float>(data: T['TArray']) {
         switch (data.constructor) {
             case Uint16Array: return Vector.new(Data.Float(new Float16(), 0, data.length, 0, null, data));

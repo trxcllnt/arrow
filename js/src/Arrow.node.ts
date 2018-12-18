@@ -27,8 +27,8 @@ import { RecordBatch } from './recordbatch';
 type ReadableOptions = import('stream').ReadableOptions;
 
 streamAdapters.toReadableNodeStream = toReadableNodeStream;
-RecordBatchReader.throughNode = recordBatchReaderThroughNodeStream;
-RecordBatchWriter.throughNode = recordBatchWriterThroughNodeStream;
+RecordBatchReader['throughNode'] = recordBatchReaderThroughNodeStream;
+RecordBatchWriter['throughNode'] = recordBatchWriterThroughNodeStream;
 
 export * from './Arrow.dom';
 

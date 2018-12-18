@@ -76,7 +76,9 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
         return (this instanceof RecordBatchStreamReader) || (this instanceof AsyncRecordBatchStreamReader);
     }
 
+    /** @nocollapse */
     public static throughNode(): import('stream').Duplex { throw new Error(`"asNodeStream" not available in this environment`); }
+    /** @nocollapse */
     public static throughDOM<T extends { [key: string]: DataType }>(): { writable: WritableStream<Uint8Array>, readable: ReadableStream<RecordBatch<T>> } {
         throw new Error(`"asDOMStream" not available in this environment`);
     }
@@ -87,6 +89,7 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): Promise<RecordBatchFileReader<T> | RecordBatchStreamReader<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<RecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<AsyncRecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
+    /** @nocollapse */
     public static from<T extends { [key: string]: DataType } = any>(source: any) {
         if (source instanceof RecordBatchReader) {
             return source;

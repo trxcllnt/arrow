@@ -22,6 +22,7 @@ import { BaseVector } from './base';
 import { packBools } from '../util/bit';
 
 export class BoolVector extends BaseVector<Bool> {
+    /** @nocollapse */
     public static from(data: Iterable<boolean>) {
         let length = 0, bitmap = packBools(function*() {
             for (let x of data) { length++; yield x; }

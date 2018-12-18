@@ -43,55 +43,53 @@ export interface SetVisitor extends Visitor {
     getVisitFn<T extends DataType>(node: Vector<T>): (vector: Vector<T>, index: number, value: Vector<T>['TValue']) => void;
     getVisitFn<T extends DataType>(node: Data<T>  ): (vector: Vector<T>, index: number, value: Vector<T>['TValue']) => void;
     getVisitFn<T extends DataType>(node: T        ): (vector: Vector<T>, index: number, value: Vector<T>['TValue']) => void;
+    visitNull                 <T extends Null>                (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitBool                 <T extends Bool>                (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitInt                  <T extends Int>                 (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitInt8                 <T extends Int8>                (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitInt16                <T extends Int16>               (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitInt32                <T extends Int32>               (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitInt64                <T extends Int64>               (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitUint8                <T extends Uint8>               (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitUint16               <T extends Uint16>              (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitUint32               <T extends Uint32>              (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitUint64               <T extends Uint64>              (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitFloat                <T extends Float>               (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitFloat16              <T extends Float16>             (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitFloat32              <T extends Float32>             (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitFloat64              <T extends Float64>             (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitUtf8                 <T extends Utf8>                (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitBinary               <T extends Binary>              (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitFixedSizeBinary      <T extends FixedSizeBinary>     (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitDate                 <T extends Date_>               (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitDateDay              <T extends DateDay>             (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitDateMillisecond      <T extends DateMillisecond>     (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimestamp            <T extends Timestamp>           (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimestampSecond      <T extends TimestampSecond>     (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimestampMillisecond <T extends TimestampMillisecond>(vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimestampMicrosecond <T extends TimestampMicrosecond>(vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimestampNanosecond  <T extends TimestampNanosecond> (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTime                 <T extends Time>                (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimeSecond           <T extends TimeSecond>          (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimeMillisecond      <T extends TimeMillisecond>     (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimeMicrosecond      <T extends TimeMicrosecond>     (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitTimeNanosecond       <T extends TimeNanosecond>      (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitDecimal              <T extends Decimal>             (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitList                 <T extends List>                (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitStruct               <T extends Struct>              (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitUnion                <T extends Union>               (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitDenseUnion           <T extends DenseUnion>          (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitSparseUnion          <T extends SparseUnion>         (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitDictionary           <T extends Dictionary>          (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitInterval             <T extends Interval>            (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitIntervalDayTime      <T extends IntervalDayTime>     (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitIntervalYearMonth    <T extends IntervalYearMonth>   (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitFixedSizeList        <T extends FixedSizeList>       (vector: Vector<T>, index: number, value: T['TValue']): void;
+    visitMap                  <T extends Map_>                (vector: Vector<T>, index: number, value: T['TValue']): void;
 }
 
 export class SetVisitor extends Visitor {
-    public visitNull                 <T extends Null>                (_: Vector<T>) {                                                                                                }
-    public visitBool                 <T extends Bool>                (vector: Vector<T>, index: number, value: T['TValue']) { return                  setBool(vector, index, value); }
-    public visitInt                  <T extends Int>                 (vector: Vector<T>, index: number, value: T['TValue']) { return                   setInt(vector, index, value); }
-    public visitInt8                 <T extends Int8>                (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitInt16                <T extends Int16>               (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitInt32                <T extends Int32>               (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitInt64                <T extends Int64>               (vector: Vector<T>, index: number, value: T['TValue']) { return             setNumericX2(vector, index, value); }
-    public visitUint8                <T extends Uint8>               (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitUint16               <T extends Uint16>              (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitUint32               <T extends Uint32>              (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitUint64               <T extends Uint64>              (vector: Vector<T>, index: number, value: T['TValue']) { return             setNumericX2(vector, index, value); }
-    public visitFloat                <T extends Float>               (vector: Vector<T>, index: number, value: T['TValue']) { return                 setFloat(vector, index, value); }
-    public visitFloat16              <T extends Float16>             (vector: Vector<T>, index: number, value: T['TValue']) { return               setFloat16(vector, index, value); }
-    public visitFloat32              <T extends Float32>             (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitFloat64              <T extends Float64>             (vector: Vector<T>, index: number, value: T['TValue']) { return               setNumeric(vector, index, value); }
-    public visitUtf8                 <T extends Utf8>                (vector: Vector<T>, index: number, value: T['TValue']) { return                  setUtf8(vector, index, value); }
-    public visitBinary               <T extends Binary>              (vector: Vector<T>, index: number, value: T['TValue']) { return                setBinary(vector, index, value); }
-    public visitFixedSizeBinary      <T extends FixedSizeBinary>     (vector: Vector<T>, index: number, value: T['TValue']) { return       setFixedSizeBinary(vector, index, value); }
-    public visitDate                 <T extends Date_>               (vector: Vector<T>, index: number, value: T['TValue']) { return                  getDate(vector, index, value); }
-    public visitDateDay              <T extends DateDay>             (vector: Vector<T>, index: number, value: T['TValue']) { return               setDateDay(vector, index, value); }
-    public visitDateMillisecond      <T extends DateMillisecond>     (vector: Vector<T>, index: number, value: T['TValue']) { return       setDateMillisecond(vector, index, value); }
-    public visitTimestamp            <T extends Timestamp>           (vector: Vector<T>, index: number, value: T['TValue']) { return             setTimestamp(vector, index, value); }
-    public visitTimestampSecond      <T extends TimestampSecond>     (vector: Vector<T>, index: number, value: T['TValue']) { return       setTimestampSecond(vector, index, value); }
-    public visitTimestampMillisecond <T extends TimestampMillisecond>(vector: Vector<T>, index: number, value: T['TValue']) { return  setTimestampMillisecond(vector, index, value); }
-    public visitTimestampMicrosecond <T extends TimestampMicrosecond>(vector: Vector<T>, index: number, value: T['TValue']) { return  setTimestampMicrosecond(vector, index, value); }
-    public visitTimestampNanosecond  <T extends TimestampNanosecond> (vector: Vector<T>, index: number, value: T['TValue']) { return   setTimestampNanosecond(vector, index, value); }
-    public visitTime                 <T extends Time>                (vector: Vector<T>, index: number, value: T['TValue']) { return                  setTime(vector, index, value); }
-    public visitTimeSecond           <T extends TimeSecond>          (vector: Vector<T>, index: number, value: T['TValue']) { return            setTimeSecond(vector, index, value); }
-    public visitTimeMillisecond      <T extends TimeMillisecond>     (vector: Vector<T>, index: number, value: T['TValue']) { return       setTimeMillisecond(vector, index, value); }
-    public visitTimeMicrosecond      <T extends TimeMicrosecond>     (vector: Vector<T>, index: number, value: T['TValue']) { return       setTimeMicrosecond(vector, index, value); }
-    public visitTimeNanosecond       <T extends TimeNanosecond>      (vector: Vector<T>, index: number, value: T['TValue']) { return        setTimeNanosecond(vector, index, value); }
-    public visitDecimal              <T extends Decimal>             (vector: Vector<T>, index: number, value: T['TValue']) { return               setDecimal(vector, index, value); }
-    public visitList                 <T extends List>                (vector: Vector<T>, index: number, value: T['TValue']) { return                  setList(vector, index, value); }
-    public visitStruct               <T extends Struct>              (vector: Vector<T>, index: number, value: T['TValue']) { return                setNested(vector, index, value); }
-    public visitUnion                <T extends Union>               (vector: Vector<T>, index: number, value: T['TValue']) { return                 setUnion(vector, index, value); }
-    public visitDenseUnion           <T extends DenseUnion>          (vector: Vector<T>, index: number, value: T['TValue']) { return            setDenseUnion(vector, index, value); }
-    public visitSparseUnion          <T extends SparseUnion>         (vector: Vector<T>, index: number, value: T['TValue']) { return           setSparseUnion(vector, index, value); }
-    public visitDictionary           <T extends Dictionary>          (vector: Vector<T>, index: number, value: T['TValue']) { return            setDictionary(vector, index, value); }
-    public visitInterval             <T extends Interval>            (vector: Vector<T>, index: number, value: T['TValue']) { return         setIntervalValue(vector, index, value); }
-    public visitIntervalDayTime      <T extends IntervalDayTime>     (vector: Vector<T>, index: number, value: T['TValue']) { return       setIntervalDayTime(vector, index, value); }
-    public visitIntervalYearMonth    <T extends IntervalYearMonth>   (vector: Vector<T>, index: number, value: T['TValue']) { return     setIntervalYearMonth(vector, index, value); }
-    public visitFixedSizeList        <T extends FixedSizeList>       (vector: Vector<T>, index: number, value: T['TValue']) { return         setFixedSizeList(vector, index, value); }
-    public visitMap                  <T extends Map_>                (vector: Vector<T>, index: number, value: T['TValue']) { return                setNested(vector, index, value); }
 }
-
-export const instance = new SetVisitor();
 
 const setEpochMsToSeconds = (data: Int32Array, index: number, epochMs: number) => { data[index] = (epochMs / 1000) | 0; }
 const setEpochMsToDays = (data: Int32Array, index: number, epochMs: number) => { data[index] = (epochMs / 86400000) | 0; };
@@ -285,3 +283,5 @@ SetVisitor.prototype.visitIntervalDayTime      =      setIntervalDayTime;
 SetVisitor.prototype.visitIntervalYearMonth    =    setIntervalYearMonth;
 SetVisitor.prototype.visitFixedSizeList        =        setFixedSizeList;
 SetVisitor.prototype.visitMap                  =               setNested;
+
+export const instance = new SetVisitor();

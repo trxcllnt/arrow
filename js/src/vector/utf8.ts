@@ -22,6 +22,7 @@ import { Binary, Utf8 } from '../type';
 import { encodeUtf8 } from '../visitor/set';
 
 export class Utf8Vector extends BaseVector<Utf8> {
+    /** @nocollapse */
     public static from(values: string[]) {
         const length = values.length;
         const data = encodeUtf8(values.join(''));

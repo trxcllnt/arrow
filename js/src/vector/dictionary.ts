@@ -22,6 +22,7 @@ import { Vector as V } from '../interfaces';
 import { DataType, Dictionary, TKeys } from '../type';
 
 export class DictionaryVector<T extends DataType = any, TKey extends TKeys = TKeys> extends BaseVector<Dictionary<T, TKey>> {
+    /** @nocollapse */
     public static from<T extends DataType<any>, TKey extends TKeys = TKeys>(
         values: Vector<T>, indices: TKey,
         keys: ArrayLike<number> | TKey['TArray']
@@ -29,11 +30,12 @@ export class DictionaryVector<T extends DataType = any, TKey extends TKeys = TKe
         const type = new Dictionary(values.type, indices, null, null, values);
         return Vector.new(Data.Dictionary(type, 0, keys.length, 0, null, keys));
     }
-    public readonly indices: V<TKey>;
+    protected _indices: V<TKey>;
     constructor(data: Data<Dictionary<T, TKey>>) {
         super(data, void 0, 1);
-        this.indices = Vector.new(data.clone(this.type.indices));
+        this._indices = Vector.new(data.clone(this.type.indices));
     }
+    public get indices() { return this._indices; }
     public get dictionary() { return this.type.dictionaryVector; }
     public getKey(index: number): TKey['TValue'] | null { return this.indices.get(index); }
     public getValue(key: number): T['TValue'] | null { return this.dictionary.get(key); }

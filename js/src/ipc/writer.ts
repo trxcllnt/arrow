@@ -37,7 +37,9 @@ export type OpenArgs = FileHandle | NodeJS.WritableStream | WritableStream<Uint8
 
 export class RecordBatchWriter<T extends { [key: string]: DataType } = any> extends ReadableInterop<Uint8Array> implements Writable<RecordBatch<T>> {
 
+    /** @nocollapse */
     public static throughNode(): import('stream').Duplex { throw new Error(`"throughNode" not available in this environment`); }
+    /** @nocollapse */
     public static throughDOM<T extends { [key: string]: DataType }>(): { writable: WritableStream<RecordBatch<T>>, readable: ReadableStream<Uint8Array> } {
         throw new Error(`"throughDOM" not available in this environment`);
     }
@@ -215,6 +217,7 @@ export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> 
 
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>>): RecordBatchFileWriter<T>;
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchFileWriter<T>>;
+    /** @nocollapse */
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
         const writer = new RecordBatchFileWriter<T>();
         if (!isAsyncIterable(batches)) {
@@ -240,6 +243,7 @@ export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any
 
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>>): RecordBatchStreamWriter<T>;
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchStreamWriter<T>>;
+    /** @nocollapse */
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
         const writer = new RecordBatchStreamWriter<T>();
         if (!isAsyncIterable(batches)) {
