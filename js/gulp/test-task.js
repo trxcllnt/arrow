@@ -28,20 +28,21 @@ const readFile = promisify(require('fs').readFile);
 const exec = promisify(require('child_process').exec);
 const parseXML = promisify(require('xml2js').parseString);
 
-const jestArgv = [];
-argv.update && jestArgv.push(`-u`);
+const jestArgv = ['-i'];
 argv.verbose && jestArgv.push(`--verbose`);
-argv.coverage && jestArgv.push(`--coverage`);
+argv.coverage
+    ? jestArgv.push(`-c`, `jest.coverage.config.js`, `--coverage`)
+    : jestArgv.push(`-c`, `jest.config.js`)
 
 const debugArgv = [`--runInBand`, `--env`, `node-debug`];
-const jest = require.resolve(path.join(`..`, `node_modules`, `.bin`, `jest`));
+const jest = require.resolve(path.join(__dirname, `../node_modules/.bin/jest`));
 const testOptions = {
     stdio: [`ignore`, `inherit`, `inherit`],
     env: {
         ...process.env,
         // prevent the user-land `readable-stream` module from
         // patching node's streams -- they're better now
-        READABLE_STREAM: "disable"
+        READABLE_STREAM: `disable`
     },
 };
 
@@ -54,6 +55,8 @@ const testTask = ((cache, execArgv, testOptions) => memoizeTask(cache, function 
     opts.env = { ...opts.env,
         TEST_TARGET: target,
         TEST_MODULE: format,
+        TEST_DOM_STREAMS: (format === 'umd').toString(),
+        TEST_NODE_STREAMS: (format !== 'umd').toString(),
         TEST_TS_SOURCE: !!argv.coverage || (target === 'src') || (opts.env.TEST_TS_SOURCE === 'true'),
         JSON_FILES: JSON.stringify(Array.isArray(argv.json_files) ? argv.json_files : [argv.json_files]),
         ARROW_FILES: JSON.stringify(Array.isArray(argv.arrow_files) ? argv.arrow_files : [argv.arrow_files]),

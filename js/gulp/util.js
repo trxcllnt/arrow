@@ -18,7 +18,10 @@
 const fs = require('fs');
 const path = require(`path`);
 const pump = require(`stream`).pipeline;
+const child_process = require(`child_process`);
+const { targets, modules } = require('./argv');
 const { Observable, ReplaySubject } = require('rxjs');
+const asyncDone = require('util').promisify(require('async-done'));
 
 const mainExport = `Arrow`;
 const npmPkgName = `apache-arrow`;
@@ -66,7 +69,7 @@ const UMDSourceTargets = {
  es2015: `es2015`,
  es2016: `es2015`,
  es2017: `es2015`,
- esnext: `es2015`
+ esnext: `esnext`
 };
 
 const terserLanguageNames = {
@@ -107,6 +110,17 @@ function tsconfigName(target, format) {
 
 function targetDir(target, format) {
     return path.join(releasesRootDir, ...(!format ? [target] : [target, format]));
+}
+
+function shouldRunInChildProcess(target, format) {
+    return (targets.length > 1 || modules.length > 1 || targets[0] !== target || modules[0] !== format);
+}
+
+function spawnGulpCommandInChildProcess(command, target, format) {
+    return asyncDone(() => child_process.spawn(
+        require.resolve(path.join(__dirname, `../node_modules/gulp/bin/gulp.js`)),
+        [command, '-t', target, '-m', format]
+    ));
 }
 
 function observableFromStreams(...streams) {
@@ -158,12 +172,46 @@ function* combinations(_targets, _modules) {
     }
 }
 
+const publicModulePaths = (dir) => [
+    `${dir}/${mainExport}.dom.js`,
+    // `${dir}/data.js`,
+    // `${dir}/type.js`,
+    // `${dir}/table.js`,
+    // `${dir}/column.js`,
+    // `${dir}/schema.js`,
+    // `${dir}/vector.js`,
+    // `${dir}/visitor.js`,
+    `${dir}/util/int.js`,
+    // `${dir}/recordbatch.js`,
+    // `${dir}/compute/dataframe.js`,
+    `${dir}/compute/predicate.js`,
+];
+
+const esmRequire = require(`esm`)(module, {
+    mode: `auto`,
+    cjs: {
+        /* A boolean for storing ES modules in require.cache. */
+        cache: true,
+        /* A boolean for respecting require.extensions in ESM. */
+        extensions: true,
+        /* A boolean for __esModule interoperability. */
+        interop: true,
+        /* A boolean for importing named exports of CJS modules. */
+        namedExports: true,
+        /* A boolean for following CJS path rules in ESM. */
+        paths: true,
+        /* A boolean for __dirname, __filename, and require in ESM. */
+        vars: true,
+    }
+});
+
 module.exports = {
 
     mainExport, npmPkgName, npmOrgName, metadataFiles, packageJSONFields,
 
     knownTargets, knownModules, tasksToSkipPerTargetOrFormat,
-    ESKeywords, gCCLanguageNames, UMDSourceTargets, terserLanguageNames,
+    gCCLanguageNames, UMDSourceTargets, terserLanguageNames,
 
     taskName, packageName, tsconfigName, targetDir, combinations, observableFromStreams,
+    ESKeywords, publicModulePaths, esmRequire, shouldRunInChildProcess, spawnGulpCommandInChildProcess
 };

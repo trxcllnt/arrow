@@ -16,7 +16,11 @@
 // under the License.
 
 const {
-    targetDir, tsconfigName, observableFromStreams
+    targetDir,
+    tsconfigName,
+    observableFromStreams,
+    shouldRunInChildProcess,
+    spawnGulpCommandInChildProcess,
 } = require('./util');
 
 const gulp = require('gulp');
@@ -27,6 +31,11 @@ const { memoizeTask } = require('./memoize-task');
 const { Observable, ReplaySubject } = require('rxjs');
 
 const typescriptTask = ((cache) => memoizeTask(cache, function typescript(target, format) {
+
+    if (shouldRunInChildProcess(target, format)) {
+        return spawnGulpCommandInChildProcess('build', target, format);
+    }
+
     const out = targetDir(target, format);
     const tsconfigPath = path.join(`tsconfig`, `tsconfig.${tsconfigName(target, format)}.json`);
     return compileTypescript(out, tsconfigPath)

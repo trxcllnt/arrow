@@ -17,15 +17,15 @@
 
 const del = require('del');
 const { targetDir } = require('./util');
-const { memoizeTask } = require('./memoize-task');
+const { createTask } = require('./memoize-task');
 const { Observable, ReplaySubject } = require('rxjs');
 
-const cleanTask = ((cache) => memoizeTask(cache, function clean(target, format) {
+const cleanTask = createTask(function clean(target, format) {
     return Observable
         .from(del(`${targetDir(target, format)}/**`))
         .catch((e) => Observable.empty())
         .multicast(new ReplaySubject()).refCount();
-}))({});
+});
 
 module.exports = cleanTask;
 module.exports.cleanTask = cleanTask;
