@@ -174,16 +174,7 @@ function* combinations(_targets, _modules) {
 
 const publicModulePaths = (dir) => [
     `${dir}/${mainExport}.dom.js`,
-    // `${dir}/data.js`,
-    // `${dir}/type.js`,
-    // `${dir}/table.js`,
-    // `${dir}/column.js`,
-    // `${dir}/schema.js`,
-    // `${dir}/vector.js`,
-    // `${dir}/visitor.js`,
     `${dir}/util/int.js`,
-    // `${dir}/recordbatch.js`,
-    // `${dir}/compute/dataframe.js`,
     `${dir}/compute/predicate.js`,
 ];
 
