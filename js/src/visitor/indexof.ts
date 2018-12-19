@@ -15,12 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { RowLike } from '../type';
 import { Data } from '../data';
 import { Type } from '../enum';
 import { Visitor } from '../visitor';
 import { Vector } from '../interfaces';
 import { getBool, iterateBits } from '../util/bit';
+import { createElementComparator } from '../util/vector';
 import {
     DataType, Dictionary,
     Bool, Null, Utf8, Binary, Decimal, FixedSizeBinary, List, FixedSizeList, Map_, Struct,
@@ -88,9 +88,9 @@ export interface IndexOfVisitor extends Visitor {
 export class IndexOfVisitor extends Visitor {
 }
 
-function nullIndexOf(vector: Vector<Null>, searchElement?: null, fromIndex: number = -1) {
-     // if you're looking for nulls and the vector isn't empty, we've got 'em!
-    return searchElement === null && vector.length > 0 ? fromIndex : -1;
+function nullIndexOf(vector: Vector<Null>, searchElement?: null) {
+    // if you're looking for nulls and the vector isn't empty, we've got 'em!
+    return searchElement === null && vector.length > 0 ? 0 : -1;
 }
 
 function indexOfNull<T extends DataType>(vector: Vector<T>, fromIndex?: number): number {
@@ -106,141 +106,75 @@ function indexOfNull<T extends DataType>(vector: Vector<T>, fromIndex?: number):
     return -1;
 }
 
-function valueIndexOf<T extends DataType>(vector: Vector<T>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
+function indexOfValue<T extends DataType>(vector: Vector<T>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
     if (searchElement === undefined) { return -1; }
     if (searchElement === null) { return indexOfNull(vector, fromIndex); }
+    const compare = createElementComparator(searchElement);
     for (let i = (fromIndex || 0) - 1, n = vector.length; ++i < n;) {
-        if (vector.get(i) === searchElement) {
+        if (compare(vector.get(i))) {
             return i;
         }
     }
     return -1;
 }
 
-function dateIndexOf<T extends Date_>(vector: Vector<T>, searchElement?: Date | null, fromIndex?: number): number {
-    if (searchElement === undefined) { return -1; }
-    if (searchElement === null) { return indexOfNull(vector, fromIndex); }
-    const valueOfDate = searchElement.valueOf();
-    for (let d: Date | null, i = (fromIndex || 0) - 1, n = vector.length; ++i < n;) {
-        if ((d = vector.get(i)) && d.valueOf() === valueOfDate) {
+function indexOfUnion<T extends DataType>(vector: Vector<T>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
+    // Unions are special -- they do have a nullBitmap, but so can their children.
+    // If the searchElement is null, we don't know whether it came from the Union's
+    // bitmap or one of its childrens'. So we don't interrogate the Union's bitmap,
+    // since that will report the wrong index if a child has a null before the Union.
+    const compare = createElementComparator(searchElement);
+    for (let i = (fromIndex || 0) - 1, n = vector.length; ++i < n;) {
+        if (compare(vector.get(i))) {
             return i;
         }
     }
     return -1;
 }
 
-function dictionaryIndexOf<T extends DataType>(vector: Vector<Dictionary<T>>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
-    if (searchElement === undefined) { return -1; }
-    if (searchElement === null) { return indexOfNull(vector, fromIndex); }
-    const { dictionary, indices } = vector;
-    // First find the dictionary key for the desired value...
-    const key = dictionary.indexOf(searchElement);
-    // ... then find the first occurence of that key in indices
-    return key === -1 ? -1 : indices.indexOf(key, fromIndex);
-}
 
-function arrayIndexOf<T extends DataType>(vector: Vector<T>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
-    if (searchElement === undefined) { return -1; }
-    if (searchElement === null) { return indexOfNull(vector, fromIndex); }
-    searching:
-    for (let x = null, j = 0, i = (fromIndex || 0) - 1, n = vector.length, k = searchElement.length; ++i < n;) {
-        if ((x = vector.get(i)) && (j = x.length) === k) {
-            while (--j > -1) {
-                if (x[j] !== searchElement[j]) {
-                    continue searching;
-                }
-            }
-            return i;
-        }
-    }
-    return -1;
-}
-
-function listIndexOf<
-    T extends DataType,
-    R extends List<T> | FixedSizeList<T>
->(vector: Vector<R>, searchElement?: R['TValue'] | null, fromIndex?: number): number {
-    if (searchElement === undefined) { return -1; }
-    if (searchElement === null) { return indexOfNull(vector, fromIndex); }
-    const getSearchElement = (Array.isArray(searchElement) || ArrayBuffer.isView(searchElement))
-        ? (i: number) => (searchElement as ArrayLike<T>)[i]
-        : (i: number) => (searchElement as Vector<T>).get(i);
-    searching:
-    for (let x = null, j = 0, i = (fromIndex || 0) - 1, n = vector.length, k = searchElement.length; ++i < n;) {
-        if ((x = vector.get(i)) && (j = x.length) === k) {
-            while (--j > -1) {
-                if (x.get(j) !== getSearchElement(j)) {
-                    continue searching;
-                }
-            }
-            return i;
-        }
-    }
-    return -1;
-}
-
-function indexOfNested<
-    T extends { [key: string]: DataType },
-    R extends Map_<T> | Struct<T>
->(vector: Vector<R>, searchElement?: RowLike<T> | null, fromIndex?: number): number {
-    if (searchElement === undefined) { return -1; }
-    if (searchElement === null) { return indexOfNull(vector, fromIndex); }
-    searching:
-    for (let x = null, j = 0, i = (fromIndex || 0) - 1, n = vector.length, k = searchElement.length; ++i < n;) {
-        if ((x = vector.get(i)) && (j = x.length) === k) {
-            while (--j > -1) {
-                if (x[j] !== searchElement[j]) {
-                    continue searching;
-                }
-            }
-            return i;
-        }
-    }
-    return -1;
-}
-
-IndexOfVisitor.prototype.visitNull                 =       nullIndexOf;
-IndexOfVisitor.prototype.visitBool                 =      valueIndexOf;
-IndexOfVisitor.prototype.visitInt                  =      valueIndexOf;
-IndexOfVisitor.prototype.visitInt8                 =      valueIndexOf;
-IndexOfVisitor.prototype.visitInt16                =      valueIndexOf;
-IndexOfVisitor.prototype.visitInt32                =      valueIndexOf;
-IndexOfVisitor.prototype.visitInt64                =      arrayIndexOf;
-IndexOfVisitor.prototype.visitUint8                =      valueIndexOf;
-IndexOfVisitor.prototype.visitUint16               =      valueIndexOf;
-IndexOfVisitor.prototype.visitUint32               =      valueIndexOf;
-IndexOfVisitor.prototype.visitUint64               =      arrayIndexOf;
-IndexOfVisitor.prototype.visitFloat                =      valueIndexOf;
-IndexOfVisitor.prototype.visitFloat16              =      valueIndexOf;
-IndexOfVisitor.prototype.visitFloat32              =      valueIndexOf;
-IndexOfVisitor.prototype.visitFloat64              =      valueIndexOf;
-IndexOfVisitor.prototype.visitUtf8                 =      valueIndexOf;
-IndexOfVisitor.prototype.visitBinary               =      arrayIndexOf;
-IndexOfVisitor.prototype.visitFixedSizeBinary      =      arrayIndexOf;
-IndexOfVisitor.prototype.visitDate                 =       dateIndexOf;
-IndexOfVisitor.prototype.visitDateDay              =       dateIndexOf;
-IndexOfVisitor.prototype.visitDateMillisecond      =       dateIndexOf;
-IndexOfVisitor.prototype.visitTimestamp            =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimestampSecond      =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimestampMillisecond =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimestampMicrosecond =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimestampNanosecond  =      valueIndexOf;
-IndexOfVisitor.prototype.visitTime                 =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimeSecond           =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimeMillisecond      =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimeMicrosecond      =      valueIndexOf;
-IndexOfVisitor.prototype.visitTimeNanosecond       =      valueIndexOf;
-IndexOfVisitor.prototype.visitDecimal              =      arrayIndexOf;
-IndexOfVisitor.prototype.visitList                 =       listIndexOf;
-IndexOfVisitor.prototype.visitStruct               =     indexOfNested;
-IndexOfVisitor.prototype.visitUnion                =      valueIndexOf;
-IndexOfVisitor.prototype.visitDenseUnion           =      valueIndexOf;
-IndexOfVisitor.prototype.visitSparseUnion          =      valueIndexOf;
-IndexOfVisitor.prototype.visitDictionary           = dictionaryIndexOf;
-IndexOfVisitor.prototype.visitInterval             =      valueIndexOf;
-IndexOfVisitor.prototype.visitIntervalDayTime      =      valueIndexOf;
-IndexOfVisitor.prototype.visitIntervalYearMonth    =      valueIndexOf;
-IndexOfVisitor.prototype.visitFixedSizeList        =       listIndexOf;
-IndexOfVisitor.prototype.visitMap                  =     indexOfNested;
+IndexOfVisitor.prototype.visitNull                 =  nullIndexOf;
+IndexOfVisitor.prototype.visitBool                 = indexOfValue;
+IndexOfVisitor.prototype.visitInt                  = indexOfValue;
+IndexOfVisitor.prototype.visitInt8                 = indexOfValue;
+IndexOfVisitor.prototype.visitInt16                = indexOfValue;
+IndexOfVisitor.prototype.visitInt32                = indexOfValue;
+IndexOfVisitor.prototype.visitInt64                = indexOfValue;
+IndexOfVisitor.prototype.visitUint8                = indexOfValue;
+IndexOfVisitor.prototype.visitUint16               = indexOfValue;
+IndexOfVisitor.prototype.visitUint32               = indexOfValue;
+IndexOfVisitor.prototype.visitUint64               = indexOfValue;
+IndexOfVisitor.prototype.visitFloat                = indexOfValue;
+IndexOfVisitor.prototype.visitFloat16              = indexOfValue;
+IndexOfVisitor.prototype.visitFloat32              = indexOfValue;
+IndexOfVisitor.prototype.visitFloat64              = indexOfValue;
+IndexOfVisitor.prototype.visitUtf8                 = indexOfValue;
+IndexOfVisitor.prototype.visitBinary               = indexOfValue;
+IndexOfVisitor.prototype.visitFixedSizeBinary      = indexOfValue;
+IndexOfVisitor.prototype.visitDate                 = indexOfValue;
+IndexOfVisitor.prototype.visitDateDay              = indexOfValue;
+IndexOfVisitor.prototype.visitDateMillisecond      = indexOfValue;
+IndexOfVisitor.prototype.visitTimestamp            = indexOfValue;
+IndexOfVisitor.prototype.visitTimestampSecond      = indexOfValue;
+IndexOfVisitor.prototype.visitTimestampMillisecond = indexOfValue;
+IndexOfVisitor.prototype.visitTimestampMicrosecond = indexOfValue;
+IndexOfVisitor.prototype.visitTimestampNanosecond  = indexOfValue;
+IndexOfVisitor.prototype.visitTime                 = indexOfValue;
+IndexOfVisitor.prototype.visitTimeSecond           = indexOfValue;
+IndexOfVisitor.prototype.visitTimeMillisecond      = indexOfValue;
+IndexOfVisitor.prototype.visitTimeMicrosecond      = indexOfValue;
+IndexOfVisitor.prototype.visitTimeNanosecond       = indexOfValue;
+IndexOfVisitor.prototype.visitDecimal              = indexOfValue;
+IndexOfVisitor.prototype.visitList                 = indexOfValue;
+IndexOfVisitor.prototype.visitStruct               = indexOfValue;
+IndexOfVisitor.prototype.visitUnion                = indexOfValue;
+IndexOfVisitor.prototype.visitDenseUnion           = indexOfUnion;
+IndexOfVisitor.prototype.visitSparseUnion          = indexOfUnion;
+IndexOfVisitor.prototype.visitDictionary           = indexOfValue;
+IndexOfVisitor.prototype.visitInterval             = indexOfValue;
+IndexOfVisitor.prototype.visitIntervalDayTime      = indexOfValue;
+IndexOfVisitor.prototype.visitIntervalYearMonth    = indexOfValue;
+IndexOfVisitor.prototype.visitFixedSizeList        = indexOfValue;
+IndexOfVisitor.prototype.visitMap                  = indexOfValue;
 
 export const instance = new IndexOfVisitor();

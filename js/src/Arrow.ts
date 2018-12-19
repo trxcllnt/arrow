@@ -80,11 +80,13 @@ export { Dataframe, FilteredDataFrame, CountByResult, BindFunc, NextFunc } from 
 import * as util_int_ from './util/int';
 import * as util_bit_ from './util/bit';
 import * as util_buffer_ from './util/buffer';
+import * as util_vector_ from './util/vector';
 import * as predicate from './compute/predicate';
 
 export { predicate };
 export const util = {
     ...util_int_,
     ...util_bit_,
-    ...util_buffer_
+    ...util_buffer_,
+    ...util_vector_
 };

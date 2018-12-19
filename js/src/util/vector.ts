@@ -15,6 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Vector } from '../vector';
+import { Row } from '../vector/row';
+
 type RangeLike = { length: number; stride?: number };
 type ClampThen<T extends RangeLike> = (source: T, index: number) => any;
 type ClampRangeThen<T extends RangeLike> = (source: T, offset: number, length: number) => any;
@@ -47,4 +50,74 @@ export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = Cl
     (rhs > len) && (rhs = len);
 
     return then ? then(source, lhs, rhs) : [lhs, rhs];
+}
+
+export function createElementComparator(search: any) {
+    // Compare primitives
+    if (search == null || typeof search !== 'object') {
+        return (value: any) => value === search;
+    }
+    // Compare Dates
+    if (search instanceof Date) {
+        search = search.valueOf();
+        return (value: any) => value && (value.valueOf() === search) || false;
+    }
+    // Compare Array-likes
+    if (Array.isArray(search) || ArrayBuffer.isView(search)) {
+        const n = (search as any).length;
+        const fns = [] as ((x: any) => boolean)[];
+        for (let i = -1; ++i < n;) {
+            fns[i] = createElementComparator((search as any)[i]);
+        }
+        return (value: any) => {
+            if (!value || value.length !== n) { return false; }
+            // Handle the case where the search element is an Array, but the
+            // values are Rows or Vectors, e.g. list.indexOf(['foo', 'bar'])
+            if ((value instanceof Row) || (value instanceof Vector)) {
+                for (let i = -1, n = value.length; ++i < n;) {
+                    if (!(fns[i]((value as any).get(i)))) { return false; }
+                }
+                return true;
+            }
+            for (let i = -1, n = value.length; ++i < n;) {
+                if (!(fns[i](value[i]))) { return false; }
+            }
+            return true;
+        };
+    }
+    // Compare Rows and Vectors
+    if ((search instanceof Row) || (search instanceof Vector)) {
+        const n = search.length;
+        const C = search.constructor as any;
+        const fns = [] as ((x: any) => boolean)[];
+        for (let i = -1; ++i < n;) {
+            fns[i] = createElementComparator((search as any).get(i));
+        }
+        return (value: any) => {
+            if (!(value instanceof C)) { return false; }
+            if (!(value.length === n)) { return false; }
+            for (let i = -1; ++i < n;) {
+                if (!(fns[i](value.get(i)))) { return false; }
+            }
+            return true;
+        };
+    }
+    // Compare non-empty Objects
+    const keys = Object.keys(search);
+    if (keys.length > 0) {
+        const n = keys.length;
+        const fns = [] as ((x: any) => boolean)[];
+        for (let i = -1; ++i < n;) {
+            fns[i] = createElementComparator(search[keys[i]]);
+        }
+        return (value: any) => {
+            if (!value || typeof value !== 'object') { return false; }
+            for (let i = -1; ++i < n;) {
+                if (!(fns[i](value[keys[i]]))) { return false; }
+            }
+            return true;
+        };
+    }
+    // No valid comparator
+    return () => false;
 }
