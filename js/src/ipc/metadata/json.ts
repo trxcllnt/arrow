@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as Schema_ from '../../fb/Schema';
 import { Schema, Field } from '../../schema';
 import {
     DataType, Dictionary, TimeBitWidth,
@@ -24,7 +23,6 @@ import {
     Bool, Null, Int, Float, Date_, Time, Interval, Timestamp, IntBitWidth, Int32, TKeys,
 } from '../../type';
 
-import Type = Schema_.org.apache.arrow.flatbuf.Type;
 import { DictionaryBatch, RecordBatch, FieldNode, BufferRegion } from './message';
 import { TimeUnit, Precision, IntervalUnit, UnionMode, DateUnit } from '../../enum';
 
@@ -138,12 +136,12 @@ function typeFromJSON(f: any, children?: Field[]): DataType<any> {
     const typeId = f['type']['name'];
 
     switch (typeId) {
-        case 'NONE':    return new DataType();
-        case 'null':    return new Null();
-        case 'binary':  return new Binary();
-        case 'utf8':    return new Utf8();
-        case 'bool':    return new Bool();
-        case 'list':    return new List(children || []);
+        case 'NONE':   return new DataType();
+        case 'null':   return new Null();
+        case 'binary': return new Binary();
+        case 'utf8':   return new Utf8();
+        case 'bool':   return new Bool();
+        case 'list':   return new List((children || [])[0]);
         case 'struct': return new Struct(children || []);
     }
 
@@ -178,7 +176,7 @@ function typeFromJSON(f: any, children?: Field[]): DataType<any> {
         }
         case 'union': {
             const t = f['type'];
-            return new Union(UnionMode[t['mode']] as any, (t['typeIds'] || []) as Type[], children || []);
+            return new Union(UnionMode[t['mode']] as any, (t['typeIds'] || []), children || []);
         }
         case 'fixedsizebinary': {
             const t = f['type'];
@@ -186,7 +184,7 @@ function typeFromJSON(f: any, children?: Field[]): DataType<any> {
         }
         case 'fixedsizelist': {
             const t = f['type'];
-            return new FixedSizeList(t['listSize'], children || []);
+            return new FixedSizeList(t['listSize'], (children || [])[0]);
         }
         case 'map': {
             const t = f['type'];

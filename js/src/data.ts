@@ -36,6 +36,7 @@ export type kUnknownNullCount = -1;
 export const kUnknownNullCount = -1;
 
 export type NullBuffer = Uint8Array | null | undefined;
+export type TypeIdsBuffer = Int8Array  | ArrayLike<number> | Iterable<number>;
 export type ValueOffsetsBuffer = Int32Array  | ArrayLike<number> | Iterable<number>;
 export type DataBuffer<T extends DataType> = T['TArray'] | ArrayLike<number> | Iterable<number>;
 
@@ -227,17 +228,17 @@ export class Data<T extends DataType = DataType> {
         });
     }
     /** @nocollapse */
-    public static List<T extends List>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, valueOffsets: ValueOffsetsBuffer, childData: (Data | Vector)[]) {
+    public static List<T extends List>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, valueOffsets: ValueOffsetsBuffer, childData: Data | Vector) {
         return new Data(type, offset, length, nullCount, {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap),
             [BufferType.OFFSET]: toArrayBufferView(Int32Array, valueOffsets)
-        }, childData);
+        }, [childData]);
     }
     /** @nocollapse */
-    public static FixedSizeList<T extends FixedSizeList>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: (Data | Vector)[]) {
+    public static FixedSizeList<T extends FixedSizeList>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: Data | Vector) {
         return new Data(type, offset, length, nullCount, {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap)
-        }, childData);
+        }, [childData]);
     }
     /** @nocollapse */
     public static Struct<T extends Struct>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, childData: (Data | Vector)[]) {
@@ -252,7 +253,7 @@ export class Data<T extends DataType = DataType> {
         }, childData);
     }
     /** @nocollapse */
-    public static Union<T extends Union>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, typeIds: Uint8Array, valueOffsetsOrChildData: ValueOffsetsBuffer | (Data | Vector)[], childData?: (Data | Vector)[]) {
+    public static Union<T extends Union>(type: T, offset: number, length: number, nullCount: number, nullBitmap: NullBuffer, typeIds: TypeIdsBuffer, valueOffsetsOrChildData: ValueOffsetsBuffer | (Data | Vector)[], childData?: (Data | Vector)[]) {
         const buffers = {
             [BufferType.VALIDITY]: toArrayBufferView(Uint8Array, nullBitmap),
             [BufferType.TYPE]: toArrayBufferView(type.ArrayType, typeIds)

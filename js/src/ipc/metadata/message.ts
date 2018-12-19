@@ -398,7 +398,7 @@ function decodeFieldType(f: _Field, children?: Field[]): DataType<any> {
         case Type.Binary:  return new Binary();
         case Type.Utf8:    return new Utf8();
         case Type.Bool:    return new Bool();
-        case Type.List:    return new List(children || []);
+        case Type.List:    return new List((children || [])[0]);
         case Type.Struct_: return new Struct(children || []);
     }
 
@@ -441,7 +441,7 @@ function decodeFieldType(f: _Field, children?: Field[]): DataType<any> {
         }
         case Type.FixedSizeList: {
             const t = f.type(new Schema_.org.apache.arrow.flatbuf.FixedSizeList())!;
-            return new FixedSizeList(t.listSize(), children || []);
+            return new FixedSizeList(t.listSize(), (children || [])[0]);
         }
         case Type.Map: {
             const t = f.type(new Schema_.org.apache.arrow.flatbuf.Map())!;

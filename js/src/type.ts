@@ -314,11 +314,13 @@ export { Interval_ as Interval };
 export class IntervalDayTime extends Interval_<Type.IntervalDayTime> { constructor() { super(IntervalUnit.DAY_TIME); } }
 export class IntervalYearMonth extends Interval_<Type.IntervalYearMonth> { constructor() { super(IntervalUnit.YEAR_MONTH); } }
 
-export interface List<T extends DataType = any> extends DataType<Type.List>  { TArray: IterableArrayLike<T>; TValue: VType<T>; }
+export interface List<T extends DataType = any> extends DataType<Type.List, { [0]: T }>  { TArray: IterableArrayLike<T>; TValue: VType<T>; }
 export class List<T extends DataType = any> extends DataType<Type.List, { [0]: T }> {
-    constructor(protected _children: Field<T>[]) {
-        super(Type.List, _children);
+    constructor(child: Field<T>) {
+        super(Type.List, [child]);
     }
+    // @ts-ignore
+    protected _children: Field<T>[];
     public toString() { return `List<${this.valueType}>`; }
     public get children() { return this._children; }
     public get valueType(): T { return this._children[0].type as T; }
@@ -395,10 +397,11 @@ export class FixedSizeBinary extends DataType<Type.FixedSizeBinary> {
 
 export interface FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList> { TArray: IterableArrayLike<T['TArray']>; TValue: VType<T>; }
 export class FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList, { [0]: T }> {
-    constructor(protected _listSize: number,
-                protected _children: Field<T>[]) {
-        super(Type.FixedSizeList, _children);
+    constructor(protected _listSize: number, child: Field<T>) {
+        super(Type.FixedSizeList, [child]);
     }
+    // @ts-ignore
+    protected _children: Field<T>[];
     public get listSize() { return this._listSize; }
     public get children() { return this._children; }
     public get valueType(): T { return this.children[0].type as T; }
