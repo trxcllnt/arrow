@@ -118,13 +118,13 @@ BaseVector.prototype[Symbol.iterator] = function baseVectorSymbolIterator<T exte
     .forEach((typeId) => {
         let typeIds: Type[];
         switch (typeId) {
-            case Type['Int']:       typeIds = [Type['Int8'], Type['Int16'], Type['Int32'], Type['Int64'], Type['Uint8'], Type['Uint16'], Type['Uint32'], Type['Uint64']]; break;
-            case Type['Float']:     typeIds = [Type['Float16'], Type['Float32'], Type['Float64']]; break;
-            case Type['Date']:      typeIds = [Type['DateDay'], Type['DateMillisecond']]; break;
-            case Type['Time']:      typeIds = [Type['TimeSecond'], Type['TimeMillisecond'], Type['TimeMicrosecond'], Type['TimeNanosecond']]; break;
-            case Type['Timestamp']: typeIds = [Type['TimestampSecond'], Type['TimestampMillisecond'], Type['TimestampMicrosecond'], Type['TimestampNanosecond']]; break;
-            case Type['Interval']:  typeIds = [Type['IntervalDayTime'], Type['IntervalYearMonth']]; break;
-            case Type['Union']:     typeIds = [Type['DenseUnion'], Type['SparseUnion']]; break;
+            case Type.Int:       typeIds = [Type.Int8, Type.Int16, Type.Int32, Type.Int64, Type.Uint8, Type.Uint16, Type.Uint32, Type.Uint64]; break;
+            case Type.Float:     typeIds = [Type.Float16, Type.Float32, Type.Float64]; break;
+            case Type.Date:      typeIds = [Type.DateDay, Type.DateMillisecond]; break;
+            case Type.Time:      typeIds = [Type.TimeSecond, Type.TimeMillisecond, Type.TimeMicrosecond, Type.TimeNanosecond]; break;
+            case Type.Timestamp: typeIds = [Type.TimestampSecond, Type.TimestampMillisecond, Type.TimestampMicrosecond, Type.TimestampNanosecond]; break;
+            case Type.Interval:  typeIds = [Type.IntervalDayTime, Type.IntervalYearMonth]; break;
+            case Type.Union:     typeIds = [Type.DenseUnion, Type.SparseUnion]; break;
             default:                typeIds = [typeId]; break;
         }
         typeIds.forEach((typeId) => {
