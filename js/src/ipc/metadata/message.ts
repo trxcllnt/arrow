@@ -433,7 +433,7 @@ function decodeFieldType(f: _Field, children?: Field[]): DataType<any> {
         }
         case Type.Union: {
             const t = f.type(new Schema_.org.apache.arrow.flatbuf.Union())!;
-            return new Union(t.mode(), (t.typeIdsArray() || []) as Type[], children || []);
+            return new Union(t.mode(), t.typeIdsArray() || [], children || []);
         }
         case Type.FixedSizeBinary: {
             const t = f.type(new Schema_.org.apache.arrow.flatbuf.FixedSizeBinary())!;

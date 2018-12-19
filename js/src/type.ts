@@ -23,7 +23,7 @@ import { ArrayBufferViewConstructor } from './interfaces';
 
 import Long = flatbuffers.Long;
 import {
-    Type, ArrowType,
+    Type,
     Precision, UnionMode,
     DateUnit, TimeUnit, IntervalUnit
 } from './enum';
@@ -51,19 +51,19 @@ export class DataType<TType extends Type = Type, TChildren extends { [key: strin
     public [Symbol.toStringTag]: string;
 
     /** @nocollapse */ static            isNull (x: any): x is Null            { return x && x.TType === Type.Null;            }
-    /** @nocollapse */ static             isInt (x: any): x is Int_             { return x && x.TType === Type.Int;             }
+    /** @nocollapse */ static             isInt (x: any): x is Int_            { return x && x.TType === Type.Int;             }
     /** @nocollapse */ static           isFloat (x: any): x is Float           { return x && x.TType === Type.Float;           }
     /** @nocollapse */ static          isBinary (x: any): x is Binary          { return x && x.TType === Type.Binary;          }
     /** @nocollapse */ static            isUtf8 (x: any): x is Utf8            { return x && x.TType === Type.Utf8;            }
     /** @nocollapse */ static            isBool (x: any): x is Bool            { return x && x.TType === Type.Bool;            }
     /** @nocollapse */ static         isDecimal (x: any): x is Decimal         { return x && x.TType === Type.Decimal;         }
     /** @nocollapse */ static            isDate (x: any): x is Date_           { return x && x.TType === Type.Date;            }
-    /** @nocollapse */ static            isTime (x: any): x is Time_            { return x && x.TType === Type.Time;            }
-    /** @nocollapse */ static       isTimestamp (x: any): x is Timestamp_       { return x && x.TType === Type.Timestamp;       }
-    /** @nocollapse */ static        isInterval (x: any): x is Interval_        { return x && x.TType === Type.Interval;        }
+    /** @nocollapse */ static            isTime (x: any): x is Time_           { return x && x.TType === Type.Time;            }
+    /** @nocollapse */ static       isTimestamp (x: any): x is Timestamp_      { return x && x.TType === Type.Timestamp;       }
+    /** @nocollapse */ static        isInterval (x: any): x is Interval_       { return x && x.TType === Type.Interval;        }
     /** @nocollapse */ static            isList (x: any): x is List            { return x && x.TType === Type.List;            }
     /** @nocollapse */ static          isStruct (x: any): x is Struct          { return x && x.TType === Type.Struct;          }
-    /** @nocollapse */ static           isUnion (x: any): x is Union_           { return x && x.TType === Type.Union;           }
+    /** @nocollapse */ static           isUnion (x: any): x is Union_          { return x && x.TType === Type.Union;           }
     /** @nocollapse */ static isFixedSizeBinary (x: any): x is FixedSizeBinary { return x && x.TType === Type.FixedSizeBinary; }
     /** @nocollapse */ static   isFixedSizeList (x: any): x is FixedSizeList   { return x && x.TType === Type.FixedSizeList;   }
     /** @nocollapse */ static             isMap (x: any): x is Map_            { return x && x.TType === Type.Map;             }
@@ -268,10 +268,10 @@ class Time_<T extends Times = Times> extends DataType<T> {
 
 export { Time_ as Time };
 
-export class TimeSecond extends Time_<Type.TimeSecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.SECOND, bitWidth); } }
-export class TimeMillisecond extends Time_<Type.TimeMillisecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.MILLISECOND, bitWidth); } }
-export class TimeMicrosecond extends Time_<Type.TimeMicrosecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.MICROSECOND, bitWidth); } }
-export class TimeNanosecond extends Time_<Type.TimeNanosecond> { constructor(bitWidth: TimeBitWidth) { super(TimeUnit.NANOSECOND, bitWidth); } }
+export class TimeSecond extends Time_<Type.TimeSecond> { constructor() { super(TimeUnit.SECOND, 32); } }
+export class TimeMillisecond extends Time_<Type.TimeMillisecond> { constructor() { super(TimeUnit.MILLISECOND, 32); } }
+export class TimeMicrosecond extends Time_<Type.TimeMicrosecond> { constructor() { super(TimeUnit.MICROSECOND, 64); } }
+export class TimeNanosecond extends Time_<Type.TimeNanosecond> { constructor() { super(TimeUnit.NANOSECOND, 64); } }
 
 type Timestamps = Type.Timestamp | Type.TimestampSecond | Type.TimestampMillisecond | Type.TimestampMicrosecond | Type.TimestampNanosecond;
 interface Timestamp_<T extends Timestamps = Timestamps> extends DataType<T> { TArray: Int32Array; TValue: number; ArrayType: typeof Int32Array; }
@@ -344,16 +344,20 @@ export class Struct<T extends { [key: string]: DataType; } = any> extends DataTy
 }
 
 type Unions = Type.Union | Type.DenseUnion | Type.SparseUnion;
-interface Union_<T extends Unions = Unions> extends DataType<T> { TArray: Int8Array; TValue: any[]; }
+interface Union_<T extends Unions = Unions> extends DataType<T> { TArray: Int32Array; TValue: any[]; }
 class Union_<T extends Unions = Unions> extends DataType<T> {
-    protected _typeIdToChildIndex: Record<Type, number>;
+    protected _typeIds: Int32Array;
+    protected _children: Field<any>[];
+    protected _typeIdToChildIndex: { [key: number]: number };
     constructor(protected _mode: UnionMode,
-                protected _typeIds: ArrowType[],
-                protected _children: Field<any>[]) {
+                _typeIds: number[] | Int32Array,
+                _children: Field<any>[]) {
         super(Type.Union as T, _children);
-        this._typeIdToChildIndex = (_typeIds || []).reduce((typeIdToChildIndex, typeId, idx) => {
+        this._children = _children;
+        this._typeIds = _typeIds = Int32Array.from(_typeIds);
+        this._typeIdToChildIndex = _typeIds.reduce((typeIdToChildIndex, typeId, idx) => {
             return (typeIdToChildIndex[typeId] = idx) && typeIdToChildIndex || typeIdToChildIndex;
-        }, Object.create(null) as Record<Type, number>);
+        }, Object.create(null) as { [key: number]: number });
     }
     public get mode() { return this._mode; }
     public get typeIds() { return this._typeIds; }
@@ -363,7 +367,7 @@ class Union_<T extends Unions = Unions> extends DataType<T> {
         this._children.map((x) => `${x.type}`).join(` | `)
     }>`; }
     protected static [Symbol.toStringTag] = ((proto: Union_) => {
-        (<any> proto).ArrayType = Int8Array;
+        (<any> proto).ArrayType = Int32Array;
         return proto[Symbol.toStringTag] = 'Union';
     })(Union_.prototype);
 }
@@ -371,13 +375,13 @@ class Union_<T extends Unions = Unions> extends DataType<T> {
 export { Union_ as Union };
 
 export class DenseUnion extends Union_<Type.DenseUnion> {
-    constructor(typeIds: ArrowType[], children: Field[]) {
+    constructor(typeIds: number[] | Int32Array, children: Field[]) {
         super(UnionMode.Dense, typeIds, children);
     }
 }
 
 export class SparseUnion extends Union_<Type.SparseUnion> {
-    constructor(typeIds: ArrowType[], children: Field[]) {
+    constructor(typeIds: number[] | Int32Array, children: Field[]) {
         super(UnionMode.Sparse, typeIds, children);
     }
 }
@@ -438,14 +442,15 @@ export class Dictionary<T extends DataType = any, TKey extends TKeys = TKeys> ex
     protected _indices: TKey;
     protected _dictionary: T;
     protected _isOrdered: boolean;
-    // @ts-ignore;
-    public dictionaryVector: Vector<T>;
+    protected _dictionaryVector: Vector<T>;
+    public set dictionaryVector(v) { this._dictionaryVector = v; }
+    public get dictionaryVector() { return this._dictionaryVector; }
     constructor(dictionary: T, indices: TKey, id?: Long | number | null, isOrdered?: boolean | null, dictionaryVector?: Vector<T>) {
         super(Type.Dictionary);
         this._indices = indices;
         this._dictionary = dictionary;
         this._isOrdered = isOrdered || false;
-        this.dictionaryVector = dictionaryVector!;
+        this._dictionaryVector = dictionaryVector!;
         this._id = id == null ? getId() : typeof id === 'number' ? id : id.low;
     }
     public get id() { return this._id; }

@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { ArrowType } from './enum';
 import { DataType, Dictionary } from './type';
 import { Vector as VType } from './interfaces';
 
@@ -71,9 +72,9 @@ export class Field<T extends DataType = DataType> {
     }
     public get type() { return this._type; }
     public get name() { return this._name; }
-    public get typeId() { return this.type.TType; }
     public get nullable() { return this._nullable; }
     public get metadata() { return this._metadata; }
+    public get typeId(): ArrowType { return this.type.TType as any; }
     public get [Symbol.toStringTag](): string { return 'Field'; }
     public get indices() {
         return DataType.isDictionary(this.type) ? this.type.indices : this.type;
