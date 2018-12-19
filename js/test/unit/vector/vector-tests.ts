@@ -118,14 +118,10 @@ function basicVectorTests(vector: Vector, values: any[], extras: any[]) {
     test(`indexOf returns expected values`, () => {
         let testValues = values.concat(extras);
 
-        let i = -1;
         for (const value of testValues) {
-            ++i;
             const actual = vector.indexOf(value);
             const expected = values.indexOf(value);
-            try {
-                expect(actual).toEqual(expected);
-            } catch(e) { console.log(i); debugger; throw e; }
+            expect(actual).toEqual(expected);
         }
     });
 }
