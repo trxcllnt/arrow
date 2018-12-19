@@ -91,7 +91,6 @@ export interface SetVisitor extends Visitor {
 export class SetVisitor extends Visitor {
 }
 
-const setEpochMsToSeconds = (data: Int32Array, index: number, epochMs: number) => { data[index] = (epochMs / 1000) | 0; }
 const setEpochMsToDays = (data: Int32Array, index: number, epochMs: number) => { data[index] = (epochMs / 86400000) | 0; };
 const setEpochMsToMillisecondsLong = (data: Int32Array, index: number, epochMs: number) => {
     data[index] = (epochMs % 4294967296) | 0;
@@ -153,7 +152,7 @@ const getDate = <T extends Date_> (vector: Vector<T>, index: number, value: T['T
         : setDateMillisecond(vector, index, value)
 };
 
-const setTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToSeconds(values, index * 2, value);
+const setTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToMillisecondsLong(values, index * 2, value / 1000);
 const setTimestampMillisecond = <T extends TimestampMillisecond>({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToMillisecondsLong(values, index * 2, value);
 const setTimestampMicrosecond = <T extends TimestampMicrosecond>({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToMicrosecondsLong(values, index * 2, value);
 const setTimestampNanosecond  = <T extends TimestampNanosecond> ({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToNanosecondsLong(values, index * 2, value);
@@ -211,13 +210,13 @@ const setUnion = <
 
 const setDenseUnion = <T extends DenseUnion>(vector: Vector<T>, index: number, value: T['TValue']): void => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
-    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
+    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index]]);
     child && child.set(vector.valueOffsets[index], value);
 };
 
 const setSparseUnion = <T extends SparseUnion>(vector: Vector<T>, index: number, value: T['TValue']): void => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
-    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
+    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index]]);
     child && child.set(index, value);
 };
 

@@ -90,7 +90,6 @@ export interface GetVisitor extends Visitor {
 
 export class GetVisitor extends Visitor {}
 
-const epochSecondsToMs = (data: Int32Array, index: number) => 1000 * data[index];
 const epochDaysToMs = (data: Int32Array, index: number) => 86400000 * data[index];
 const epochMillisecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1]) + (data[index] >>> 0);
 const epochMicrosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000) + ((data[index] >>> 0) / 1000);
@@ -148,7 +147,7 @@ const getDate = <T extends Date_> (vector: Vector<T>, index: number): T['TValue'
         : getDateMillisecond(vector as any, index)
 );
 
-const getTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vector<T>, index: number): T['TValue'] => epochSecondsToMs(values, index * 2);
+const getTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vector<T>, index: number): T['TValue'] => 1000 * epochMillisecondsLongToMs(values, index * 2);
 const getTimestampMillisecond = <T extends TimestampMillisecond>({ values }: Vector<T>, index: number): T['TValue'] => epochMillisecondsLongToMs(values, index * 2);
 const getTimestampMicrosecond = <T extends TimestampMicrosecond>({ values }: Vector<T>, index: number): T['TValue'] => epochMicrosecondsLongToMs(values, index * 2);
 const getTimestampNanosecond  = <T extends TimestampNanosecond> ({ values }: Vector<T>, index: number): T['TValue'] => epochNanosecondsLongToMs(values, index * 2);
@@ -163,8 +162,8 @@ const getTimestamp            = <T extends Timestamp>(vector: Vector<T>, index: 
 
 const getTimeSecond      = <T extends TimeSecond>     ({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
 const getTimeMillisecond = <T extends TimeMillisecond>({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
-const getTimeMicrosecond = <T extends TimeMicrosecond>({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * index + 1);
-const getTimeNanosecond  = <T extends TimeNanosecond> ({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * index + 1);
+const getTimeMicrosecond = <T extends TimeMicrosecond>({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
+const getTimeNanosecond  = <T extends TimeNanosecond> ({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
 const getTime            = <T extends Time>(vector: Vector<T>, index: number): T['TValue'] => {
     switch (vector.type.unit) {
         case TimeUnit.SECOND:      return      getTimeSecond(vector as Vector<TimeSecond>, index);
@@ -198,13 +197,13 @@ const getUnion = <
 
 const getDenseUnion = <T extends DenseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
-    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
+    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index]]);
     return child ? child.get(vector.valueOffsets[index]) : null;
 };
 
 const getSparseUnion = <T extends SparseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
-    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index] as Type]);
+    const child = vector.getChildAt(typeIdToChildIndex[typeIds[index]]);
     return child ? child.get(index) : null;
 };
 
@@ -217,7 +216,7 @@ const getInterval = <T extends Interval>(vector: Vector<T>, index: number): T['T
         ? getIntervalDayTime(vector as any, index)
         : getIntervalYearMonth(vector as any, index);
 
-const getIntervalDayTime = <T extends IntervalDayTime>({ values }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * index + 1);
+const getIntervalDayTime = <T extends IntervalDayTime>({ values }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
 
 const getIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>, index: number): T['TValue'] => {
     const interval = values[index];
