@@ -22,7 +22,7 @@ module.exports = {
       "lcov"
     ],
     "coveragePathIgnorePatterns": [
-      "fb\\/(File|Message|Schema|Tensor)_generated\\.(js|ts)$",
+      "fb\\/(File|Message|Schema|Tensor)\\.(js|ts)$",
       "test\\/.*\\.(ts|tsx|js)$",
       "/node_modules/"
     ],

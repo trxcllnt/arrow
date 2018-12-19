@@ -35,7 +35,7 @@
                 "TEST_TS_SOURCE": "true",
                 // "TEST_TS_SOURCE": "false",
                 // "TEST_TARGET": "es5",
-                // "TEST_MODULE": "cjs"
+                // "TEST_MODULE": "umd"
             },
             "args": [
                 // "-i",
@@ -45,6 +45,7 @@
                 // Uncomment any of these to run individual test suites
                 // "test/unit/int-tests.ts",
                 // "test/unit/table-tests.ts",
+                // "test/unit/generate-tests.ts",
 
                 // "test/unit/vector/vector-tests.ts",
                 // "test/unit/vector/bool-vector-tests.ts",
