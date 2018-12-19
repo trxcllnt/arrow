@@ -128,65 +128,66 @@ const defaultUnionChildren = [
     new Field('union[2]', new Map_(defaultStructChildren))
 ];
 
-export const table = (lengths = [100], schema: Schema = new Schema(defaultRecordBatchChildren)) => new Table(schema, lengths.map((length) => recordBatch(length, schema)));
-export const recordBatch = (length = 100, schema: Schema = new Schema(defaultRecordBatchChildren)) => new RecordBatch(schema, length, schema.fields.map((f) => vectorGenerator.visit(f.type, length)));
+export const table = (lengths = [100], schema: Schema = new Schema(defaultRecordBatchChildren.slice())) => new Table(schema, lengths.map((length) => recordBatch(length, schema)));
+export const recordBatch = (length = 100, schema: Schema = new Schema(defaultRecordBatchChildren.slice())) => new RecordBatch(schema, length, schema.fields.map((f) => vectorGenerator.visit(f.type, length)));
 export const null_ = (length = 100) => vectorGenerator.visit(new Null(), length);
-export const bool = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Bool(), length, nullCount);
-export const int8 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Int8(), length, nullCount);
-export const int16 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Int16(), length, nullCount);
-export const int32 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Int32(), length, nullCount);
-export const int64 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Int64(), length, nullCount);
-export const uint8 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Uint8(), length, nullCount);
-export const uint16 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Uint16(), length, nullCount);
-export const uint32 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Uint32(), length, nullCount);
-export const uint64 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Uint64(), length, nullCount);
-export const float16 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Float16(), length, nullCount);
-export const float32 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Float32(), length, nullCount);
-export const float64 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Float64(), length, nullCount);
-export const utf8 = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Utf8(), length, nullCount);
-export const binary = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new Binary(), length, nullCount);
-export const fixedSizeBinary = (length = 100, nullCount = length * 0.2, byteWidth = 8) => vectorGenerator.visit(new FixedSizeBinary(byteWidth), length, nullCount);
-export const dateDay = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new DateDay(), length, nullCount);
-export const dateMillisecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new DateMillisecond(), length, nullCount);
-export const timestampSecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimestampSecond(), length, nullCount);
-export const timestampMillisecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimestampMillisecond(), length, nullCount);
-export const timestampMicrosecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimestampMicrosecond(), length, nullCount);
-export const timestampNanosecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimestampNanosecond(), length, nullCount);
-export const timeSecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimeSecond(), length, nullCount);
-export const timeMillisecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimeMillisecond(), length, nullCount);
-export const timeMicrosecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimeMicrosecond(), length, nullCount);
-export const timeNanosecond = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new TimeNanosecond(), length, nullCount);
-export const decimal = (length = 100, nullCount = length * 0.2, scale = 2, precision = 9) => vectorGenerator.visit(new Decimal(scale, precision), length, nullCount);
-export const list = (length = 100, nullCount = length * 0.2, child = defaultListChild) => vectorGenerator.visit(new List(child), length, nullCount);
-export const struct = (length = 100, nullCount = length * 0.2, children: Field[] = defaultStructChildren) => vectorGenerator.visit(new Struct(children), length, nullCount);
-export const denseUnion = (length = 100, nullCount = length * 0.2, children: Field[] = defaultUnionChildren) => vectorGenerator.visit(new DenseUnion(children.map((f) => f.typeId), children), length, nullCount);
-export const sparseUnion = (length = 100, nullCount = length * 0.2, children: Field[] = defaultUnionChildren) => vectorGenerator.visit(new SparseUnion(children.map((f) => f.typeId), children), length, nullCount);
-export const dictionary = (length = 100, nullCount = length * 0.2, dict: DataType = new Utf8(), keys: Int = new Int32()) => vectorGenerator.visit(new Dictionary(dict, <any> keys), length, nullCount);
-export const intervalDayTime = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new IntervalDayTime(), length, nullCount);
-export const intervalYearMonth = (length = 100, nullCount = length * 0.2) => vectorGenerator.visit(new IntervalYearMonth(), length, nullCount);
-export const fixedSizeList = (length = 100, nullCount = length * 0.2, listSize = 2, child = defaultListChild) => vectorGenerator.visit(new FixedSizeList(listSize, child), length, nullCount);
-export const map = (length = 100, nullCount = length * 0.2, children: Field[] = defaultStructChildren) => vectorGenerator.visit(new Map_(children), length, nullCount);
+export const bool = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Bool(), length, nullCount);
+export const int8 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Int8(), length, nullCount);
+export const int16 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Int16(), length, nullCount);
+export const int32 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Int32(), length, nullCount);
+export const int64 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Int64(), length, nullCount);
+export const uint8 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Uint8(), length, nullCount);
+export const uint16 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Uint16(), length, nullCount);
+export const uint32 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Uint32(), length, nullCount);
+export const uint64 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Uint64(), length, nullCount);
+export const float16 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Float16(), length, nullCount);
+export const float32 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Float32(), length, nullCount);
+export const float64 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Float64(), length, nullCount);
+export const utf8 = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Utf8(), length, nullCount);
+export const binary = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new Binary(), length, nullCount);
+export const fixedSizeBinary = (length = 100, nullCount = length * 0.2 | 0, byteWidth = 8) => vectorGenerator.visit(new FixedSizeBinary(byteWidth), length, nullCount);
+export const dateDay = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new DateDay(), length, nullCount);
+export const dateMillisecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new DateMillisecond(), length, nullCount);
+export const timestampSecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimestampSecond(), length, nullCount);
+export const timestampMillisecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimestampMillisecond(), length, nullCount);
+export const timestampMicrosecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimestampMicrosecond(), length, nullCount);
+export const timestampNanosecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimestampNanosecond(), length, nullCount);
+export const timeSecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimeSecond(), length, nullCount);
+export const timeMillisecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimeMillisecond(), length, nullCount);
+export const timeMicrosecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimeMicrosecond(), length, nullCount);
+export const timeNanosecond = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new TimeNanosecond(), length, nullCount);
+export const decimal = (length = 100, nullCount = length * 0.2 | 0, scale = 2, precision = 9) => vectorGenerator.visit(new Decimal(scale, precision), length, nullCount);
+export const list = (length = 100, nullCount = length * 0.2 | 0, child = defaultListChild) => vectorGenerator.visit(new List(child), length, nullCount);
+export const struct = (length = 100, nullCount = length * 0.2 | 0, children: Field[] = defaultStructChildren.slice()) => vectorGenerator.visit(new Struct(children), length, nullCount);
+export const denseUnion = (length = 100, nullCount = length * 0.2 | 0, children: Field[] = defaultUnionChildren.slice()) => vectorGenerator.visit(new DenseUnion(children.map((f) => f.typeId), children), length, nullCount);
+export const sparseUnion = (length = 100, nullCount = length * 0.2 | 0, children: Field[] = defaultUnionChildren.slice()) => vectorGenerator.visit(new SparseUnion(children.map((f) => f.typeId), children), length, nullCount);
+export const dictionary = (length = 100, nullCount = length * 0.2 | 0, dict: DataType = new Utf8(), keys: Int = new Int32()) => vectorGenerator.visit(new Dictionary(dict, <any> keys), length, nullCount);
+export const intervalDayTime = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new IntervalDayTime(), length, nullCount);
+export const intervalYearMonth = (length = 100, nullCount = length * 0.2 | 0) => vectorGenerator.visit(new IntervalYearMonth(), length, nullCount);
+export const fixedSizeList = (length = 100, nullCount = length * 0.2 | 0, listSize = 2, child = defaultListChild) => vectorGenerator.visit(new FixedSizeList(listSize, child), length, nullCount);
+export const map = (length = 100, nullCount = length * 0.2 | 0, children: Field[] = defaultStructChildren.slice()) => vectorGenerator.visit(new Map_(children), length, nullCount);
 
 function generateNull<T extends Null>(this: TestDataVectorGenerator, type: T, length = 100) {
     return Vector.new(Data.Null(type, 0, length, 0, null));
 }
 
-function generateBool<T extends Bool>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateBool<T extends Bool>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const data = createBitmap(length, 0);
     const nullBitmap = createBitmap(length, nullCount);
     iterateBitmap(length, nullBitmap, (i, valid) => !valid && (data[i >> 3] &= ~(1 << (i % 8))));
     return Vector.new(Data.Bool(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateInt<T extends Int>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateInt<T extends Int>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const ArrayType = type.ArrayType;
-    const data = fillRandom(ArrayType as any, length);
+    const stride = 1 + Number(type.bitWidth > 32);
     const nullBitmap = createBitmap(length, nullCount);
+    const data = fillRandom(ArrayType as any, length * stride);
     iterateBitmap(length, nullBitmap, (i, valid) => !valid && (data[i] = 0));
     return Vector.new(Data.Int(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateFloat<T extends Float>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateFloat<T extends Float>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const ArrayType = type.ArrayType;
     const data = fillRandom(ArrayType as any, length);
     const nullBitmap = createBitmap(length, nullCount);
@@ -194,27 +195,27 @@ function generateFloat<T extends Float>(this: TestDataVectorGenerator, type: T, 
     return Vector.new(Data.Float(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateUtf8<T extends Utf8>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateUtf8<T extends Utf8>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const nullBitmap = createBitmap(length, nullCount);
     const offsets = createVariableWidthOffsets(length, nullBitmap);
     const data = createVariableWidthBytes(length, nullBitmap, offsets, randomString);
     return Vector.new(Data.Utf8(type, 0, length, nullCount, nullBitmap, offsets, data));
 }
 
-function generateBinary<T extends Binary>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateBinary<T extends Binary>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const nullBitmap = createBitmap(length, nullCount);
     const offsets = createVariableWidthOffsets(length, nullBitmap);
     const data = createVariableWidthBytes(length, nullBitmap, offsets, randomBytes);
     return Vector.new(Data.Binary(type, 0, length, nullCount, nullBitmap, offsets, data));
 }
 
-function generateFixedSizeBinary<T extends FixedSizeBinary>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateFixedSizeBinary<T extends FixedSizeBinary>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const nullBitmap = createBitmap(length, nullCount);
     const data = fillRandom(Uint8Array, length * type.byteWidth);
     return Vector.new(Data.FixedSizeBinary(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateDate<T extends Date_>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateDate<T extends Date_>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const nullBitmap = createBitmap(length, nullCount);
     const data = type.unit === DateUnit.DAY
         ? createDate32(length, nullBitmap)
@@ -222,7 +223,7 @@ function generateDate<T extends Date_>(this: TestDataVectorGenerator, type: T, l
     return Vector.new(Data.Date(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateTimestamp<T extends Timestamp>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateTimestamp<T extends Timestamp>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const nullBitmap = createBitmap(length, nullCount);
     const multiple = type.unit === TimeUnit.NANOSECOND ? 1000000000 :
                      type.unit === TimeUnit.MICROSECOND ? 1000000 :
@@ -231,7 +232,7 @@ function generateTimestamp<T extends Timestamp>(this: TestDataVectorGenerator, t
     return Vector.new(Data.Timestamp(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateTime<T extends Time>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateTime<T extends Time>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const nullBitmap = createBitmap(length, nullCount);
     const multiple = type.unit === TimeUnit.NANOSECOND ? 1000000000 :
                      type.unit === TimeUnit.MICROSECOND ? 1000000 :
@@ -242,7 +243,7 @@ function generateTime<T extends Time>(this: TestDataVectorGenerator, type: T, le
     return Vector.new(Data.Time(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateDecimal<T extends Decimal>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
+function generateDecimal<T extends Decimal>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const data = fillRandom(Uint32Array, length * 4);
     const nullBitmap = createBitmap(length, nullCount);
     const view = new DataView(data.buffer, 0, data.byteLength);
@@ -255,32 +256,35 @@ function generateDecimal<T extends Decimal>(this: TestDataVectorGenerator, type:
     return Vector.new(Data.Decimal(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateInterval<T extends Interval>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2) {
-    const data = fillRandom(Int32Array, length);
+function generateInterval<T extends Interval>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0) {
     const nullBitmap = createBitmap(length, nullCount);
+    const data = fillRandom(Int32Array, length * (1 + type.unit));
     return Vector.new(Data.Interval(type, 0, length, nullCount, nullBitmap, data));
 }
 
-function generateList<T extends List>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2, child = this.visit(type.children[0].type)) {
+function generateList<T extends List>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0, child = this.visit(type.children[0].type)) {
     const nullBitmap = createBitmap(length, nullCount);
     const offsets = createVariableWidthOffsets(length, nullBitmap, child.length);
     return Vector.new(Data.List(type, 0, length, nullCount, nullBitmap, offsets, child));
 }
 
-function generateFixedSizeList<T extends FixedSizeList>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2, child = this.visit(type.children[0].type, length * type.listSize)) {
+function generateFixedSizeList<T extends FixedSizeList>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0, child = this.visit(type.children[0].type, length * type.listSize)) {
     const nullBitmap = createBitmap(length, nullCount);
     return Vector.new(Data.FixedSizeList(type, 0, length, nullCount, nullBitmap, child));
 }
 
-function generateDictionary<T extends Dictionary>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2, dictionary = type.dictionaryVector || this.visit(type.dictionary, length, 0)) {
-    type.dictionaryVector = dictionary;
+function generateDictionary<T extends Dictionary>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0, dictionary = type.dictionaryVector || this.visit(type.dictionary, length, 0)) {
+    if (type.dictionaryVector !== dictionary) {
+        type.dictionaryVector = !type.dictionaryVector ? dictionary : type.dictionaryVector.concat(dictionary);
+    }
+    const maxIdx = type.dictionaryVector.length - 1;
     const keys = new type.indices.ArrayType(length);
     const nullBitmap = createBitmap(length, nullCount);
-    iterateBitmap(length, nullBitmap, (i, valid) => keys[i] = valid ? rand() * length : 0);
+    iterateBitmap(length, nullBitmap, (i, valid) => keys[i] = valid ? rand() * maxIdx : 0);
     return Vector.new(Data.Dictionary(type, 0, length, nullCount, nullBitmap, keys));
 }
 
-function generateUnion<T extends Union>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2, children?: Vector<any>[]) {
+function generateUnion<T extends Union>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0, children?: Vector<any>[]) {
 
     const numChildren = type.children.length;
 
@@ -314,12 +318,12 @@ function generateUnion<T extends Union>(this: TestDataVectorGenerator, type: T, 
     return Vector.new(Data.Union(type, 0, length, nullCount, nullBitmap, typeIdsBuffer, offsets, children));
 }
 
-function generateStruct<T extends Struct>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2, children = type.children.map((f) => this.visit(f.type, length))) {
+function generateStruct<T extends Struct>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0, children = type.children.map((f) => this.visit(f.type, length))) {
     const nullBitmap = createBitmap(length, nullCount);
     return Vector.new(Data.Struct(type, 0, length, nullCount, nullBitmap, children));
 }
 
-function generateMap<T extends Map_>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2, children = type.children.map((f) => this.visit(f.type, length))) {
+function generateMap<T extends Map_>(this: TestDataVectorGenerator, type: T, length = 100, nullCount = length * 0.2 | 0, children = type.children.map((f) => this.visit(f.type, length))) {
     const nullBitmap = createBitmap(length, nullCount);
     return Vector.new(Data.Map(type, 0, length, nullCount, nullBitmap, children));
 }
@@ -364,7 +368,7 @@ function iterateBitmap(length: number, bitmap: Uint8Array, fn: (index: number, v
 
 function createBitmap(length: number, nullCount: number) {
     const nulls = Object.create(null) as { [key: number]: boolean };
-    const bytes = new Uint8Array(((length >> 3) + 7) & ~7).fill(255);
+    const bytes = new Uint8Array((((length >> 3) + 7) & ~7) || 8).fill(255);
     for (let i, j = -1; ++j < nullCount;) {
         while (nulls[i = (rand() * length) | 0]);
         nulls[i] = true;
