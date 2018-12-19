@@ -109,6 +109,8 @@ BaseVector.prototype[Symbol.iterator] = function baseVectorSymbolIterator<T exte
     return iteratorVisitor.visit(this);
 };
 
+(BaseVector.prototype as any)._bindDataAccessors = bindBaseVectorDataAccessors;
+
 // Perf: bind and assign the operator Visitor methods to each of the Vector subclasses for each Type
 (Object.keys(Type) as any[])
     .filter((typeId) => typeId !== Type.NONE && typeId !== Type[Type.NONE])
@@ -148,6 +150,10 @@ function partial2<T>(visit: (node: T, a: any, b: any) => any) {
     return function(this: T, a: any, b: any) { return visit(this, a, b); };
 }
 
+function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: number) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
+    return function(this: V, i: number) { return this.isValid(i) ? fn.call(this, i) : null; };
+}
+
 function wrapNullableSet<T extends DataType, V extends BaseVector<T>, F extends (i: number, a: any) => void>(fn: F): (...args: Parameters<F>) => void {
     return function(this: V, i: number, a: any) {
         if (setBool(this.nullBitmap, this.offset + i, a != null)) {
@@ -165,7 +171,7 @@ function bindBaseVectorDataAccessors<T extends DataType>(this: BaseVector<T>, da
     this['toArray'] = toArrayVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
     this[Symbol.iterator] = iteratorVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
     if (this.nullCount > 0) {
+        this['get'] = wrapNullable1(this['get']);
         this['set'] = wrapNullableSet(this['set']);
     }
-    (Vector.prototype as any).bindDataAccessors.call(this, data);
 }

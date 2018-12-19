@@ -99,12 +99,6 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
 
     // @ts-ignore
     protected _bindDataAccessors(data: Data<T>) {
-        if (this.nullCount > 0) {
-            this['get'] && (this['get'] = wrapNullable1(this['get']));
-        }
+        // Implementation in src/vectors/index.ts due to circular dependency/packaging shenanigans
     }
-}
-
-function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: number) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
-    return function(this: V, i: number) { return this.isValid(i) ? fn.call(this, i) : null; };
 }
