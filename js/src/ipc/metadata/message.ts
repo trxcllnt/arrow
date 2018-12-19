@@ -490,7 +490,7 @@ function encodeField(b: Builder, field: Field) {
     if (!DataType.isDictionary(type)) {
         typeOffset = typeAssembler.visit(type, b)!;
     } else {
-        typeId = type.dictionary.TType;
+        typeId = type.dictionary.typeId;
         dictionaryOffset = typeAssembler.visit(type, b)!;
         typeOffset = typeAssembler.visit(type.dictionary, b)!;
     }

@@ -91,7 +91,7 @@ function arrayOfVector<T extends DataType>(vector: Vector<T>): T['TArray'] {
     const { type, length, stride } = vector;
 
     // Fast case, return subarray if possible
-    switch (type.TType) {
+    switch (type.typeId) {
         case Type.Int: case Type.Decimal:
         case Type.Time: case Type.Timestamp:
             return vector.values.subarray(0, length * stride);

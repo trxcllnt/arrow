@@ -54,14 +54,11 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         this._numChildren = (this._type.children || []).length;
     }
 
-    protected _bindDataAccessors() { /* do nothing */ }
-
     public get type() { return this._type; }
     public get length() { return this._length; }
     public get chunks() { return this._chunks; }
-    public get TType() { return this._type.TType; }
-    public get TArray() { return this._type.TArray; }
-    public get TValue() { return this._type.TValue; }
+    public get typeId() { return this._type.typeId; }
+
     public get ArrayType() { return this._type.ArrayType; }
     public get numChildren() { return this._numChildren; }
 
@@ -88,7 +85,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
 
     public getChildAt<R extends DataType = any>(index: number): ChunkedVector<R> | null {
 
-        if (index < 0 || index >= this.numChildren) { return null; }
+        if (index < 0 || index >= this._numChildren) { return null; }
 
         let columns = this._children || (this._children = []);
         let child: ChunkedVector<R>, field: Field<R>, chunks: Vector<R>[];
@@ -171,17 +168,17 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         return clampRange(this, begin, end, this.sliceInternal);
     }
 
-    protected getInternal({ chunks }: ChunkedVector<T>, i: number, j: number) { return chunks[i].get(j); }
-    protected isValidInternal({ chunks }: ChunkedVector<T>, i: number, j: number) { return chunks[i].isValid(j); }
-    protected indexOfInternal({ chunks }: ChunkedVector<T>, chunkIndex: number, fromIndex: number, element: T['TValue']) {
-        let i = chunkIndex - 1, n = chunks.length;
+    protected getInternal({ _chunks }: ChunkedVector<T>, i: number, j: number) { return _chunks[i].get(j); }
+    protected isValidInternal({ _chunks }: ChunkedVector<T>, i: number, j: number) { return _chunks[i].isValid(j); }
+    protected indexOfInternal({ _chunks }: ChunkedVector<T>, chunkIndex: number, fromIndex: number, element: T['TValue']) {
+        let i = chunkIndex - 1, n = _chunks.length;
         let start = fromIndex, offset = 0, found = -1;
         while (++i < n) {
-            if (~(found = chunks[i].indexOf(element, start))) {
+            if (~(found = _chunks[i].indexOf(element, start))) {
                 return offset + found;
             }
             start = 0;
-            offset += chunks[i].length;
+            offset += _chunks[i].length;
         }
         return -1;
     }

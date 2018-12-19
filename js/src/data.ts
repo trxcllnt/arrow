@@ -19,7 +19,7 @@ import { DataType } from './type';
 import { Vector } from './vector';
 import { popcnt_bit_range } from './util/bit';
 import { toArrayBufferView } from './util/buffer';
-import { Type, VectorType as BufferType, UnionMode } from './enum';
+import { VectorType as BufferType, UnionMode } from './enum';
 import {
     Dictionary,
     Null, Int, Float,
@@ -47,6 +47,12 @@ export interface Buffers<T extends DataType> {
         [BufferType.TYPE]?: T['TArray'];
 }
 
+export interface Data<T extends DataType = DataType> {
+    readonly TType: T['TType'];
+    readonly TArray: T['TArray'];
+    readonly TValue: T['TValue'];
+}
+
 export class Data<T extends DataType = DataType> {
 
     protected _type: T;
@@ -61,12 +67,10 @@ export class Data<T extends DataType = DataType> {
     public get type() { return this._type; }
     public get length() { return this._length; }
     public get offset() { return this._offset; }
+    public get typeId() { return this._type.typeId; }
     public get childData() { return this._childData; }
 
-    public get TType() { return this.type.TType; }
-    public get TArray() { return this.type.TArray; }
-    public get TValue() { return this.type.TValue; }
-    public get ArrayType() { return this.type.ArrayType; }
+    public get ArrayType() { return this._type.ArrayType; }
 
     public get values() { return this._buffers[BufferType.DATA]!; }
     public get typeIds() { return this._buffers[BufferType.TYPE]!; }
@@ -75,8 +79,8 @@ export class Data<T extends DataType = DataType> {
     public get nullCount() {
         let nullCount = this._nullCount;
         let nullBitmap: Uint8Array | undefined;
-        if (nullCount === kUnknownNullCount && (nullBitmap = this.nullBitmap)) {
-            this._nullCount = nullCount = this.length - popcnt_bit_range(nullBitmap, this.offset, this.offset + this.length);
+        if (nullCount === kUnknownNullCount && (nullBitmap = this._buffers[BufferType.VALIDITY])) {
+            this._nullCount = nullCount = this._length - popcnt_bit_range(nullBitmap, this._offset, this._offset + this._length);
         }
         return nullCount;
     }
@@ -90,7 +94,7 @@ export class Data<T extends DataType = DataType> {
         this._childData = (childData || []).map((x) => x instanceof Data ? x : x.data) as Data[];
     }
 
-    public clone<R extends DataType>(type: R, offset = this.offset, length = this.length, nullCount = this._nullCount, buffers: Buffers<R> = <any> this._buffers, childData: (Data | Vector)[] = this.childData) {
+    public clone<R extends DataType>(type: R, offset = this._offset, length = this._length, nullCount = this._nullCount, buffers: Buffers<R> = <any> this._buffers, childData: (Data | Vector)[] = this._childData) {
         return new Data(type, offset, length, nullCount, buffers, childData);
     }
 
@@ -101,7 +105,7 @@ export class Data<T extends DataType = DataType> {
         const nullCount = +(this._nullCount === 0) - 1;
         const buffers = this.sliceBuffers(offset, length);
         const childData = this.sliceChildren(offset, length);
-        return this.clone<T>(this.type, this.offset + offset, length, nullCount, buffers, childData);
+        return this.clone<T>(this._type, this._offset + offset, length, nullCount, buffers, childData);
     }
 
     protected sliceBuffers(offset: number, length: number): Buffers<T> {
@@ -117,15 +121,15 @@ export class Data<T extends DataType = DataType> {
 
     protected sliceChildren(offset: number, length: number): Data[] {
         // Only slice children if this isn't variable width data
-        if (!this.valueOffsets) {
-            return this.childData.map((child) => child.slice(offset, length));
+        if (!this._buffers[BufferType.OFFSET]) {
+            return this._childData.map((child) => child.slice(offset, length));
         }
-        return this.childData;
+        return this._childData;
     }
 
     protected sliceData(data: T['TArray'] & ArrayBufferView, offset: number, length: number) {
         // Don't slice the data vector for Booleans, since the offset goes by bits not bytes
-        return this.type.TType === Type.Bool ? data : data.subarray(offset, offset + length);
+        return this._type.typeId === 6 ? data : data.subarray(offset, offset + length);
     }
 
     protected sliceOffsets(valueOffsets: Int32Array, offset: number, length: number) {

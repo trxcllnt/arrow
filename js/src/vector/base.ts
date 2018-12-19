@@ -42,13 +42,12 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
     public get numChildren() { return this._numChildren; }
 
     public get type() { return this.data.type; }
+    public get typeId() { return this.data.typeId as T['TType']; }
     public get length() { return this.data.length; }
     public get offset() { return this.data.offset; }
     public get nullCount() { return this.data.nullCount; }
     public get VectorName() { return this.constructor.name; }
-    public get TType(): T['TType'] { return this.data.TType; }
-    public get TArray(): T['TArray'] { return this.data.TArray; }
-    public get TValue(): T['TValue'] { return this.data.TValue; }
+
     public get ArrayType(): T['ArrayType'] { return this.data.ArrayType; }
 
     public get values() { return this.data.values; }
@@ -97,4 +96,15 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
         const stride = vector.stride;
         return vector.clone(vector.data.slice(offset * stride, (length - offset) * stride));
     }
+
+    // @ts-ignore
+    protected _bindDataAccessors(data: Data<T>) {
+        if (this.nullCount > 0) {
+            this['get'] && (this['get'] = wrapNullable1(this['get']));
+        }
+    }
+}
+
+function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: number) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
+    return function(this: V, i: number) { return this.isValid(i) ? fn.call(this, i) : null; };
 }

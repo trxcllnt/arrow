@@ -35,6 +35,7 @@ export class DictionaryVector<T extends DataType = any, TKey extends TKeys = TKe
         super(data, void 0, 1);
         this._indices = Vector.new(data.clone(this.type.indices));
     }
+    protected _bindDataAccessors() {}
     public get indices() { return this._indices; }
     public get dictionary() { return this.type.dictionaryVector; }
     public getKey(index: number): TKey['TValue'] | null { return this.indices.get(index); }

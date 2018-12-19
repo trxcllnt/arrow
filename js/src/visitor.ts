@@ -110,7 +110,7 @@ function getVisitFn<T extends DataType>(visitor: Visitor, node: any, throwIfNotF
 }
 
 function inferDType<T extends DataType>(type: T): Type {
-    switch (type.TType) {
+    switch (type.typeId) {
         case Type.Null: return Type.Null;
         case Type.Int:
             const { bitWidth, isSigned } = (type as any as Int);
@@ -173,7 +173,7 @@ function inferDType<T extends DataType>(type: T): Type {
         case Type.FixedSizeList: return Type.FixedSizeList;
         case Type.Dictionary: return Type.Dictionary;
     }
-    throw new Error(`Unrecognized type '${Type[type.TType]}'`);
+    throw new Error(`Unrecognized type '${Type[type.typeId]}'`);
 }
 
 export interface Visitor {

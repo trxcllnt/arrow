@@ -21,7 +21,7 @@ import { Time, TimeSecond, TimeMillisecond, TimeMicrosecond, TimeNanosecond } fr
 
 export class TimeVector<T extends Time = Time> extends BaseVector<T> {
     constructor(data: Data<T>) {
-        super(data, undefined, data.type.bitWidth <= 32 ? 1 : 2);
+        super(data, undefined, 1 + Number(data.type.bitWidth > 32));
     }
 }
 export class TimeSecondVector extends TimeVector<TimeSecond> {}

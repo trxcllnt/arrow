@@ -58,8 +58,9 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     }
 
     public get schema() { return this._schema; }
-    public get type() { return this.impl.type; }
     public get data() { return this.impl.data; }
+    public get type() { return this.impl.type; }
+    public get typeId() { return this.impl.typeId; }
     public get length() { return this.impl.length; }
     public get stride() { return this.impl.stride; }
     public get numCols() { return this.schema.fields.length; }
@@ -67,9 +68,6 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
     public get nullCount() { return this.impl.nullCount; }
     public get numChildren() { return this.impl.numChildren; }
 
-    public get TType() { return this.impl.TType; }
-    public get TArray() { return this.impl.TArray; }
-    public get TValue() { return this.impl.TValue; }
     public get ArrayType() { return this.impl.ArrayType; }
 
     public get(index: number): Struct<T>['TValue'] | null {

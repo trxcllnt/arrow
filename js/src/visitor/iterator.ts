@@ -103,14 +103,14 @@ function vectorIterator<T extends DataType>(vector: Vector<T>): IterableIterator
         return nullableIterator<T>(vector);
     }
 
-    const { type, length } = vector;
+    const { type, typeId, length } = vector;
 
     // Fast case, defer to native iterators if possible
     if (vector.stride === 1 && (
-        (type.TType === Type.Timestamp) ||
-        (type.TType === Type.Int && (type as Int).bitWidth !== 64) ||
-        (type.TType === Type.Time && (type as Time).bitWidth !== 64) ||
-        (type.TType === Type.Float && (type as Float).precision > 0 /* Precision.HALF */)
+        (typeId === Type.Timestamp) ||
+        (typeId === Type.Int && (type as Int).bitWidth !== 64) ||
+        (typeId === Type.Time && (type as Time).bitWidth !== 64) ||
+        (typeId === Type.Float && (type as Float).precision > 0 /* Precision.HALF */)
     )) {
         return vector.values.subarray(0, length)[Symbol.iterator]();
     }
