@@ -19,6 +19,7 @@ import { flatbuffers } from 'flatbuffers';
 import ByteBuffer = flatbuffers.ByteBuffer;
 import { ArrayBufferViewConstructor } from '../interfaces';
 import { isPromise, isIterable, isAsyncIterable, isIteratorResult } from './compat';
+const SharedArrayBuf = (typeof SharedArrayBuffer !== 'undefined' ? SharedArrayBuffer : ArrayBuffer);
 
 function collapseContiguousByteRanges(chunks: Uint8Array[]) {
     for (let x, y, i = 0; ++i < chunks.length;) {
@@ -88,7 +89,7 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
     if (typeof value === 'string') { value = decodeUtf8(value); }
     if (value instanceof ArrayBufferViewCtor) { return value; }
     if (value instanceof ArrayBuffer) { return new ArrayBufferViewCtor(value); }
-    if (value instanceof SharedArrayBuffer) { return new ArrayBufferViewCtor(value); }
+    if (value instanceof SharedArrayBuf) { return new ArrayBufferViewCtor(value); }
     if (value instanceof ByteBuffer) { return toArrayBufferView(ArrayBufferViewCtor, value.bytes()); }
     return !ArrayBuffer.isView(value) ? ArrayBufferViewCtor.from(value) : value.byteLength <= 0 ? new ArrayBufferViewCtor(0)
         : new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength / ArrayBufferViewCtor.BYTES_PER_ELEMENT);
@@ -116,7 +117,7 @@ export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor:
                    (typeof source === 'string') ? wrap(source)
                  : (ArrayBuffer.isView(source)) ? wrap(source)
               : (source instanceof ArrayBuffer) ? wrap(source)
-        : (source instanceof SharedArrayBuffer) ? wrap(source)
+           : (source instanceof SharedArrayBuf) ? wrap(source)
     : !isIterable<ArrayBufferViewInput>(source) ? wrap(source) : source;
 
     yield* pump((function* (it) {
@@ -161,7 +162,7 @@ export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>
                         (typeof source === 'string') ? wrap(source) // if string, wrap in an AsyncIterableIterator
                       : (ArrayBuffer.isView(source)) ? wrap(source) // if TypedArray, wrap in an AsyncIterableIterator
                    : (source instanceof ArrayBuffer) ? wrap(source) // if ArrayBuffer, wrap in an AsyncIterableIterator
-             : (source instanceof SharedArrayBuffer) ? wrap(source) // if SharedArrayBuffer, wrap in an AsyncIterableIterator
+                : (source instanceof SharedArrayBuf) ? wrap(source) // if SharedArrayBuffer, wrap in an AsyncIterableIterator
           : isIterable<ArrayBufferViewInput>(source) ? emit(source) // If Iterable, wrap in an AsyncIterableIterator and compose the `next` values
     : !isAsyncIterable<ArrayBufferViewInput>(source) ? wrap(source) // If not an AsyncIterable, treat as a sentinel and wrap in an AsyncIterableIterator
                                                      : source; // otherwise if AsyncIterable, use it
