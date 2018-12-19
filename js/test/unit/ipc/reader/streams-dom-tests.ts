@@ -3,27 +3,34 @@
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
 // to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
+// 'License'); you may not use this file except in compliance
 // with the License.  You may obtain a copy of the License at
 //
 //   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing,
 // software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
 
 import * as fs from 'fs';
 import * as Path from 'path';
+import * as generate from '../../../test-data';
 import {
     nodeToDOMStream,
     convertNodeToDOMStream,
     readableDOMStreamToAsyncIterator
 } from '../util';
 
-import { Schema, RecordBatchReader } from '../../../Arrow';
+import {
+    Table,
+    Schema, Field,
+    RecordBatchReader,
+    RecordBatchStreamWriter
+} from '../../../Arrow';
+
 import {
     testSimpleAsyncRecordBatchIterator,
     testSimpleAsyncRecordBatchStreamReader
@@ -49,14 +56,14 @@ import {
     const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
 
     describe(`RecordBatchReader.throughDOM`, () => {
-        it('should read all Arrow file format messages from a whatwg ReadableStream', async () => {
+        it('should read all Arrow file format messages from a WhatWG ReadableStream', async () => {
             const stream = fs
                 .createReadStream(simpleFilePath)
                 .pipe(convertNodeToDOMStream()).dom
                 .pipeThrough(RecordBatchReader.throughDOM());
             await testSimpleAsyncRecordBatchIterator(readableDOMStreamToAsyncIterator(stream));
         });
-        it('should read all Arrow stream format messages from a whatwg ReadableStream', async () => {
+        it('should read all Arrow stream format messages from a WhatWG ReadableStream', async () => {
             const stream = fs
                 .createReadStream(simpleFilePath)
                 .pipe(convertNodeToDOMStream()).dom
@@ -113,7 +120,7 @@ import {
             const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
             await testSimpleAsyncRecordBatchIterator(iterator);
         });
-        it('should read all RecordBatches from a NodeJS ReadableStream that yields multiple tables', async () => {
+        it('should read all RecordBatches from a WhatWG ReadableStream that yields multiple tables', async () => {
 
             const source = concatStream([
                 nodeToDOMStream(fs.createReadStream(simpleStreamPath)),
@@ -132,30 +139,47 @@ import {
             expect((await reader.open()).schema).toBeUndefined();
         });
 
-        // /* tslint:disable */
-        // const { concatStream } = require('web-stream-tools').default;
+        it('should not close the underlying WhatWG ReadableStream when reading multiple tables', async () => {
+
+            expect.hasAssertions();
+
+            const tables = [
+                ['float64', 'dateDay', 'null_', 'timestampMicrosecond'],
+                ['sparseUnion', 'uint8', 'int16', 'timeMillisecond', 'float32', 'int8'],
+                ['intervalYearMonth', 'timeSecond', 'uint32'],
+                ['timeMicrosecond'],
+                ['uint64', 'timestampNanosecond', 'map', 'bool'],
+                ['denseUnion', 'fixedSizeBinary', 'struct', 'list'],
+                ['int32', 'intervalDayTime', 'fixedSizeList', 'uint16'],
+                ['dictionary', 'int64', 'utf8', 'timeNanosecond', 'timestampSecond'],
+                ['dateMillisecond', 'float16', 'binary', 'decimal', 'timestampMillisecond']
+            ].map((fns) => {
+                const types = fns.map((fn) => (generate as any)[fn](0).type);
+                types.forEach((t) => t.dictionaryVector && (t.dictionaryVector = null));
+                const schema = new Schema(fns.map((name, i) => new Field(name, types[i])));
+                return generate.table([
+                    Math.random() * 100 | 0,
+                    Math.random() * 200 | 0,
+                    Math.random() * 300 | 0
+                ], schema);
+            });
+
+            const stream = concatStream(tables.map((table) =>
+                RecordBatchStreamWriter.writeAll(table.batches).toReadableDOMStream()
+            )) as ReadableStream<Uint8Array>;
     
-        // it('should read multiple tables from the same DOM stream', async () => {
-    
-        //     const sources = concatStream(jsonAndArrowPaths.map(([, , stream]) => {
-        //         return nodeToDOMStream(fs.createReadStream(stream.path));
-        //     })) as ReadableStream<Uint8Array>;
-    
-        //     let reader = await RecordBatchReader.from(sources);
-    
-        //     for (const [json, file] of jsonAndArrowPaths) {
-    
-        //         reader = await reader.reset().open(false);
-    
-        //         const jsonTable = Table.from(json.data);
-        //         const fileTable = Table.from(file.data);
-        //         const streamTable = await Table.from(reader);
-    
-        //         expect(streamTable).toEqualTable(jsonTable);
-        //         expect(streamTable).toEqualTable(fileTable);
-        //     }
-    
-        //     reader.cancel();
-        // }, 60 * 1000);
+            let index = -1;
+            let reader = await RecordBatchReader.from(stream);
+
+            try {
+                while (!(await reader.reset().open(false)).closed) {
+                    const sourceTable = tables[++index];
+                    const streamTable = await Table.from(reader);
+                    expect(streamTable).toEqualTable(sourceTable);
+                }
+            } finally { reader.cancel(); }
+
+            expect(index).toBe(tables.length - 1);
+        });
     });
 })();

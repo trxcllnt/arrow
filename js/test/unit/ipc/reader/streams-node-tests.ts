@@ -17,7 +17,15 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import { Schema, RecordBatchReader } from '../../../Arrow';
+import * as generate from '../../../test-data';
+
+import {
+    Table,
+    Schema, Field,
+    RecordBatchReader,
+    RecordBatchStreamWriter
+} from '../../../Arrow';
+
 import {
     testSimpleAsyncRecordBatchIterator,
     testSimpleAsyncRecordBatchStreamReader
@@ -30,7 +38,11 @@ import {
     }
 
     /* tslint:disable */
-    const concatStream = require('multistream');
+    const stream = require('stream');
+    /* tslint:disable */
+    const concatStream = ((multistream) => (...xs: any[]) =>
+        new stream.Readable().wrap(multistream(...xs))
+    )(require('multistream'));
     /* tslint:disable */
     const { parse: bignumJSONParse } = require('json-bignum');
 
@@ -122,28 +134,48 @@ import {
             expect(reader.schema).toBeUndefined();
             expect((await reader.open()).schema).toBeUndefined();
         });
+
+        it('should not close the underlying NodeJS ReadableStream when reading multiple tables', async () => {
+
+            expect.hasAssertions();
+
+            const tables = [
+                ['float64', 'dateDay', 'null_', 'timestampMicrosecond'],
+                ['sparseUnion', 'uint8', 'int16', 'timeMillisecond', 'float32', 'int8'],
+                ['intervalYearMonth', 'timeSecond', 'uint32'],
+                ['timeMicrosecond'],
+                ['uint64', 'timestampNanosecond', 'map', 'bool'],
+                ['denseUnion', 'fixedSizeBinary', 'struct', 'list'],
+                ['int32', 'intervalDayTime', 'fixedSizeList', 'uint16'],
+                ['dictionary', 'int64', 'utf8', 'timeNanosecond', 'timestampSecond'],
+                ['dateMillisecond', 'float16', 'binary', 'decimal', 'timestampMillisecond']
+            ].map((fns) => {
+                const types = fns.map((fn) => (generate as any)[fn](0).type);
+                types.forEach((t) => t.dictionaryVector && (t.dictionaryVector = null));
+                const schema = new Schema(fns.map((name, i) => new Field(name, types[i])));
+                return generate.table([
+                    Math.random() * 100 | 0,
+                    Math.random() * 200 | 0,
+                    Math.random() * 300 | 0
+                ], schema);
+            });
+
+            const stream = concatStream(tables.map((table) =>
+                () => RecordBatchStreamWriter.writeAll(table.batches).toReadableNodeStream()
+            )) as NodeJS.ReadableStream;
     
-        // test('Can read multiple tables from the same node stream', async () => {
-    
-        //     const sources = concatStream(jsonAndArrowPaths.map(([, , stream]) => {
-        //         return () => fs.createReadStream(stream.path);
-        //     })) as NodeJS.ReadableStream;
-    
-        //     let reader = await RecordBatchReader.from(sources);
-    
-        //     for (const [json, file] of jsonAndArrowPaths) {
-    
-        //         reader = await reader.reset().open(false);
-    
-        //         const jsonTable = Table.from(json.data);
-        //         const fileTable = Table.from(file.data);
-        //         const streamTable = await Table.from(reader);
-    
-        //         expect(streamTable).toEqualTable(jsonTable);
-        //         expect(streamTable).toEqualTable(fileTable);
-        //     }
-    
-        //     reader.cancel();
-        // }, 60 * 1000);
+            let index = -1;
+            let reader = await RecordBatchReader.from(stream);
+
+            try {
+                while (!(await reader.reset().open(false)).closed) {
+                    const sourceTable = tables[++index];
+                    const streamTable = await Table.from(reader);
+                    expect(streamTable).toEqualTable(sourceTable);
+                }
+            } finally { reader.cancel(); }
+
+            expect(index).toBe(tables.length - 1);
+        });
     });
 })();
