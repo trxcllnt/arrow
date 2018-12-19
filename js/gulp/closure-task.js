@@ -44,13 +44,13 @@ const closureTask = ((cache) => memoizeTask(cache, function closure(target, form
 
     const src = targetDir(target, `cls`);
     const out = targetDir(target, format);
-    const externs = path.join(`${out}/Arrow.externs.js`);
     const entry = path.join(src, `${mainExport}.dom.cls`);
+    const externs = path.join(`${out}/${mainExport}.externs.js`);
     mkdirp.sync(out);
     fs.writeFileSync(externs, generateClosurePublicExportFile(target, `cls`, false));
     // closure compiler erases static properties/methods
     // https://github.com/google/closure-compiler/issues/1776
-    fs.writeFileSync(`${src}/Arrow.dom.cls.js`, generateClosurePublicExportFile(target, `cls`, true));
+    fs.writeFileSync(`${src}/${mainExport}.dom.cls.js`, generateClosurePublicExportFile(target, `cls`, true));
     return observableFromStreams(
         gulp.src([
 /*   external libs first --> */ `node_modules/tslib/package.json`,
@@ -134,6 +134,7 @@ function generateClosurePublicExportFile(target, format, exportSourceForClosure 
         );
         return Object
             .getOwnPropertyNames(entryModule)
+            .filter((name) => name !== 'default')
             .filter((name) => (
                 typeof entryModule[name] === `object` ||
                 typeof entryModule[name] === `function`
