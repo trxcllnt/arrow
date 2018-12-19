@@ -21,7 +21,7 @@ import { DataType } from './type';
 export abstract class Vector<T extends DataType = any> implements Iterable<T['TValue'] | null> {
 
     // @ts-ignore
-    protected bindDataAccessors(data: Data<T>) {
+    protected _bindDataAccessors(data: Data<T>) {
         if (this.nullCount > 0) {
             this['get'] && (this['get'] = wrapNullable1(this['get']));
         }

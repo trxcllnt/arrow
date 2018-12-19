@@ -32,8 +32,8 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
     constructor(data: Data<T>, children?: Vector[], stride?: number) {
         super();
         this._children = children;
-        this.bindDataAccessors(this._data = data);
         this._numChildren = data.childData.length;
+        this._bindDataAccessors(this._data = data);
         this._stride = Math.floor(Math.max(stride || 1, 1));
     }
 

@@ -54,7 +54,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         this._numChildren = (this._type.children || []).length;
     }
 
-    protected bindDataAccessors() { /* do nothing */ }
+    protected _bindDataAccessors() { /* do nothing */ }
 
     public get type() { return this._type; }
     public get length() { return this._length; }
