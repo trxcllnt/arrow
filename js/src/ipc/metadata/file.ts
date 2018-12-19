@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/* tslint:disable:class-name */
+
 import * as File_ from '../../fb/File';
 import { flatbuffers } from 'flatbuffers';
 
@@ -44,16 +46,16 @@ class Footer_ {
 
         const b: Builder = new Builder();
         const schemaOffset = Schema.encode(b, footer.schema);
-    
+
         _Footer.startRecordBatchesVector(b, footer.numRecordBatches);
         [...footer.recordBatches()].slice().reverse().forEach((rb) => FileBlock.encode(b, rb));
         const recordBatchesOffset = b.endVector();
-    
+
         _Footer.startDictionariesVector(b, footer.numDictionaries);
         [...footer.dictionaryBatches()].slice().reverse().forEach((db) => FileBlock.encode(b, db));
-    
+
         const dictionaryBatchesOffset = b.endVector();
-    
+
         _Footer.startFooter(b);
         _Footer.addSchema(b, schemaOffset);
         _Footer.addVersion(b, MetadataVersion.V4);
@@ -63,7 +65,7 @@ class Footer_ {
 
         return b.asUint8Array();
     }
-    
+
     // @ts-ignore
     protected _recordBatches: FileBlock[];
     // @ts-ignore

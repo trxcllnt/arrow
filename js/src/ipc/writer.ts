@@ -221,10 +221,18 @@ export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> 
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
         const writer = new RecordBatchFileWriter<T>();
         if (!isAsyncIterable(batches)) {
-            for (const batch of batches) writer.write(batch); writer.close(); return writer;
+            for (const batch of batches) {
+                writer.write(batch);
+            }
+            writer.close();
+            return writer;
         }
         return (async () => {
-            for await (const batch of batches) writer.write(batch); writer.close(); return writer;
+            for await (const batch of batches) {
+                writer.write(batch);
+            }
+            writer.close();
+            return writer;
         })();
     }
 
@@ -247,10 +255,18 @@ export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
         const writer = new RecordBatchStreamWriter<T>();
         if (!isAsyncIterable(batches)) {
-            for (const batch of batches) writer.write(batch); writer.close(); return writer;
+            for (const batch of batches) {
+                writer.write(batch);
+            }
+            writer.close();
+            return writer;
         }
         return (async () => {
-            for await (const batch of batches) writer.write(batch); writer.close(); return writer;
+            for await (const batch of batches) {
+                writer.write(batch);
+            }
+            writer.close();
+            return writer;
         })();
     }
     public close() {

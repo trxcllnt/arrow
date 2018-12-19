@@ -28,7 +28,7 @@ import {
 import {
     RecordBatchReader,
     RecordBatchFileReader,
-    AsyncRecordBatchFileReader 
+    AsyncRecordBatchFileReader
 } from '../../../Arrow';
 
 const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);

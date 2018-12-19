@@ -112,7 +112,7 @@ export abstract class ComparisonPredicate<T= any> extends Predicate {
 }
 
 export abstract class CombinationPredicate extends Predicate {
-    readonly children: Predicate[]
+    readonly children: Predicate[];
     constructor(...children: Predicate[]) {
         super();
         this.children = children;
@@ -125,8 +125,8 @@ export class And extends CombinationPredicate {
     constructor(...children: Predicate[]) {
         // Flatten any Ands
         children = children.reduce((accum: Predicate[], p: Predicate): Predicate[] => {
-            return accum.concat(p instanceof And ? p.children : p)
-        }, [])
+            return accum.concat(p instanceof And ? p.children : p);
+        }, []);
         super(...children);
     }
     bind(batch: RecordBatch) {
@@ -139,8 +139,8 @@ export class Or extends CombinationPredicate {
     constructor(...children: Predicate[]) {
         // Flatten any Ors
         children = children.reduce((accum: Predicate[], p: Predicate): Predicate[] => {
-            return accum.concat(p instanceof Or ? p.children : p)
-        }, [])
+            return accum.concat(p instanceof Or ? p.children : p);
+        }, []);
         super(...children);
     }
     bind(batch: RecordBatch) {

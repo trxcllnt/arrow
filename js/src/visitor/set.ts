@@ -137,19 +137,19 @@ const setUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: num
 const setInt = <T extends Int>(vector: Vector<T>, index: number, value: T['TValue']): void => {
     vector.type.bitWidth < 64
         ? setNumeric(<any> vector, index, value as Numeric1X['TValue'])
-        : setNumericX2(<any> vector, index, value as Numeric2X['TValue'])
+        : setNumericX2(<any> vector, index, value as Numeric2X['TValue']);
 };
 
 const setFloat = <T extends Float>(vector: Vector<T>, index: number, value: T['TValue']): void => {
     vector.type.precision !== Precision.HALF
         ? setNumeric(<any> vector, index, value)
-        : setFloat16(<any> vector, index, value)
+        : setFloat16(<any> vector, index, value);
 };
 
 const getDate = <T extends Date_> (vector: Vector<T>, index: number, value: T['TValue']): void => {
     vector.type.unit === DateUnit.DAY
         ? setDateDay(vector, index, value)
-        : setDateMillisecond(vector, index, value)
+        : setDateMillisecond(vector, index, value);
 };
 
 const setTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vector<T>, index: number, value: T['TValue']): void => setEpochMsToMillisecondsLong(values, index * 2, value / 1000);
@@ -230,7 +230,7 @@ const setIntervalValue = <T extends Interval>(vector: Vector<T>, index: number, 
         : setIntervalYearMonth(vector, index, value);
 };
 
-const setIntervalDayTime = <T extends IntervalDayTime>({ values }: Vector<T>, index: number, value: T['TValue']): void => { values.set(value.subarray(0, 2), 2 * index); }
+const setIntervalDayTime = <T extends IntervalDayTime>({ values }: Vector<T>, index: number, value: T['TValue']): void => { values.set(value.subarray(0, 2), 2 * index); };
 const setIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>, index: number, value: T['TValue']): void => { values[index] = (value[0] * 12) + (value[1] % 12); };
 
 const setFixedSizeList = <T extends FixedSizeList>(vector: Vector<T>, index: number, value: T['TValue']): void => {

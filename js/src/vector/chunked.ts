@@ -45,7 +45,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     protected _children?: ChunkedVector[];
     protected _chunkOffsets: Uint32Array;
 
-    constructor(type:T, chunks: Vector<T>[] = [], offsets = calculateOffsets(chunks)) {
+    constructor(type: T, chunks: Vector<T>[] = [], offsets = calculateOffsets(chunks)) {
         super();
         this._type = type;
         this._chunks = chunks;

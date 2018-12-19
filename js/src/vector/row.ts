@@ -86,14 +86,14 @@ export class Row<T extends { [key: string]: DataType }> implements Iterable<T[ke
     public toJSON(): any {
         return DataType.isStruct(this.parent.type) ? [...this] :
             Object.getOwnPropertyNames(this).reduce((props: any, prop: string) => {
-                return (props[prop] = (this as any)[prop]) && props || props
+                return (props[prop] = (this as any)[prop]) && props || props;
             }, {});
     }
     public toString() {
         return DataType.isStruct(this.parent.type) ?
             [...this].map((x) => valueToString(x)).join(', ') :
             Object.getOwnPropertyNames(this).reduce((props: any, prop: string) => {
-                return (props[prop] = valueToString((this as any)[prop])) && props || props
+                return (props[prop] = valueToString((this as any)[prop])) && props || props;
             }, {});
     }
 }

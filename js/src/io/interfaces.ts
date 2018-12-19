@@ -151,8 +151,8 @@ export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends R
     public toReadableNodeStream(options?: import('stream').ReadableOptions) {
         return streamAdapters.toReadableNodeStream(this, options);
     }
-    public async throw(_?: any) { await this.abort(_); return ITERATOR_DONE; };
-    public async return(_?: any) { await this.close(); return ITERATOR_DONE; };
+    public async throw(_?: any) { await this.abort(_); return ITERATOR_DONE; }
+    public async return(_?: any) { await this.close(); return ITERATOR_DONE; }
 
     public async read(size?: number | null): Promise<TReadable | null> { return (await this.next(size, 'read')).value; }
     public async peek(size?: number | null): Promise<TReadable | null> { return (await this.next(size, 'peek')).value; }

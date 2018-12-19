@@ -32,7 +32,7 @@ export class RecordBatch<T extends { [key: string]: DataType } = any> extends Ve
             vectors
         );
     }
-  
+
     protected _schema: Schema;
     private impl: StructVector<T>;
 

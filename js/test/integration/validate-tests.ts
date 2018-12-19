@@ -49,7 +49,7 @@ import {
             });
         }
     });
-    
+
 })();
 
 function testReaderIntegration(jsonData: any, arrowBuffer: Uint8Array) {
@@ -82,5 +82,5 @@ function testTableToBuffersIntegration(srcFormat: 'json' | 'binary', arrowFormat
             const dstTable = Table.from(srcTable.serialize(`binary`, arrowFormat === `stream`));
             expect(dstTable).toEqualTable(refTable);
         });
-    }
+    };
 }

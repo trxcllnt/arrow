@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/* tslint:disable:class-name */
+
 import { Field } from './schema';
 import { Vector } from './vector';
 import { flatbuffers } from 'flatbuffers';
@@ -228,7 +230,6 @@ export class Decimal extends DataType<Type.Decimal> {
 }
 
 export type Dates = Type.Date | Type.DateDay | Type.DateMillisecond;
-/* tslint:disable:class-name */
 export interface Date_<T extends Dates = Dates> extends DataType<T> { TArray: Int32Array; TValue: Date; ArrayType: typeof Int32Array; }
 export class Date_<T extends Dates = Dates> extends DataType<T> {
     constructor(protected _unit: DateUnit) {
@@ -427,7 +428,6 @@ export class FixedSizeList<T extends DataType = any> extends DataType<Type.Fixed
     })(FixedSizeList.prototype);
 }
 
-/* tslint:disable:class-name */
 export interface Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map> { TArray: Uint8Array; TValue: RowLike<T>; dataTypes: T; }
 export class Map_<T extends { [key: string]: DataType; } = any> extends DataType<Type.Map, T> {
     constructor(protected _children: Field<T[keyof T]>[],

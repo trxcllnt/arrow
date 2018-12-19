@@ -153,7 +153,7 @@ function asyncIterableAsReadableNodeStream<T>(source: AsyncIterable<T>, options?
         destroy(e: Error | null, cb: (e: Error | null) => void) {
             if ((reading = true) && it || Boolean(cb(null))) {
                 (async (fn) => {
-                    (fn && await fn.call(it, e) || true) && cb(null)
+                    (fn && await fn.call(it, e) || true) && cb(null);
                 })(e == null ? it.return : it.throw);
             }
         },

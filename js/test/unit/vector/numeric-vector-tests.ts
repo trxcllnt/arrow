@@ -88,9 +88,15 @@ function gets_expected_values<T extends DataType>(vector: Vector<T>, values: T['
         expect.hasAssertions();
         let i = -1, n = vector.length;
         try {
-            if (vector.stride === 1)
-                while (++i < n) { expect(vector.get(i)).toEqual(values[i]); }
-            else while (++i < n) { expect(vector.get(i)).toEqual(values.slice(2 * i, 2 * (i + 1))); }
+            if (vector.stride === 1) {
+                while (++i < n) {
+                    expect(vector.get(i)).toEqual(values[i]);
+                }
+            } else {
+                while (++i < n) {
+                    expect(vector.get(i)).toEqual(values.slice(2 * i, 2 * (i + 1)));
+                }
+            }
         } catch (e) { throw new Error(`${i}: ${e}`); }
     });
 }
@@ -122,7 +128,7 @@ function indexof_returns_expected_values<T extends DataType>(vector: Vector<T>, 
             ...bytes,
             ...[randomBytes(8 * 2 * vector.ArrayType.BYTES_PER_ELEMENT)]
         ])[0].buffer);
-        
+
         let i = -1, n;
         try {
             if (vector.stride === 1) {

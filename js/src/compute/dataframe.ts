@@ -38,7 +38,7 @@ declare module '../table' {
         scan(next: NextFunc, bind?: BindFunc): void;
     }
 }
-  
+
 export class Dataframe<T extends { [key: string]: DataType } = any> extends Table<T> {
     public filter(predicate: Predicate): DF<T> {
         return new FilteredDataFrame<T>(this.batches, predicate);
@@ -195,7 +195,7 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         const countByteLength = Math.ceil(Math.log(vector.dictionary.length) / Math.log(256));
         const CountsArrayType = countByteLength == 4 ? Uint32Array :
                                 countByteLength >= 2 ? Uint16Array : Uint8Array;
-    
+
         const counts = new CountsArrayType(vector.dictionary.length);
 
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
@@ -214,7 +214,6 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         return new CountByResult(vector.dictionary, IntVector.from(counts));
     }
 }
-
 
 function tableScan(this: Table, next: NextFunc, bind?: BindFunc) {
     return new Dataframe(this.batches).scan(next, bind);

@@ -74,15 +74,23 @@ export class AsyncByteStream implements Readable<Uint8Array> {
     // @ts-ignore
     private source: AsyncByteStreamSource<Uint8Array>;
     constructor(source?: PromiseLike<ArrayBufferViewInput> | Response | ReadableStream<ArrayBufferViewInput> | NodeJS.ReadableStream | AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput>) {
-        if (!source) {}
-        else if (source instanceof AsyncByteStream) { this.source = (source as AsyncByteStream).source; }
-        else if (source instanceof AsyncByteQueue) { this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source)); }
-        else if (isReadableNodeStream(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromReadableNodeStream(source)); }
-        else if (isFetchResponse(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromReadableDOMStream(source.body!)); }
-        else if (isIterable<ArrayBufferViewInput>(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromIterable(source)); }
-        else if (isPromise<ArrayBufferViewInput>(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source)); }
-        else if (isAsyncIterable<ArrayBufferViewInput>(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source)); }
-        else if (isReadableDOMStream<ArrayBufferViewInput>(source)) { this.source = new AsyncByteStreamSource(streamAdapters.fromReadableDOMStream(source)); }
+        if (source instanceof AsyncByteStream) {
+            this.source = (source as AsyncByteStream).source;
+        } else if (source instanceof AsyncByteQueue) {
+            this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source));
+        } else if (isReadableNodeStream(source)) {
+            this.source = new AsyncByteStreamSource(streamAdapters.fromReadableNodeStream(source));
+        } else if (isFetchResponse(source)) {
+            this.source = new AsyncByteStreamSource(streamAdapters.fromReadableDOMStream(source.body!));
+        } else if (isIterable<ArrayBufferViewInput>(source)) {
+            this.source = new AsyncByteStreamSource(streamAdapters.fromIterable(source));
+        } else if (isPromise<ArrayBufferViewInput>(source)) {
+            this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source));
+        } else if (isAsyncIterable<ArrayBufferViewInput>(source)) {
+            this.source = new AsyncByteStreamSource(streamAdapters.fromAsyncIterable(source));
+        } else if (isReadableDOMStream<ArrayBufferViewInput>(source)) {
+            this.source = new AsyncByteStreamSource(streamAdapters.fromReadableDOMStream(source));
+        }
     }
     public next(value?: any) { return this.source.next(value); }
     public throw(value?: any) { return this.source.throw(value); }

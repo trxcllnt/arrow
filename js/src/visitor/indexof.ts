@@ -132,7 +132,6 @@ function indexOfUnion<T extends DataType>(vector: Vector<T>, searchElement?: T['
     return -1;
 }
 
-
 IndexOfVisitor.prototype.visitNull                 =  nullIndexOf;
 IndexOfVisitor.prototype.visitBool                 = indexOfValue;
 IndexOfVisitor.prototype.visitInt                  = indexOfValue;
