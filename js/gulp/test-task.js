@@ -28,27 +28,28 @@ const readFile = promisify(require('fs').readFile);
 const exec = promisify(require('child_process').exec);
 const parseXML = promisify(require('xml2js').parseString);
 
-const jestArgv = ['-i'];
+const jestArgv = [];
 argv.verbose && jestArgv.push(`--verbose`);
 argv.coverage
     ? jestArgv.push(`-c`, `jest.coverage.config.js`, `--coverage`)
-    : jestArgv.push(`-c`, `jest.config.js`)
+    : jestArgv.push(`-c`, `jest.config.js`, `-i`)
 
-const debugArgv = [`--runInBand`, `--env`, `node-debug`];
-const jest = require.resolve(path.join(__dirname, `../node_modules/.bin/jest`));
+const jest = path.join(path.parse(require.resolve(`jest`)).dir, `../bin/jest.js`);
 const testOptions = {
     stdio: [`ignore`, `inherit`, `inherit`],
     env: {
         ...process.env,
+        // hide fs.promises/stream[Symbol.asyncIterator] warnings
+        NODE_NO_WARNINGS: `1`,
         // prevent the user-land `readable-stream` module from
         // patching node's streams -- they're better now
         READABLE_STREAM: `disable`
     },
 };
 
-const testTask = ((cache, execArgv, testOptions) => memoizeTask(cache, function test(target, format, debug = false) {
+const testTask = ((cache, execArgv, testOptions) => memoizeTask(cache, function test(target, format) {
+    const args = [...execArgv];
     const opts = { ...testOptions };
-    const args = !debug ? [...execArgv] : [...debugArgv, ...execArgv];
     if (!argv.coverage) {
         args.push(`test/${argv.integration ? `integration/*` : `unit/*`}`);
     }
@@ -62,10 +63,8 @@ const testTask = ((cache, execArgv, testOptions) => memoizeTask(cache, function 
         ARROW_FILES: JSON.stringify(Array.isArray(argv.arrow_files) ? argv.arrow_files : [argv.arrow_files]),
         ARROW_STREAMS: JSON.stringify(Array.isArray(argv.arrow_streams) ? argv.arrow_streams : [argv.arrow_streams]),
     };
-    return !debug ?
-        child_process.spawn(jest, args, opts) :
-        child_process.exec(`node --inspect-brk ${jest} ${args.join(` `)}`, opts);
-}))({}, jestArgv, testOptions);
+    return child_process.spawn(`node`, args, opts);
+}))({}, [jest, ...jestArgv], testOptions);
 
 module.exports = testTask;
 module.exports.testTask = testTask;

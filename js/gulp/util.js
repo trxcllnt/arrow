@@ -113,19 +113,28 @@ function targetDir(target, format) {
 }
 
 function shouldRunInChildProcess(target, format) {
-    return (targets.length > 1 || modules.length > 1 || targets[0] !== target || modules[0] !== format);
+    // If we're building more than one module/target, then yes run this task in a child process
+    if (targets.length > 1 || modules.length > 1) { return true; }
+    // If the target we're building *isn't* the target the gulp command was configured to run, then yes run that in a child process
+    if (targets[0] !== target || modules[0] !== format) { return true; }
+    // Otherwise no need -- either gulp was run for just one target, or we've been spawned as the child of a multi-target parent gulp
+    return false;
 }
 
+const gulp = path.join(path.parse(require.resolve(`gulp`)).dir, `bin/gulp.js`);
 function spawnGulpCommandInChildProcess(command, target, format) {
-    return asyncDone(() => child_process.spawn(
-        require.resolve(path.join(__dirname, `../node_modules/gulp/bin/gulp.js`)),
-        [command, '-t', target, '-m', format]
-    ));
+    const args = [gulp, command, '-t', target, '-m', format];
+    const opts = {
+        stdio: [`ignore`, `ignore`, `inherit`],
+        env: { ...process.env, NODE_NO_WARNINGS: `1` }
+    };
+    return asyncDone(() => child_process.spawn(`node`, args, opts));
 }
 
+const logAndDie = (e) => { if (e) { console.error(e); process.exit(1) } };
 function observableFromStreams(...streams) {
     if (streams.length <= 0) { return Observable.empty(); }
-    const pumped = streams.length <= 1 ? streams[0] : pump(...streams, (e) => e && process.exit(1));
+    const pumped = streams.length <= 1 ? streams[0] : pump(...streams, logAndDie);
     const fromEvent = Observable.fromEvent.bind(null, pumped);
     const streamObs = fromEvent(`data`)
                .merge(fromEvent(`error`).flatMap((e) => Observable.throw(e)))

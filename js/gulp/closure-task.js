@@ -29,56 +29,74 @@ const {
 const fs = require('fs');
 const gulp = require('gulp');
 const path = require('path');
-const mkdirp = require('mkdirp');
-const { ReplaySubject } = require('rxjs');
 const sourcemaps = require('gulp-sourcemaps');
 const { memoizeTask } = require('./memoize-task');
 const { compileBinFiles } = require('./typescript-task');
+const mkdirp = require('util').promisify(require('mkdirp'));
 const closureCompiler = require('google-closure-compiler').gulp();
 
-const closureTask = ((cache) => memoizeTask(cache, function closure(target, format) {
+const closureTask = ((cache) => memoizeTask(cache, async function closure(target, format) {
 
     if (shouldRunInChildProcess(target, format)) {
-        return spawnGulpCommandInChildProcess('build', target, format);
+        return spawnGulpCommandInChildProcess('compile', target, format);
     }
 
     const src = targetDir(target, `cls`);
+    const srcAbsolute = path.resolve(src);
     const out = targetDir(target, format);
-    const entry = path.join(src, `${mainExport}.dom.cls`);
     const externs = path.join(`${out}/${mainExport}.externs.js`);
-    mkdirp.sync(out);
-    fs.writeFileSync(externs, generateClosurePublicExportFile(target, `cls`, false));
-    // closure compiler erases static properties/methods
-    // https://github.com/google/closure-compiler/issues/1776
-    fs.writeFileSync(`${src}/${mainExport}.dom.cls.js`, generateClosurePublicExportFile(target, `cls`, true));
-    return observableFromStreams(
-        gulp.src([
-/*   external libs first --> */ `node_modules/tslib/package.json`,
-                                `node_modules/tslib/tslib.es6.js`,
-                                `node_modules/flatbuffers/package.json`,
-                                `node_modules/flatbuffers/js/flatbuffers.mjs`,
-                                `node_modules/text-encoding-utf-8/package.json`,
-                                `node_modules/text-encoding-utf-8/src/encoding.js`,
-/*    then sources globs --> */ `${src}/**/*.js`,
-        ], { base: `./` }),
-        sourcemaps.init(),
-        closureCompiler(createClosureArgs(entry, externs)),
-        // rename the sourcemaps from *.js.map files to *.min.js.map
-        sourcemaps.write(`.`, { mapFile: (mapPath) => mapPath.replace(`.js.map`, `.${target}.min.js.map`) }),
-        gulp.dest(out)
-    )
-    .merge(compileBinFiles(target, format))
-    .takeLast(1)
-    .publish(new ReplaySubject()).refCount();
+    const entry_point = path.join(`${src}/${mainExport}.dom.cls.js`);
+
+    const exportedImports = publicModulePaths(srcAbsolute).reduce((entries, publicModulePath) => [
+        ...entries, {
+            publicModulePath,
+            exports_: getPublicExportedNames(esmRequire(publicModulePath, { warnings: false }))
+        }
+    ], []);
+
+    await mkdirp(out);
+
+    await Promise.all([
+        fs.promises.writeFile(externs, generateExternsFile(exportedImports)),
+        fs.promises.writeFile(entry_point, generateUMDExportAssignnent(srcAbsolute, exportedImports))
+    ]);
+
+    return await Promise.all([
+        runClosureCompileAsObservable().toPromise(),
+        compileBinFiles(target, format).toPromise()
+    ]);
+
+    function runClosureCompileAsObservable() {
+        return observableFromStreams(
+            gulp.src([
+                /* external libs first */
+                `node_modules/tslib/package.json`,
+                `node_modules/tslib/tslib.es6.js`,
+                `node_modules/flatbuffers/package.json`,
+                `node_modules/flatbuffers/js/flatbuffers.mjs`,
+                `node_modules/text-encoding-utf-8/package.json`,
+                `node_modules/text-encoding-utf-8/src/encoding.js`,
+                `${src}/**/*.js` /* <-- then source globs */
+            ], { base: `./` }),
+            sourcemaps.init(),
+            closureCompiler(createClosureArgs(entry_point, externs)),
+            // rename the sourcemaps from *.js.map files to *.min.js.map
+            sourcemaps.write(`.`, { mapFile: (mapPath) => mapPath.replace(`.js.map`, `.${target}.min.js.map`) }),
+            gulp.dest(out)
+        );
+    }
 }))({});
 
-const createClosureArgs = (entry, externs) => ({
+module.exports = closureTask;
+module.exports.closureTask = closureTask;
+
+const createClosureArgs = (entry_point, externs) => ({
     externs,
+    entry_point,
     third_party: true,
     warning_level: `QUIET`,
     dependency_mode: `STRICT`,
     rewrite_polyfills: false,
-    entry_point: `${entry}.js`,
     module_resolution: `NODE`,
     // formatting: `PRETTY_PRINT`,
     // debug: true,
@@ -92,82 +110,50 @@ const createClosureArgs = (entry, externs) => ({
     output_wrapper:`${apacheHeader()}
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-    typeof define === 'function' && define.amd ? define(['exports'], factory) :
+    typeof define === 'function' && define.amd ? define(['Arrow'], factory) :
     (factory(global.Arrow = global.Arrow || {}));
 }(this, (function (exports) {%output%}.bind(this))));`
 });
 
-module.exports = closureTask;
-module.exports.closureTask = closureTask;
-
-function generateClosurePublicExportFile(target, format, exportSourceForClosure = false) {
-
-    const src = path.resolve('./', targetDir(target, format));
-    const exportedImports = publicModulePaths(src).reduce((entries, publicModulePath) => [
-        ...entries, {
-            publicModulePath,
-            exports_: getExportedNames(esmRequire(publicModulePath, { warnings: false }))
-        }
-    ], []);
-
-    if (exportSourceForClosure) {
-        return `${exportedImports.map(({ publicModulePath }, i) => {
+function generateUMDExportAssignnent(src, exportedImports) {
+    return [
+        ...exportedImports.map(({ publicModulePath }, i) => {
             const p = publicModulePath.slice(src.length + 1);
             return (`import * as exports${i} from './${p}';`);
-        }).filter(Boolean).join('\n')};\n${'Object.assign(arguments[0], exports0);'}`;
-    }
+        }).filter(Boolean),
+        'Object.assign(arguments[0], exports0);'
+    ].join('\n');
+}
 
-    return `${externsHeader()}\n${exportedImports.map(({ publicModulePath, exports_ }) => {
-        const body = exports_.map(externBody).filter(Boolean).join('\n');
-        return body ? `// Exported from ${publicModulePath}\n${body}\n` : ``;
-    }).filter(Boolean).join('\n')}`;
+function generateExternsFile(exportedImports) {
+    return [
+        externsHeader(),
+        ...exportedImports.reduce((externBodies, { publicModulePath, exports_ }) => {
+            const body = exports_.map(externBody).filter(Boolean);
+            return [
+                ...externBodies,
+                ...(body.length ? [`// Exported from ${publicModulePath}`, ...body]: [])
+            ];
+        }, [])
+    ].join('\n');
+}
 
-    function getExportedNames(entryModule) {
-        const fn = function() {};
-        const isStaticOrProtoName = (x) => (
-            !(x in fn) &&
-            (x !== `default`) &&
-            (x !== `undefined`) &&
-            (x !== `__esModule`) &&
-            (x !== `constructor`) &&
-            !(x.startsWith('_'))
-        );
-        return Object
-            .getOwnPropertyNames(entryModule)
-            .filter((name) => name !== 'default')
-            .filter((name) => (
-                typeof entryModule[name] === `object` ||
-                typeof entryModule[name] === `function`
-            ))
-            .map((name) => [name, entryModule[name]])
-            .reduce((reserved, [name, value]) => {
+function externBody({ exportName, staticNames, instanceNames }) {
+    return [
+        `var ${exportName} = function() {};`,
+        staticNames.map((staticName) => (isNaN(+staticName)
+            ? `/** @type {?} */\n${exportName}.${staticName} = function() {};`
+            : `/** @type {?} */\n${exportName}[${staticName}] = function() {};`
+        )).join('\n'),
+        instanceNames.map((instanceName) => (isNaN(+instanceName)
+            ? `/** @type {?} */\n${exportName}.prototype.${instanceName};`
+            : `/** @type {?} */\n${exportName}.prototype[${instanceName}];`
+        )).join('\n')
+    ].filter(Boolean).join('\n');
+}
 
-                const staticNames = value &&
-                    typeof value === 'object' ? Object.getOwnPropertyNames(value).filter(isStaticOrProtoName) :
-                    typeof value === 'function' ? Object.getOwnPropertyNames(value).filter(isStaticOrProtoName) : [];
-
-                const instanceNames = (typeof value === `function` && Object.getOwnPropertyNames(value.prototype || {}) || []).filter(isStaticOrProtoName);
-
-                return [...reserved, { exportName: name, staticNames, instanceNames }];
-            }, []);
-    }
-
-    function externBody({ exportName, staticNames, instanceNames }) {
-        return [
-            `var ${exportName} = function() {};`,
-            staticNames.map((staticName) => (isNaN(+staticName)
-                ? `/** @type {?} */\n${exportName}.${staticName} = function() {};`
-                : `/** @type {?} */\n${exportName}[${staticName}] = function() {};`
-            )).join('\n'),
-            instanceNames.map((instanceName) => (isNaN(+instanceName)
-                ? `/** @type {?} */\n${exportName}.prototype.${instanceName};`
-                : `/** @type {?} */\n${exportName}.prototype[${instanceName}];`
-            )).join('\n')
-        ].filter(Boolean).join('\n');
-    }
-
-    function externsHeader() {
-        return (`${apacheHeader()}
+function externsHeader() {
+    return (`${apacheHeader()}
 // @ts-nocheck
 /* tslint:disable */
 /**
@@ -180,7 +166,36 @@ Symbol.iterator;
 /** @type {symbol} */
 Symbol.asyncIterator;
 `);
-    }
+}
+
+function getPublicExportedNames(entryModule) {
+    const fn = function() {};
+    const isStaticOrProtoName = (x) => (
+        !(x in fn) &&
+        (x !== `default`) &&
+        (x !== `undefined`) &&
+        (x !== `__esModule`) &&
+        (x !== `constructor`) &&
+        !(x.startsWith('_'))
+    );
+    return Object
+        .getOwnPropertyNames(entryModule)
+        .filter((name) => name !== 'default')
+        .filter((name) => (
+            typeof entryModule[name] === `object` ||
+            typeof entryModule[name] === `function`
+        ))
+        .map((name) => [name, entryModule[name]])
+        .reduce((reserved, [name, value]) => {
+
+            const staticNames = value &&
+                typeof value === 'object' ? Object.getOwnPropertyNames(value).filter(isStaticOrProtoName) :
+                typeof value === 'function' ? Object.getOwnPropertyNames(value).filter(isStaticOrProtoName) : [];
+
+            const instanceNames = (typeof value === `function` && Object.getOwnPropertyNames(value.prototype || {}) || []).filter(isStaticOrProtoName);
+
+            return [...reserved, { exportName: name, staticNames, instanceNames }];
+        }, []);
 }
 
 function apacheHeader() {

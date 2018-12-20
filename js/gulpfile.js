@@ -17,16 +17,15 @@
 
 const del = require('del');
 const gulp = require('gulp');
-const path = require('path');
 const { Observable } = require('rxjs');
-const buildTask = require('./gulp/build-task');
 const cleanTask = require('./gulp/clean-task');
+const compileTask = require('./gulp/compile-task');
 const packageTask = require('./gulp/package-task');
 const { targets, modules } = require('./gulp/argv');
 const { testTask, createTestData, cleanTestData } = require('./gulp/test-task');
 const {
     taskName, combinations,
-    knownTargets,
+    targetDir, knownTargets,
     npmPkgName, UMDSourceTargets,
     tasksToSkipPerTargetOrFormat
 } = require('./gulp/util');
@@ -35,58 +34,64 @@ for (const [target, format] of combinations([`all`], [`all`])) {
     const task = taskName(target, format);
     gulp.task(`clean:${task}`, cleanTask(target, format));
     gulp.task( `test:${task}`,  testTask(target, format));
-    gulp.task(`debug:${task}`,  testTask(target, format, true));
-    gulp.task(`build:${task}`, gulp.series(`clean:${task}`,
-                                            buildTask(target, format),
-                                            packageTask(target, format)));
+    gulp.task(`compile:${task}`, compileTask(target, format));
+    gulp.task(`package:${task}`, packageTask(target, format));
+    gulp.task(`build:${task}`, gulp.series(
+        `clean:${task}`, `compile:${task}`, `package:${task}`
+    ));
 }
 
 // The UMD bundles build temporary es5/6/next targets via TS,
 // then run the TS source through either closure-compiler or
 // a minifier, so we special case that here.
-knownTargets.forEach((target) =>
-    gulp.task(`build:${target}:umd`,
-        gulp.series(
-            gulp.parallel(
-                cleanTask(target, `umd`),
-                cleanTask(UMDSourceTargets[target], `cls`)
-            ),
-            buildTask(UMDSourceTargets[target], `cls`),
-            buildTask(target, `umd`), packageTask(target, `umd`),
-            cleanTask(UMDSourceTargets[target], `cls`)
-        )
-    )
-);
+knownTargets.forEach((target) => {
+    const umd = taskName(target, `umd`);
+    const cls = taskName(UMDSourceTargets[target], `cls`);
+    gulp.task(`compile:${umd}`, gulp.series(
+        `build:${cls}`, compileTask(target, `umd`),
+        async () => await del(targetDir(target, `cls`))
+    ));
+});
 
 // The main "apache-arrow" module builds the es5/umd, es2015/cjs,
 // es2015/esm, and es2015/umd targets, then copies and renames the
 // compiled output into the apache-arrow folder
-gulp.task(`build:${npmPkgName}`,
+gulp.task(`compile:${npmPkgName}`,
     gulp.series(
-        cleanTask(npmPkgName),
         gulp.parallel(
             `build:${taskName(`es5`, `umd`)}`,
             `build:${taskName(`es2015`, `cjs`)}`,
             `build:${taskName(`es2015`, `esm`)}`,
             `build:${taskName(`es2015`, `umd`)}`
         ),
-        buildTask(npmPkgName), packageTask(npmPkgName)
+        compileTask(npmPkgName)
     )
 );
+
+// Now that all the compile and package tasks have been defined,
+// define the composite `build` tasks
+for (const [target, format] of combinations([`all`], [`all`])) {
+    const task = taskName(target, format);
+    gulp.task(`build:${task}`, gulp.series(
+        `compile:${task}`, `package:${task}`
+    ));
+}
+
+// And finally the global composite tasks
+gulp.task(`clean:testdata`, cleanTestData);
+gulp.task(`create:testdata`, createTestData);
+gulp.task(`test`, gulpConcurrent(getTasks(`test`)));
+gulp.task(`clean`, gulpConcurrent(getTasks(`clean`)));
+gulp.task(`build`, gulpConcurrent(getTasks(`build`)));
+gulp.task(`compile`, gulpConcurrent(getTasks(`compile`)));
+gulp.task(`package`, gulpConcurrent(getTasks(`package`)));
+gulp.task(`default`,  gulp.series(`clean`, `build`, `test`));
 
 function gulpConcurrent(tasks) {
     const numCPUs = require('os').cpus().length;
     return () => Observable.from(tasks.map((task) => gulp.series(task)))
         .flatMap((task) => Observable.bindNodeCallback(task)(), numCPUs);
 }
-
-gulp.task(`clean:testdata`, cleanTestData);
-gulp.task(`create:testdata`, createTestData);
-gulp.task(`test`, gulpConcurrent(getTasks(`test`)));
-gulp.task(`debug`, gulp.series(getTasks(`debug`)));
-gulp.task(`clean`, gulpConcurrent(getTasks(`clean`)));
-gulp.task(`build`, gulpConcurrent(getTasks(`build`)));
-gulp.task(`default`,  gulp.series(`build`, `test`));
 
 function getTasks(name) {
     const tasks = [];
