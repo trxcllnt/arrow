@@ -70,8 +70,6 @@ const closureTask = ((cache) => memoizeTask(cache, async function closure(target
         return observableFromStreams(
             gulp.src([
                 /* external libs first */
-                `node_modules/tslib/package.json`,
-                `node_modules/tslib/tslib.es6.js`,
                 `node_modules/flatbuffers/package.json`,
                 `node_modules/flatbuffers/js/flatbuffers.mjs`,
                 `node_modules/text-encoding-utf-8/package.json`,
@@ -105,7 +103,7 @@ const createClosureArgs = (entry_point, externs) => ({
     package_json_entry_names: `module,jsnext:main,main`,
     assume_function_wrapper: true,
     js_output_file: `${mainExport}.js`,
-    language_in: gCCLanguageNames[`es2015`],
+    language_in: gCCLanguageNames[`esnext`],
     language_out: gCCLanguageNames[`es5`],
     output_wrapper:`${apacheHeader()}
 (function (global, factory) {

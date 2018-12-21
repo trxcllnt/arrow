@@ -47,16 +47,19 @@ for (const [target, format] of combinations([`all`], [`all`])) {
 knownTargets.forEach((target) => {
     const umd = taskName(target, `umd`);
     const cls = taskName(UMDSourceTargets[target], `cls`);
-    gulp.task(`compile:${umd}`, gulp.series(
-        `build:${cls}`, compileTask(target, `umd`),
-        async () => await del(targetDir(target, `cls`))
+    gulp.task(`build:${umd}`, gulp.series(
+        `build:${cls}`,
+        `clean:${umd}`, `compile:${umd}`, `package:${umd}`,
+        function remove_closure_tmp_files() {
+            return del(targetDir(target, `cls`))
+        }
     ));
 });
 
 // The main "apache-arrow" module builds the es5/umd, es2015/cjs,
 // es2015/esm, and es2015/umd targets, then copies and renames the
 // compiled output into the apache-arrow folder
-gulp.task(`compile:${npmPkgName}`,
+gulp.task(`build:${npmPkgName}`,
     gulp.series(
         gulp.parallel(
             `build:${taskName(`es5`, `umd`)}`,
@@ -64,24 +67,17 @@ gulp.task(`compile:${npmPkgName}`,
             `build:${taskName(`es2015`, `esm`)}`,
             `build:${taskName(`es2015`, `umd`)}`
         ),
-        compileTask(npmPkgName)
+        `clean:${npmPkgName}`,
+        `compile:${npmPkgName}`,
+        `package:${npmPkgName}`
     )
 );
-
-// Now that all the compile and package tasks have been defined,
-// define the composite `build` tasks
-for (const [target, format] of combinations([`all`], [`all`])) {
-    const task = taskName(target, format);
-    gulp.task(`build:${task}`, gulp.series(
-        `compile:${task}`, `package:${task}`
-    ));
-}
 
 // And finally the global composite tasks
 gulp.task(`clean:testdata`, cleanTestData);
 gulp.task(`create:testdata`, createTestData);
 gulp.task(`test`, gulpConcurrent(getTasks(`test`)));
-gulp.task(`clean`, gulpConcurrent(getTasks(`clean`)));
+gulp.task(`clean`, gulp.parallel(getTasks(`clean`)));
 gulp.task(`build`, gulpConcurrent(getTasks(`build`)));
 gulp.task(`compile`, gulpConcurrent(getTasks(`compile`)));
 gulp.task(`package`, gulpConcurrent(getTasks(`package`)));

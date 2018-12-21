@@ -25,6 +25,7 @@ const rimraf = promisify(require('rimraf'));
 const child_process = require(`child_process`);
 const { memoizeTask } = require('./memoize-task');
 const readFile = promisify(require('fs').readFile);
+const asyncDone = promisify(require('async-done'));
 const exec = promisify(require('child_process').exec);
 const parseXML = promisify(require('xml2js').parseString);
 
@@ -63,7 +64,7 @@ const testTask = ((cache, execArgv, testOptions) => memoizeTask(cache, function 
         ARROW_FILES: JSON.stringify(Array.isArray(argv.arrow_files) ? argv.arrow_files : [argv.arrow_files]),
         ARROW_STREAMS: JSON.stringify(Array.isArray(argv.arrow_streams) ? argv.arrow_streams : [argv.arrow_streams]),
     };
-    return child_process.spawn(`node`, args, opts);
+    return asyncDone(() => child_process.spawn(`node`, args, opts));
 }))({}, [jest, ...jestArgv], testOptions);
 
 module.exports = testTask;

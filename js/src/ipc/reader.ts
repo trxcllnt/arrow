@@ -336,7 +336,10 @@ class AsyncRecordBatchStreamReaderImpl<T extends { [key: string]: DataType } = a
         }
         return this;
     }
-    public async open(autoClose = this.autoClose) {
+    public async open(autoClose?: boolean) {
+        // default args in an async function crash closure-compiler at the moment
+        // so do this instead. https://github.com/google/closure-compiler/issues/3178
+        autoClose !== undefined || (autoClose = this.autoClose);
         if (!this.closed) {
             this.autoClose = autoClose;
             if (!(this.schema || (this.schema = (await this.reader.readSchema())!))) {
@@ -464,7 +467,10 @@ class AsyncRecordBatchFileReaderImpl<T extends { [key: string]: DataType } = any
     constructor(protected file: AsyncRandomAccessFile, dictionaries = new Map<number, Vector>()) {
         super(new AsyncMessageReader(file), dictionaries);
     }
-    public async open(autoClose = this.autoClose) {
+    public async open(autoClose?: boolean) {
+        // default args in an async function crash closure-compiler at the moment
+        // so do this instead. https://github.com/google/closure-compiler/issues/3178
+        autoClose !== undefined || (autoClose = this.autoClose);
         if (!this.closed && !this.footer) {
             this.schema = (this.footer = await this.readFooter()).schema;
             for (const block of this.footer.dictionaryBatches()) {
