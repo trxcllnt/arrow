@@ -16,26 +16,13 @@
 // under the License.
 
 import '../jest-extensions';
-import { Vector, util } from '../Arrow';
-import * as generate from '../test-data';
+import * as generate from '../generate-test-data';
+import { Table, RecordBatch, Vector, util } from '../Arrow';
 const { createElementComparator: compare } = util;
 
 describe('Generated Test Data', () => {
-
-    describe('Table', () => {
-        const table = generate.table([100, 150, 75]);
-        table.schema.fields.forEach((field, i) => {
-            describe(`${field}`, () => validateVector(table.getColumnAt(i)!));
-        });
-    });
-
-    describe('RecordBatch', () => {
-        const batch = generate.recordBatch();
-        batch.schema.fields.forEach((field, i) => {
-            describe(`${field}`, () => validateVector(batch.getChildAt(i)!));
-        });
-    });
-
+    describe('Table',                      () => validateTable(generate.table([100, 150, 75])));
+    describe('RecordBatch',                () => validateRecordBatch(generate.recordBatch()));
     describe('NullVector',                 () => validateVector(generate.null_()));
     describe('BoolVector',                 () => validateVector(generate.bool()));
     describe('Int8Vector',                 () => validateVector(generate.int8()));
@@ -74,9 +61,33 @@ describe('Generated Test Data', () => {
     describe('MapVector',                  () => validateVector(generate.map()));
 });
 
-function validateVector(vector: Vector) {
+function validateTable({ rows, cols, rowBatches, colBatches, table }: { rows: () => any[][], cols: () => any[][], rowBatches: (() => any[][])[], colBatches: (() => any[][])[], table: Table }) {
 
-    const values = [...vector];
+    validateVector({ values: rows, vector: table });
+
+    table.chunks.forEach((recordBatch, i) => {
+        describe(`recordBatch ${i}`, () => {
+            validateRecordBatch({ rows: rowBatches[i], cols: colBatches[i], recordBatch });
+        });
+    });
+
+    table.schema.fields.forEach((field, i) => {
+        describe(`column ${i}: ${field}`, () => validateVector({ values: () => cols()[i], vector: table.getColumnAt(i)! }));
+    });
+}
+
+function validateRecordBatch({ rows, cols, recordBatch }: { rows: () => any[][], cols: () => any[][], recordBatch: RecordBatch }) {
+
+    validateVector({ values: rows, vector: recordBatch });
+
+    recordBatch.schema.fields.forEach((field, i) => {
+        describe(`${field}`, () => validateVector({ values: () => cols()[i], vector: recordBatch.getChildAt(i)! }));
+    });
+}
+
+function validateVector({ values: createValues, vector }: { values: () => any[], vector: Vector }) {
+
+    const values = createValues();
 
     test(`gets expected values`, () => {
         expect.hasAssertions();
@@ -85,9 +96,9 @@ function validateVector(vector: Vector) {
             while (++i < n) {
                 actual = vector.get(i);
                 expected = values[i];
-                expect(actual).toEqual(expected);
+                expect(actual).toArrowCompare(expected);
             }
-        } catch (e) { throw new Error(`${vector.type}, idx ${i}: ${e}`); }
+        } catch (e) { throw new Error(`${vector}[${i}]: ${e}`); }
     });
 
     test(`iterates expected values`, () => {
@@ -96,9 +107,9 @@ function validateVector(vector: Vector) {
         try {
             for (actual of vector) {
                 expected = values[++i];
-                expect(actual).toEqual(expected);
+                expect(actual).toArrowCompare(expected);
             }
-        } catch (e) { throw new Error(`${vector.type}, idx ${i}: ${e}`); }
+        } catch (e) { throw new Error(`${vector}[${i}]: ${e}`); }
     });
 
     test(`indexOf returns expected values`, () => {
@@ -113,7 +124,7 @@ function validateVector(vector: Vector) {
                 expected = values.findIndex(compare(value));
                 expect(actual).toBe(expected);
             }
-        } catch (e) { throw new Error(`${vector.type}, idx ${i}: ${e}`); }
+        } catch (e) { throw new Error(`${vector}[${i}]: ${e}`); }
     });
 }
 

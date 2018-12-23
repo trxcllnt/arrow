@@ -17,7 +17,7 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import * as generate from '../../../test-data';
+import * as generate from '../../../generate-test-data';
 
 import {
     Table,
@@ -149,19 +149,15 @@ import {
                 ['int32', 'intervalDayTime', 'fixedSizeList', 'uint16'],
                 ['dictionary', 'int64', 'utf8', 'timeNanosecond', 'timestampSecond'],
                 ['dateMillisecond', 'float16', 'binary', 'decimal', 'timestampMillisecond']
-            ].map((fns) => {
-                const types = fns.map((fn) => (generate as any)[fn](0).type);
+            ].map((names) => {
+                const types = names.map((fn) => (generate as any)[fn](0).vector.type);
                 types.forEach((t) => t.dictionaryVector && (t.dictionaryVector = null));
-                const schema = new Schema(fns.map((name, i) => new Field(name, types[i])));
-                return generate.table([
-                    Math.random() * 100 | 0,
-                    Math.random() * 200 | 0,
-                    Math.random() * 300 | 0
-                ], schema);
+                const schema = new Schema(names.map((name, i) => new Field(name, types[i])));
+                return generate.table([1000, 2000, 3000], schema).table;
             });
 
             const stream = concatStream(tables.map((table) =>
-                () => RecordBatchStreamWriter.writeAll(table.batches).toReadableNodeStream()
+                () => RecordBatchStreamWriter.writeAll(table).toReadableNodeStream()
             )) as NodeJS.ReadableStream;
     
             let index = -1;

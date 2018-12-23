@@ -3,21 +3,21 @@
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
 // to you under the Apache License, Version 2.0 (the
-// 'License'); you may not use this file except in compliance
+// "License"); you may not use this file except in compliance
 // with the License.  You may obtain a copy of the License at
 //
 //   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing,
 // software distributed under the License is distributed on an
-// 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import * as generate from '../../../test-data';
+import * as generate from '../../../generate-test-data';
 import {
     nodeToDOMStream,
     convertNodeToDOMStream,
@@ -153,19 +153,15 @@ import {
                 ['int32', 'intervalDayTime', 'fixedSizeList', 'uint16'],
                 ['dictionary', 'int64', 'utf8', 'timeNanosecond', 'timestampSecond'],
                 ['dateMillisecond', 'float16', 'binary', 'decimal', 'timestampMillisecond']
-            ].map((fns) => {
-                const types = fns.map((fn) => (generate as any)[fn](0).type);
+            ].map((names) => {
+                const types = names.map((fn) => (generate as any)[fn](0).vector.type);
                 types.forEach((t) => t.dictionaryVector && (t.dictionaryVector = null));
-                const schema = new Schema(fns.map((name, i) => new Field(name, types[i])));
-                return generate.table([
-                    Math.random() * 100 | 0,
-                    Math.random() * 200 | 0,
-                    Math.random() * 300 | 0
-                ], schema);
+                const schema = new Schema(names.map((name, i) => new Field(name, types[i])));
+                return generate.table([1000, 2000, 3000], schema).table;
             });
 
             const stream = concatStream(tables.map((table) =>
-                RecordBatchStreamWriter.writeAll(table.batches).toReadableDOMStream()
+                RecordBatchStreamWriter.writeAll(table).toReadableDOMStream()
             )) as ReadableStream<Uint8Array>;
     
             let index = -1;

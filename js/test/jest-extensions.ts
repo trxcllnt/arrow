@@ -16,11 +16,12 @@
 // under the License.
 
 import { zip } from 'ix/iterable/zip';
-import { Table, Vector, RecordBatch } from './Arrow';
+import { Table, Vector, RecordBatch, util } from './Arrow';
 
 declare global {
     namespace jest {
         interface Matchers<R> {
+            toArrowCompare(expected: any): CustomMatcherResult;
             toEqualTable(expected: Table): CustomMatcherResult;
             toEqualRecordBatch(expected: RecordBatch): CustomMatcherResult;
             toEqualVector(expected: [Vector | null, string, string?]): CustomMatcherResult;
@@ -31,8 +32,24 @@ declare global {
 expect.extend({
     toEqualTable,
     toEqualVector,
+    toArrowCompare,
     toEqualRecordBatch
 });
+
+function format(jest: jest.MatcherUtils, x: any, y: any, msg= ' ') {
+    return `${
+        jest.utils.printExpected(x)
+        }${msg}${
+        jest.utils.printReceived(y)
+    }`;
+}
+
+function toArrowCompare(this: jest.MatcherUtils, actual: any, expected: any) {
+    if (!util.createElementComparator(expected)(actual)) {
+        return { pass: false, message: () => format(this, expected, actual, ' != ') };
+    }
+    return { pass: true, message: () => '' };
+}
 
 function toEqualTable(this: jest.MatcherUtils, actual: Table, expected: Table) {
     const failures = [] as string[];
@@ -82,17 +99,11 @@ function toEqualVector<
     let [v1, format1, columnName] = actual;
     let [v2, format2] = expected;
 
-    const format = (x: any, y: any, msg= ' ') => `${
-        this.utils.printExpected(x)}${
-            msg}${
-        this.utils.printReceived(y)
-    }`;
-
     if (v1 == null || v2 == null) {
         return {
             pass: false,
             message: [
-                `${columnName}: (${format(format1, format2, ' !== ')})\n`,
+                `${columnName}: (${format(this, format1, format2, ' !== ')})\n`,
                 `${v1 == null ? 'actual' : 'expected'} is null`
             ].join('\n')
         };
@@ -113,7 +124,7 @@ function toEqualVector<
         for (let i = -1, n = props.length; ++i < n;) {
             const prop = props[i];
             if (`${v1[prop]}` !== `${v2[prop]}`) {
-                propsFailures.push(`${prop}: ${format(v1[prop], v2[prop], ' !== ')}`);
+                propsFailures.push(`${prop}: ${format(this, v1[prop], v2[prop], ' !== ')}`);
             }
         }
     })();
@@ -122,7 +133,7 @@ function toEqualVector<
         for (let i = -1, n = v1.length; ++i < n;) {
             let x1 = v1.get(i), x2 = v2.get(i);
             if (this.utils.stringify(x1) !== this.utils.stringify(x2)) {
-                getFailures.push(`${i}: ${format(x1, x2, ' !== ')}`);
+                getFailures.push(`${i}: ${format(this, x1, x2, ' !== ')}`);
             }
         }
     })();
@@ -132,7 +143,7 @@ function toEqualVector<
         for (let [x1, x2] of zip(v1, v2)) {
             ++i;
             if (this.utils.stringify(x1) !== this.utils.stringify(x2)) {
-                iteratorFailures.push(`${i}: ${format(x1, x2, ' !== ')}`);
+                iteratorFailures.push(`${i}: ${format(this, x1, x2, ' !== ')}`);
             }
         }
     })();
@@ -140,7 +151,7 @@ function toEqualVector<
     return {
         pass: allFailures.every(({ failures }) => failures.length === 0),
         message: () => [
-            `${columnName}: (${format(format1, format2, ' !== ')})\n`,
+            `${columnName}: (${format(this, format1, format2, ' !== ')})\n`,
             ...allFailures.map(({ failures, title }) =>
                 !failures.length ? `` : [`${title}:`, ...failures].join(`\n`))
         ].join('\n')

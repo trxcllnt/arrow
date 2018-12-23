@@ -99,7 +99,7 @@ describe(`Table`, () => {
     test(`Table.serialize() serializes sliced RecordBatches`, () => {
 
         const table = getSingleRecordBatchTable();
-        const batch = table.batches[0], half = batch.length / 2 | 0;
+        const batch = table.chunks[0], half = batch.length / 2 | 0;
 
         // First compare what happens when slicing from the batch level
         let [batch1, batch2] = [batch.slice(0, half), batch.slice(half)];
@@ -168,7 +168,7 @@ describe(`Table`, () => {
                     const table = datum.table();
                     let bind = jest.fn();
                     table.scan(() => { }, bind);
-                    for (let batch of table.batches) {
+                    for (let batch of table.chunks) {
                         expect(bind).toHaveBeenCalledWith(batch);
                     }
                 });
@@ -276,7 +276,7 @@ describe(`Table`, () => {
                             // that - and that's ok!
                             let bind = jest.fn();
                             filtered.scan(() => { }, bind);
-                            for (let batch of table.batches) {
+                            for (let batch of table.chunks) {
                                 expect(bind).toHaveBeenCalledWith(batch);
                             }
                         });
