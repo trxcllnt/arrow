@@ -18,23 +18,34 @@
 import { Field } from './schema';
 import { Vector } from './vector';
 import { DataType } from './type';
-import { ChunkedVector } from './vector/chunked';
+import { Chunked } from './vector/chunked';
+import { Clonable, Sliceable, Applicative } from './vector';
 
-export class Column<T extends DataType = any> extends ChunkedVector<T> {
+export interface Column<T extends DataType = any> {
+    concat(...others: Vector<T>[]): Column<T>;
+    slice(begin?: number, end?: number): Column<T>;
+    clone(chunks?: Vector<T>[], offsets?: Uint32Array): Column<T>;
+}
+
+export class Column<T extends DataType = any>
+    extends Chunked<T>
+    implements Clonable<Column<T>>,
+               Sliceable<Column<T>>,
+               Applicative<T, Column<T>> {
 
     constructor(field: Field<T>, vectors: Vector<T>[] = [], offsets?: Uint32Array) {
-        super(field.type, ChunkedVector.flatten(...vectors), offsets);
+        super(field.type, Chunked.flatten(...vectors), offsets);
         this._field = field;
     }
 
-    protected _children?: Column[];
     protected _field: Field<T>;
+    protected _children?: Column[];
 
     public get field() { return this._field; }
     public get name() { return this.field.name; }
 
-    public slice(begin?: number, end?: number): Column<T> {
-        return new Column(this.field, super.slice(begin, end).chunks);
+    public clone(chunks = this._chunks) {
+        return new Column(this._field, chunks);
     }
 
     public getChildAt<R extends DataType = any>(index: number): Column<R> | null {
@@ -46,7 +57,7 @@ export class Column<T extends DataType = any> extends ChunkedVector<T> {
 
         if (column = columns[index]) { return column; }
         if (field = ((this.type.children || [])[index] as Field<R>)) {
-            chunks = this.chunks
+            chunks = this._chunks
                 .map((vector) => vector.getChildAt<R>(index))
                 .filter((vec): vec is Vector<R> => vec != null);
             if (chunks.length > 0) {

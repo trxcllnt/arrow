@@ -249,14 +249,14 @@ export class DateMillisecond extends Date_<Type.DateMillisecond> { constructor()
 
 type Times = Type.Time | Type.TimeSecond | Type.TimeMillisecond | Type.TimeMicrosecond | Type.TimeNanosecond;
 type TimesType = {
-    [Type.Time           ]: { unit: TimeUnit;             TValue: number | Uint32Array };
-    [Type.TimeSecond     ]: { unit: TimeUnit.SECOND;      TValue: number;              };
-    [Type.TimeMillisecond]: { unit: TimeUnit.MILLISECOND; TValue: number;              };
-    [Type.TimeMicrosecond]: { unit: TimeUnit.MICROSECOND; TValue: Uint32Array;         };
-    [Type.TimeNanosecond ]: { unit: TimeUnit.NANOSECOND;  TValue: Uint32Array;         };
+    [Type.Time           ]: { unit: TimeUnit;             TValue: number | Int32Array };
+    [Type.TimeSecond     ]: { unit: TimeUnit.SECOND;      TValue: number;             };
+    [Type.TimeMillisecond]: { unit: TimeUnit.MILLISECOND; TValue: number;             };
+    [Type.TimeMicrosecond]: { unit: TimeUnit.MICROSECOND; TValue: Int32Array;         };
+    [Type.TimeNanosecond ]: { unit: TimeUnit.NANOSECOND;  TValue: Int32Array;         };
 };
 
-interface Time_<T extends Times = Times> extends DataType<T> { TArray: Uint32Array; TValue: TimesType[T]['TValue']; ArrayType: typeof Uint32Array; }
+interface Time_<T extends Times = Times> extends DataType<T> { TArray: Int32Array; TValue: TimesType[T]['TValue']; ArrayType: typeof Int32Array; }
 class Time_<T extends Times = Times> extends DataType<T> {
     constructor(protected _unit: TimesType[T]['unit'],
                 protected _bitWidth: TimeBitWidth) {
@@ -267,7 +267,7 @@ class Time_<T extends Times = Times> extends DataType<T> {
     public get bitWidth() { return this._bitWidth; }
     public toString() { return `Time${this._bitWidth}<${TimeUnit[this._unit]}>`; }
     protected static [Symbol.toStringTag] = ((proto: Time_) => {
-        (<any> proto).ArrayType = Uint32Array;
+        (<any> proto).ArrayType = Int32Array;
         return proto[Symbol.toStringTag] = 'Time';
     })(Time_.prototype);
 }
@@ -347,7 +347,7 @@ export class Struct<T extends { [key: string]: DataType; } = any> extends DataTy
     }
     public get typeId() { return Type.Struct as Type.Struct; }
     public get children() { return this._children; }
-    public toString() { return `Struct<${this._children.map((f) => f.type).join(`, `)}>`; }
+    public toString() { return `Struct<[${this._children.map((f) => f.type).join(`, `)}]>`; }
     protected static [Symbol.toStringTag] = ((proto: Struct) => {
         return proto[Symbol.toStringTag] = 'Struct';
     })(Struct.prototype);
@@ -437,7 +437,7 @@ export class Map_<T extends { [key: string]: DataType; } = any> extends DataType
     public get typeId() { return Type.Map as Type.Map; }
     public get children() { return this._children; }
     public get keysSorted() { return this._keysSorted; }
-    public toString() { return `Map<${this.children.join(`, `)}>`; }
+    public toString() { return `Map<{${this._children.map((f) => `${f.name}:${f.type}`).join(`, `)}}>`; }
     protected static [Symbol.toStringTag] = ((proto: Map_) => {
         return proto[Symbol.toStringTag] = 'Map_';
     })(Map_.prototype);

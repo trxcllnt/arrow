@@ -19,30 +19,34 @@ import { Field } from '../schema';
 import { Vector } from '../vector';
 import { DataType } from '../type';
 import { clampRange } from '../util/vector';
+import { Clonable, Sliceable, Applicative } from '../vector';
 
-type SearchContinuation<T extends ChunkedVector> = (column: T, chunkIndex: number, valueIndex: number) => any;
+type SearchContinuation<T extends Chunked> = (column: T, chunkIndex: number, valueIndex: number) => any;
 
-export class ChunkedVector<T extends DataType = any> extends Vector<T> {
+export class Chunked<T extends DataType = any>
+    extends Vector<T>
+    implements Clonable<Chunked<T>>,
+               Sliceable<Chunked<T>>,
+               Applicative<T, Chunked<T>> {
 
     /** @nocollapse */
     public static flatten<T extends DataType>(...vectors: Vector<T>[]) {
         return vectors.reduce(function flatten(xs: any[], x: any): any[] {
-            return x instanceof ChunkedVector ? x.chunks.reduce(flatten, xs) : [...xs, x];
+            return x instanceof Chunked ? x.chunks.reduce(flatten, xs) : [...xs, x];
         }, []).filter((x: any): x is Vector<T> => x instanceof Vector);
     }
 
     /** @nocollapse */
-    public static concat<T extends DataType>(...vectors: Vector<T>[]): Vector<T> {
-        return new ChunkedVector(vectors[0].type, ChunkedVector.flatten(...vectors));
+    public static concat<T extends DataType>(...chunks: Vector<T>[]): Chunked<T> {
+        return new Chunked(chunks[0].type, Chunked.flatten(...chunks));
     }
 
     protected _type: T;
     protected _length: number;
-    protected _numChildren: number;
     protected _chunks: Vector<T>[];
-
+    protected _numChildren: number;
+    protected _children?: Chunked[];
     protected _nullCount: number = -1;
-    protected _children?: ChunkedVector[];
     protected _chunkOffsets: Uint32Array;
 
     constructor(type: T, chunks: Vector<T>[] = [], offsets = calculateOffsets(chunks)) {
@@ -79,16 +83,24 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         }
     }
 
-    public concat(...others: Vector<T>[]): Vector<T> {
-        return ChunkedVector.concat<T>(this, ...others);
+    public clone(chunks = this._chunks): Chunked<T> {
+        return new Chunked(this._type, chunks);
     }
 
-    public getChildAt<R extends DataType = any>(index: number): ChunkedVector<R> | null {
+    public concat(...others: Vector<T>[]): Chunked<T> {
+        return this.clone(Chunked.flatten(this, ...others));
+    }
+
+    public slice(begin?: number, end?: number): Chunked<T> {
+        return clampRange(this, begin, end, this._sliceInternal);
+    }
+
+    public getChildAt<R extends DataType = any>(index: number): Chunked<R> | null {
 
         if (index < 0 || index >= this._numChildren) { return null; }
 
         let columns = this._children || (this._children = []);
-        let child: ChunkedVector<R>, field: Field<R>, chunks: Vector<R>[];
+        let child: Chunked<R>, field: Field<R>, chunks: Vector<R>[];
 
         if (child = columns[index]) { return child; }
         if (field = ((this._type.children || [])[index] as Field<R>)) {
@@ -96,7 +108,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
                 .map((vector) => vector.getChildAt<R>(index))
                 .filter((vec): vec is Vector<R> => vec != null);
             if (chunks.length > 0) {
-                return (columns[index] = new ChunkedVector<R>(field.type, chunks));
+                return (columns[index] = new Chunked<R>(field.type, chunks));
             }
         }
 
@@ -104,8 +116,8 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
     }
 
     public search(index: number): [number, number] | null;
-    public search<N extends SearchContinuation<ChunkedVector<T>>>(index: number, then?: N): ReturnType<N>;
-    public search<N extends SearchContinuation<ChunkedVector<T>>>(index: number, then?: N) {
+    public search<N extends SearchContinuation<Chunked<T>>>(index: number, then?: N): ReturnType<N>;
+    public search<N extends SearchContinuation<Chunked<T>>>(index: number, then?: N) {
         let idx = index;
         // binary search to find the child vector and value indices
         let offsets = this._chunkOffsets, rhs = offsets.length - 1;
@@ -164,13 +176,9 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         return dst;
     }
 
-    public slice(begin?: number, end?: number): ChunkedVector<T> {
-        return clampRange(this, begin, end, this.sliceInternal);
-    }
-
-    protected getInternal({ _chunks }: ChunkedVector<T>, i: number, j: number) { return _chunks[i].get(j); }
-    protected isValidInternal({ _chunks }: ChunkedVector<T>, i: number, j: number) { return _chunks[i].isValid(j); }
-    protected indexOfInternal({ _chunks }: ChunkedVector<T>, chunkIndex: number, fromIndex: number, element: T['TValue']) {
+    protected getInternal({ _chunks }: Chunked<T>, i: number, j: number) { return _chunks[i].get(j); }
+    protected isValidInternal({ _chunks }: Chunked<T>, i: number, j: number) { return _chunks[i].isValid(j); }
+    protected indexOfInternal({ _chunks }: Chunked<T>, chunkIndex: number, fromIndex: number, element: T['TValue']) {
         let i = chunkIndex - 1, n = _chunks.length;
         let start = fromIndex, offset = 0, found = -1;
         while (++i < n) {
@@ -183,9 +191,9 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
         return -1;
     }
 
-    protected sliceInternal(column: ChunkedVector<T>, offset: number, length: number) {
+    protected _sliceInternal(self: Chunked<T>, offset: number, length: number) {
         const slices: Vector<T>[] = [];
-        const { type, chunks, _chunkOffsets: chunkOffsets } = column;
+        const { chunks, _chunkOffsets: chunkOffsets } = self;
         for (let i = -1, n = chunks.length; ++i < n;) {
             const chunk = chunks[i];
             const chunkLength = chunk.length;
@@ -204,7 +212,7 @@ export class ChunkedVector<T extends DataType = any> extends Vector<T> {
             const end = begin + Math.min(chunkLength - begin, (offset + length) - chunkOffset);
             slices.push(chunk.slice(begin, end) as Vector<T>);
         }
-        return new ChunkedVector(type, slices);
+        return self.clone(slices);
     }
 }
 

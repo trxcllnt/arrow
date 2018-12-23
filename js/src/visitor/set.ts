@@ -221,7 +221,10 @@ const setSparseUnion = <T extends SparseUnion>(vector: Vector<T>, index: number,
 };
 
 const setDictionary = <T extends Dictionary>(vector: Vector<T>, index: number, value: T['TValue']): void => {
-    return vector.dictionary.set(vector.indices.get(index) as number, value);
+    const key = vector.getKey(index);
+    if (key !== null) {
+        vector.setValue(key, value);
+    }
 };
 
 const setIntervalValue = <T extends Interval>(vector: Vector<T>, index: number, value: T['TValue']): void => {

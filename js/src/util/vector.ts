@@ -59,8 +59,8 @@ export function createElementComparator(search: any) {
     }
     // Compare Dates
     if (search instanceof Date) {
-        search = search.valueOf();
-        return (value: any) => value && (value.valueOf() === search) || false;
+        const valueOfSearch = search.valueOf();
+        return (value: any) => value instanceof Date ? (value.valueOf() === valueOfSearch) : false;
     }
     // Compare Array-likes
     if (Array.isArray(search) || ArrayBuffer.isView(search)) {

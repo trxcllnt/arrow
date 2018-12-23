@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Table } from '../table';
 import { MAGIC } from './message';
 import { Vector } from '../vector';
 import { Schema, Field } from '../schema';
@@ -22,7 +23,7 @@ import { Message } from './metadata/message';
 import { RecordBatch } from '../recordbatch';
 import * as metadata from './metadata/message';
 import { DataType, Dictionary } from '../type';
-import { ChunkedVector } from '../vector/chunked';
+import { Chunked } from '../vector/chunked';
 import { FileBlock, Footer } from './metadata/file';
 import { ArrayBufferViewInput } from '../util/buffer';
 import { MessageHeader, MetadataVersion } from '../enum';
@@ -200,7 +201,7 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
     protected _writeDictionaries(dictionaryFields: Map<number, Field<Dictionary<any, any>>[]>) {
         for (const [id, fields] of dictionaryFields) {
             const vector = fields[0].type.dictionaryVector;
-            if (!(vector instanceof ChunkedVector)) {
+            if (!(vector instanceof Chunked)) {
                 this._writeDictionaryBatch(vector, id, false);
             } else {
                 const chunks = vector.chunks;
@@ -215,20 +216,22 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
 
 export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
 
+    public static writeAll<T extends { [key: string]: DataType } = any>(table: Table<T>): RecordBatchFileWriter<T>;
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>>): RecordBatchFileWriter<T>;
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchFileWriter<T>>;
     /** @nocollapse */
-    public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
         const writer = new RecordBatchFileWriter<T>();
-        if (!isAsyncIterable(batches)) {
-            for (const batch of batches) {
+        const chunks = (input instanceof Table) ? input.chunks : input;
+        if (!isAsyncIterable(chunks)) {
+            for (const batch of chunks) {
                 writer.write(batch);
             }
             writer.close();
             return writer;
         }
         return (async () => {
-            for await (const batch of batches) {
+            for await (const batch of chunks) {
                 writer.write(batch);
             }
             writer.close();
@@ -249,20 +252,22 @@ export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> 
 
 export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
 
+    public static writeAll<T extends { [key: string]: DataType } = any>(table: Table<T>): RecordBatchStreamWriter<T>;
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>>): RecordBatchStreamWriter<T>;
     public static writeAll<T extends { [key: string]: DataType } = any>(batches: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchStreamWriter<T>>;
     /** @nocollapse */
-    public static writeAll<T extends { [key: string]: DataType } = any>(batches: Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
         const writer = new RecordBatchStreamWriter<T>();
-        if (!isAsyncIterable(batches)) {
-            for (const batch of batches) {
+        const chunks = (input instanceof Table) ? input.chunks : input;
+        if (!isAsyncIterable(chunks)) {
+            for (const batch of chunks) {
                 writer.write(batch);
             }
             writer.close();
             return writer;
         }
         return (async () => {
-            for await (const batch of batches) {
+            for await (const batch of chunks) {
                 writer.write(batch);
             }
             writer.close();

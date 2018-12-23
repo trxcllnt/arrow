@@ -21,8 +21,9 @@ import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
 import { Vector as VType } from './interfaces';
 import { RecordBatchReader } from './ipc/reader';
+import { Vector, Chunked } from './vector/index';
 import { DataType, RowLike, Struct } from './type';
-import { Vector, ChunkedVector } from './vector/index';
+import { Clonable, Sliceable, Applicative } from './vector';
 import { RecordBatchFileWriter, RecordBatchStreamWriter } from './ipc/writer';
 
 export interface DataFrame<T extends { [key: string]: DataType; } = any> {
@@ -33,7 +34,22 @@ export interface DataFrame<T extends { [key: string]: DataType; } = any> {
     [Symbol.iterator](): IterableIterator<RowLike<T>>;
 }
 
-export class Table<T extends { [key: string]: DataType; } = any> implements DataFrame<T> {
+export interface Table<T extends { [key: string]: DataType; } = any> {
+
+    get(index: number): Struct<T>['TValue'];
+    [Symbol.iterator](): IterableIterator<RowLike<T>>;
+
+    slice(begin?: number, end?: number): Table<T>;
+    concat(...others: Vector<Struct<T>>[]): Table<T>;
+    clone(chunks?: RecordBatch<T>[], offsets?: Uint32Array): Table<T>;
+}
+
+export class Table<T extends { [key: string]: DataType; } = any>
+    extends Chunked<Struct<T>>
+    implements DataFrame<T>,
+               Clonable<Table<T>>,
+               Sliceable<Table<T>>,
+               Applicative<Struct<T>, Table<T>> {
 
     /** @nocollapse */
     public static empty<T extends { [key: string]: DataType; } = any>() { return new Table<T>(new Schema([]), []); }
@@ -86,23 +102,9 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
     /** @nocollapse */
     public static fromStruct<T extends { [key: string]: DataType; } = any>(struct: Vector<Struct<T>>) {
         const schema = new Schema<T>(struct.type.children);
-        const chunks = (struct instanceof ChunkedVector ? struct.chunks : [struct]) as VType<Struct<T>>[];
+        const chunks = (struct instanceof Chunked ? struct.chunks : [struct]) as VType<Struct<T>>[];
         return new Table(schema, chunks.map((chunk) => new RecordBatch(schema, chunk.data)));
     }
-
-    protected _schema: Schema;
-    protected _length: number;
-    protected _numCols: number;
-    // List of inner RecordBatches
-    protected _batches: RecordBatch<T>[];
-    // List of inner Vectors, possibly spanning batches
-    protected readonly _columns: Vector<any>[] = [];
-    // Union of all inner RecordBatches into one RecordBatch, possibly chunked.
-    // If the Table has just one inner RecordBatch, this points to that.
-    // If the Table has multiple inner RecordBatches, then this is a Chunked view
-    // over the list of RecordBatches. This allows us to delegate the responsibility
-    // of indexing, iterating, slicing, and visiting to the Nested/Chunked Data/Views.
-    protected _batchesUnion: Vector<Struct<T>>;
 
     constructor(batches: RecordBatch<T>[]);
     constructor(...batches: RecordBatch<T>[]);
@@ -112,69 +114,75 @@ export class Table<T extends { [key: string]: DataType; } = any> implements Data
 
         let schema: Schema = null!;
 
-        if (args[0] instanceof Schema) {
-            schema = args.shift();
-        }
+        if (args[0] instanceof Schema) { schema = args.shift(); }
 
-        let batches = args.reduce(function flatten(xs: any[], x: any): any[] {
+        let chunks = args.reduce(function flatten(xs: any[], x: any): any[] {
             return Array.isArray(x) ? x.reduce(flatten, xs) : [...xs, x];
         }, []).filter((x: any): x is RecordBatch<T> => x instanceof RecordBatch);
 
-        if (!schema && !(schema = batches[0] && batches[0].schema)) {
-            throw new TypeError('Table must be initialized with a Schema or at least one RecordBatch with a Schema');
+        if (!schema && !(schema = chunks[0] && chunks[0].schema)) {
+            throw new TypeError('Table must be initialized with a Schema or at least one RecordBatch');
         }
 
-        this._schema = schema;
-        this._batches = batches;
-        this._batchesUnion = batches.length == 0
-            ? new RecordBatch<T>(schema, 0, [])
-            : batches.length === 1 ? batches[0]
-            : ChunkedVector.concat<Struct<T>>(...batches) as Vector<Struct<T>>;
+        if (!chunks[0]) { chunks[0] = new RecordBatch(schema, 0, []); }
 
-        this._length = this.batchesUnion.length;
-        this._numCols = this.schema.fields.length;
+        super(chunks[0].type, chunks);
+
+        this._schema = schema;
+        this._chunks = chunks;
     }
+
+    protected _schema: Schema;
+    // List of inner RecordBatches
+    protected _chunks: RecordBatch<T>[];
+    protected _children?: Column<T[keyof T]>[];
 
     public get schema() { return this._schema; }
     public get length() { return this._length; }
-    public get numCols() { return this._numCols; }
-    public get batches() { return this._batches; }
-    public get batchesUnion() { return this._batchesUnion; }
+    public get chunks() { return this._chunks; }
+    public get numCols() { return this._numChildren; }
 
-    public get(index: number): Struct<T>['TValue'] {
-        return this.batchesUnion.get(index)!;
+    public clone(chunks = this._chunks) {
+        return new Table<T>(this._schema, chunks);
     }
-    public getColumn<R extends keyof T>(name: R): Vector<T[R]> | null {
-        return this.getColumnAt(this.getColumnIndex(name)) as Vector<T[R]> | null;
+
+    public getColumnAt<R extends DataType = any>(index: number): Column<R> | null {
+        return this.getChildAt(index);
     }
-    public getColumnAt<T extends DataType = any>(index: number): Vector<T> | null {
-        if (index < 0 || index >= this.numCols) {
-            return null;
-        }
-        if (this.batches.length === 1) {
-            return this.batches[0].getChildAt<T>(index) as Vector<T> | null;
-        }
-        return new Column<T>(
-            this.schema.fields[index] as Field<T>,
-            this.batches.map((b) => b.getChildAt<T>(index)! as Vector<T>));
+    public getColumn<R extends keyof T>(name: R): Column<T[R]> | null {
+        return this.getColumnAt(this.getColumnIndex(name)) as Column<T[R]> | null;
     }
     public getColumnIndex<R extends keyof T>(name: R) {
-        return this.schema.fields.findIndex((f) => f.name === name);
+        return this._schema.fields.findIndex((f) => f.name === name);
     }
-    public [Symbol.iterator]() {
-        return this.batchesUnion[Symbol.iterator]() as IterableIterator<RowLike<T>>;
+    public getChildAt<R extends DataType = any>(index: number): Column<R> | null {
+        if (index < 0 || index >= this.numChildren) { return null; }
+        let schema = this._schema;
+        let column: Column<R>, field: Field<R>, chunks: Vector<R>[];
+        let columns = this._children || (this._children = []) as Column[];
+        if (column = columns[index]) { return column as Column<R>; }
+        if (field = ((schema.fields || [])[index] as Field<R>)) {
+            chunks = this._chunks
+                .map((chunk) => chunk.getChildAt<R>(index))
+                .filter((vec): vec is Vector<R> => vec != null);
+            if (chunks.length > 0) {
+                return (columns[index] = new Column<R>(field, chunks));
+            }
+        }
+        return null;
     }
+
     // @ts-ignore
     public serialize(encoding = 'binary', stream = true) {
         const writer = !stream
             ? RecordBatchFileWriter
             : RecordBatchStreamWriter;
-        return writer.writeAll(this.batches).toUint8Array(true);
+        return writer.writeAll(this._chunks).toUint8Array(true);
     }
     public count(): number {
-        return this.length;
+        return this._length;
     }
     public select(...columnNames: string[]) {
-        return new Table(this.batches.map((batch) => batch.select(...columnNames)));
+        return new Table(this._chunks.map((batch) => batch.select(...columnNames)));
     }
 }

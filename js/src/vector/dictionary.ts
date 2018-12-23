@@ -35,11 +35,13 @@ export class DictionaryVector<T extends DataType = any, TKey extends TKeys = TKe
         super(data, void 0, 1);
         this._indices = Vector.new(data.clone(this.type.indices));
     }
-    protected _bindDataAccessors() {}
+    // protected _bindDataAccessors() {}
     public get indices() { return this._indices; }
-    public get dictionary() { return this.type.dictionaryVector; }
-    public getKey(index: number): TKey['TValue'] | null { return this.indices.get(index); }
-    public getValue(key: number): T['TValue'] | null { return this.dictionary.get(key); }
-    public isValid(index: number) { return this.indices.isValid(index); }
+    public get dictionary() { return this._data.type.dictionaryVector; }
+    public isValid(index: number) { return this._indices.isValid(index); }
     public reverseLookup(value: T) { return this.dictionary.indexOf(value); }
+    public getKey(idx: number): TKey['TValue'] | null { return this._indices.get(idx); }
+    public getValue(key: number): T['TValue'] | null { return this.dictionary.get(key); }
+    public setKey(idx: number, key: TKey['TValue'] | null) { return this._indices.set(idx, key); }
+    public setValue(key: number, value: T['TValue'] | null) { return this.dictionary.set(key, value); }
 }

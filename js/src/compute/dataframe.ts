@@ -41,10 +41,10 @@ declare module '../table' {
 
 export class Dataframe<T extends { [key: string]: DataType } = any> extends Table<T> {
     public filter(predicate: Predicate): DF<T> {
-        return new FilteredDataFrame<T>(this.batches, predicate);
+        return new FilteredDataFrame<T>(this.chunks, predicate);
     }
     public scan(next: NextFunc, bind?: BindFunc) {
-        const batches = this.batches, numBatches = batches.length;
+        const batches = this.chunks, numBatches = batches.length;
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
             // load batches
             const batch = batches[batchIndex];
@@ -56,7 +56,7 @@ export class Dataframe<T extends { [key: string]: DataType } = any> extends Tabl
         }
     }
     public countBy(name: Col | string) {
-        const batches = this.batches, numBatches = batches.length;
+        const batches = this.chunks, numBatches = batches.length;
         const count_by = typeof name === 'string' ? new Col(name) : name as Col;
         // Assume that all dictionary batches are deltas, which means that the
         // last record batch has the most complete dictionary
@@ -107,18 +107,18 @@ export class CountByResult<T extends DataType = any, TCount extends Int = Int> e
 }
 
 export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> implements DF<T> {
-    private predicate: Predicate;
-    private batches: RecordBatch<T>[];
+    private _predicate: Predicate;
+    private _chunks: RecordBatch<T>[];
     constructor (batches: RecordBatch<T>[], predicate: Predicate) {
-        this.batches = batches;
-        this.predicate = predicate;
+        this._chunks = batches;
+        this._predicate = predicate;
     }
     public scan(next: NextFunc, bind?: BindFunc) {
         // inlined version of this:
         // this.parent.scan((idx, columns) => {
         //     if (this.predicate(idx, columns)) next(idx, columns);
         // });
-        const batches = this.batches;
+        const batches = this._chunks;
         const numBatches = batches.length;
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
             // load batches
@@ -127,7 +127,7 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
             // If predicate doesn't match anything in the batch we don't need
             // to bind the callback
             if (bind) { bind(batch); }
-            const predicate = this.predicate.bind(batch);
+            const predicate = this._predicate.bind(batch);
             // yield all indices
             for (let index = -1, numRows = batch.length; ++index < numRows;) {
                 if (predicate(index, batch)) { next(index, batch); }
@@ -142,12 +142,12 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         // });
         // return sum;
         let sum = 0;
-        const batches = this.batches;
+        const batches = this._chunks;
         const numBatches = batches.length;
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
             // load batches
             const batch = batches[batchIndex];
-            const predicate = this.predicate.bind(batch);
+            const predicate = this._predicate.bind(batch);
             // yield all indices
             for (let index = -1, numRows = batch.length; ++index < numRows;) {
                 if (predicate(index, batch)) { ++sum; }
@@ -160,7 +160,7 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         // this.parent.scan((idx, columns) => {
         //     if (this.predicate(idx, columns)) next(idx, columns);
         // });
-        const batches = this.batches;
+        const batches = this._chunks;
         const numBatches = batches.length;
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
             // load batches
@@ -168,7 +168,7 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
             // TODO: bind batches lazily
             // If predicate doesn't match anything in the batch we don't need
             // to bind the callback
-            const predicate = this.predicate.bind(batch);
+            const predicate = this._predicate.bind(batch);
             // yield all indices
             for (let index = -1, numRows = batch.length; ++index < numRows;) {
                 if (predicate(index, batch)) { yield batch.get(index) as any; }
@@ -177,12 +177,12 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
     }
     public filter(predicate: Predicate): DF<T> {
         return new FilteredDataFrame<T>(
-            this.batches,
-            this.predicate.and(predicate)
+            this._chunks,
+            this._predicate.and(predicate)
         );
     }
     public countBy(name: Col | string) {
-        const batches = this.batches, numBatches = batches.length;
+        const batches = this._chunks, numBatches = batches.length;
         const count_by = typeof name === 'string' ? new Col(name) : name as Col;
         // Assume that all dictionary batches are deltas, which means that the
         // last record batch has the most complete dictionary
@@ -201,7 +201,7 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         for (let batchIndex = -1; ++batchIndex < numBatches;) {
             // load batches
             const batch = batches[batchIndex];
-            const predicate = this.predicate.bind(batch);
+            const predicate = this._predicate.bind(batch);
             // rebind the countBy Col
             count_by.bind(batch);
             const keys = (count_by.vector as V<Dictionary>).indices;
@@ -216,13 +216,13 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
 }
 
 function tableScan(this: Table, next: NextFunc, bind?: BindFunc) {
-    return new Dataframe(this.batches).scan(next, bind);
+    return new Dataframe(this.chunks).scan(next, bind);
 }
 
 function tableFilter(this: Table, predicate: Predicate): DF {
-    return new Dataframe(this.batches).filter(predicate);
+    return new Dataframe(this.chunks).filter(predicate);
 }
 
 function tableCountBy(this: Table, name: Col | string) {
-    return new Dataframe(this.batches).countBy(name);
+    return new Dataframe(this.chunks).countBy(name);
 }

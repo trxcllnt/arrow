@@ -18,10 +18,19 @@
 import { Data } from '../data';
 import { Vector } from '../vector';
 import { DataType } from '../type';
-import { ChunkedVector } from './chunked';
+import { Chunked } from './chunked';
 import { clampRange } from '../util/vector';
+import { Vector as VType } from '../interfaces';
+import { Clonable, Sliceable, Applicative } from '../vector';
 
-export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
+export interface BaseVector<T extends DataType = any> extends Clonable<VType<T>>, Sliceable<VType<T>>, Applicative<T, Chunked<T>> {
+    slice(begin?: number, end?: number): VType<T>;
+    concat(...others: Vector<T>[]): Chunked<T>;
+    clone<R extends DataType = T>(data: Data<R>, children?: Vector<R>[], stride?: number): VType<R>;
+}
+
+export abstract class BaseVector<T extends DataType = any> extends Vector<T>
+    implements Clonable<VType<T>>, Sliceable<VType<T>>, Applicative<T, Chunked<T>> {
 
     // @ts-ignore
     protected _data: Data<T>;
@@ -41,28 +50,35 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
     public get stride() { return this._stride; }
     public get numChildren() { return this._numChildren; }
 
-    public get type() { return this.data.type; }
-    public get typeId() { return this.data.typeId as T['TType']; }
-    public get length() { return this.data.length; }
-    public get offset() { return this.data.offset; }
-    public get nullCount() { return this.data.nullCount; }
+    public get type() { return this._data.type; }
+    public get typeId() { return this._data.typeId as T['TType']; }
+    public get length() { return this._data.length; }
+    public get offset() { return this._data.offset; }
+    public get nullCount() { return this._data.nullCount; }
     public get VectorName() { return this.constructor.name; }
 
-    public get ArrayType(): T['ArrayType'] { return this.data.ArrayType; }
+    public get ArrayType(): T['ArrayType'] { return this._data.ArrayType; }
 
-    public get values() { return this.data.values; }
-    public get typeIds() { return this.data.typeIds; }
-    public get nullBitmap() { return this.data.nullBitmap; }
-    public get valueOffsets() { return this.data.valueOffsets; }
+    public get values() { return this._data.values; }
+    public get typeIds() { return this._data.typeIds; }
+    public get nullBitmap() { return this._data.nullBitmap; }
+    public get valueOffsets() { return this._data.valueOffsets; }
 
     public get [Symbol.toStringTag]() { return `${this.VectorName}<${this.type[Symbol.toStringTag]}>`; }
 
     public clone<R extends DataType = T>(data: Data<R>, children = this._children, stride = this.stride) {
-        return Vector.new<R>(data, children, stride);
+        return Vector.new<R>(data, children, stride) as any;
     }
 
-    public concat(...others: Vector<T>[]): Vector<T> {
-        return ChunkedVector.concat<T>(this, ...others) as Vector<T>;
+    public concat(...others: Vector<T>[]) {
+        return Chunked.concat<T>(this, ...others);
+    }
+
+    public slice(begin?: number, end?: number) {
+        // Adjust args similar to Array.prototype.slice. Normalize begin/end to
+        // clamp between 0 and length, and wrap around on negative indices, e.g.
+        // slice(-1, 5) or slice(5, -1)
+        return clampRange(this, begin, end, this._sliceInternal);
     }
 
     public isValid(index: number): boolean {
@@ -78,23 +94,16 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T> {
     public getChildAt<R extends DataType = any>(index: number): Vector<R> | null {
         return index < 0 || index >= this.numChildren ? null : (
             (this._children || (this._children = []))[index] ||
-            (this._children[index] = Vector.new<R>(this.data.childData[index] as Data<R>))
+            (this._children[index] = Vector.new<R>(this._data.childData[index] as Data<R>))
         ) as Vector<R>;
     }
 
     // @ts-ignore
     public toJSON(): any {}
 
-    public slice(begin?: number, end?: number): this {
-        // Adjust args similar to Array.prototype.slice. Normalize begin/end to
-        // clamp between 0 and length, and wrap around on negative indices, e.g.
-        // slice(-1, 5) or slice(5, -1)
-        return clampRange(this, begin, end, this.sliceInternal) as any;
-    }
-
-    protected sliceInternal(vector: BaseVector<T>, offset: number, length: number) {
-        const stride = vector.stride;
-        return vector.clone(vector.data.slice(offset * stride, (length - offset) * stride));
+    protected _sliceInternal(self: this, offset: number, length: number) {
+        const stride = self.stride;
+        return self.clone(self.data.slice(offset * stride, (length - offset) * stride));
     }
 
     // @ts-ignore

@@ -208,7 +208,7 @@ const getSparseUnion = <T extends SparseUnion>(vector: Vector<T>, index: number)
 };
 
 const getDictionary = <T extends Dictionary>(vector: Vector<T>, index: number): T['TValue'] => {
-    return vector.dictionary.get(vector.indices.get(index) as number);
+    return vector.getValue(vector.getKey(index)!);
 };
 
 const getInterval = <T extends Interval>(vector: Vector<T>, index: number): T['TValue'] =>

@@ -49,7 +49,7 @@ export {
     BaseVector,
     BinaryVector,
     BoolVector,
-    ChunkedVector,
+    Chunked,
     DateVector, DateDayVector, DateMillisecondVector,
     DecimalVector,
     DictionaryVector,

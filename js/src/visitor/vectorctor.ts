@@ -19,8 +19,26 @@ import { Data } from '../data';
 import { Type } from '../enum';
 import { DataType } from '../type';
 import { Visitor } from '../visitor';
-import * as vecs from '../vector/all';
 import { Vector, VectorCtor } from '../interfaces';
+
+import { BinaryVector } from '../vector/binary';
+import { BoolVector } from '../vector/bool';
+import { DateVector, DateDayVector, DateMillisecondVector } from '../vector/date';
+import { DecimalVector } from '../vector/decimal';
+import { DictionaryVector } from '../vector/dictionary';
+import { FixedSizeBinaryVector } from '../vector/fixedsizebinary';
+import { FixedSizeListVector } from '../vector/fixedsizelist';
+import { FloatVector, Float16Vector, Float32Vector, Float64Vector } from '../vector/float';
+import { IntervalVector, IntervalDayTimeVector, IntervalYearMonthVector } from '../vector/interval';
+import { IntVector, Int8Vector, Int16Vector, Int32Vector, Int64Vector, Uint8Vector, Uint16Vector, Uint32Vector, Uint64Vector } from '../vector/int';
+import { ListVector } from '../vector/list';
+import { MapVector } from '../vector/map';
+import { NullVector } from '../vector/null';
+import { StructVector } from '../vector/struct';
+import { TimestampVector, TimestampSecondVector, TimestampMillisecondVector, TimestampMicrosecondVector, TimestampNanosecondVector } from '../vector/timestamp';
+import { TimeVector, TimeSecondVector, TimeMillisecondVector, TimeMicrosecondVector, TimeNanosecondVector } from '../vector/time';
+import { UnionVector, DenseUnionVector, SparseUnionVector } from '../vector/union';
+import { Utf8Vector } from '../vector/utf8';
 
 export interface GetVectorConstructor extends Visitor {
     visitMany <T extends Type>    (nodes: T[]     ): VectorCtor<T>[];
@@ -32,49 +50,49 @@ export interface GetVectorConstructor extends Visitor {
 }
 
 export class GetVectorConstructor extends Visitor {
-    public visitNull                 () { return vecs.NullVector; }
-    public visitBool                 () { return vecs.BoolVector; }
-    public visitInt                  () { return vecs.IntVector; }
-    public visitInt8                 () { return vecs.Int8Vector; }
-    public visitInt16                () { return vecs.Int16Vector; }
-    public visitInt32                () { return vecs.Int32Vector; }
-    public visitInt64                () { return vecs.Int64Vector; }
-    public visitUint8                () { return vecs.Uint8Vector; }
-    public visitUint16               () { return vecs.Uint16Vector; }
-    public visitUint32               () { return vecs.Uint32Vector; }
-    public visitUint64               () { return vecs.Uint64Vector; }
-    public visitFloat                () { return vecs.FloatVector; }
-    public visitFloat16              () { return vecs.Float16Vector; }
-    public visitFloat32              () { return vecs.Float32Vector; }
-    public visitFloat64              () { return vecs.Float64Vector; }
-    public visitUtf8                 () { return vecs.Utf8Vector; }
-    public visitBinary               () { return vecs.BinaryVector; }
-    public visitFixedSizeBinary      () { return vecs.FixedSizeBinaryVector; }
-    public visitDate                 () { return vecs.DateVector; }
-    public visitDateDay              () { return vecs.DateDayVector; }
-    public visitDateMillisecond      () { return vecs.DateMillisecondVector; }
-    public visitTimestamp            () { return vecs.TimestampVector; }
-    public visitTimestampSecond      () { return vecs.TimestampSecondVector; }
-    public visitTimestampMillisecond () { return vecs.TimestampMillisecondVector; }
-    public visitTimestampMicrosecond () { return vecs.TimestampMicrosecondVector; }
-    public visitTimestampNanosecond  () { return vecs.TimestampNanosecondVector; }
-    public visitTime                 () { return vecs.TimeVector; }
-    public visitTimeSecond           () { return vecs.TimeSecondVector; }
-    public visitTimeMillisecond      () { return vecs.TimeMillisecondVector; }
-    public visitTimeMicrosecond      () { return vecs.TimeMicrosecondVector; }
-    public visitTimeNanosecond       () { return vecs.TimeNanosecondVector; }
-    public visitDecimal              () { return vecs.DecimalVector; }
-    public visitList                 () { return vecs.ListVector; }
-    public visitStruct               () { return vecs.StructVector; }
-    public visitUnion                () { return vecs.UnionVector; }
-    public visitDenseUnion           () { return vecs.DenseUnionVector; }
-    public visitSparseUnion          () { return vecs.SparseUnionVector; }
-    public visitDictionary           () { return vecs.DictionaryVector; }
-    public visitInterval             () { return vecs.IntervalVector; }
-    public visitIntervalDayTime      () { return vecs.IntervalDayTimeVector; }
-    public visitIntervalYearMonth    () { return vecs.IntervalYearMonthVector; }
-    public visitFixedSizeList        () { return vecs.FixedSizeListVector; }
-    public visitMap                  () { return vecs.MapVector; }
+    public visitNull                 () { return NullVector; }
+    public visitBool                 () { return BoolVector; }
+    public visitInt                  () { return IntVector; }
+    public visitInt8                 () { return Int8Vector; }
+    public visitInt16                () { return Int16Vector; }
+    public visitInt32                () { return Int32Vector; }
+    public visitInt64                () { return Int64Vector; }
+    public visitUint8                () { return Uint8Vector; }
+    public visitUint16               () { return Uint16Vector; }
+    public visitUint32               () { return Uint32Vector; }
+    public visitUint64               () { return Uint64Vector; }
+    public visitFloat                () { return FloatVector; }
+    public visitFloat16              () { return Float16Vector; }
+    public visitFloat32              () { return Float32Vector; }
+    public visitFloat64              () { return Float64Vector; }
+    public visitUtf8                 () { return Utf8Vector; }
+    public visitBinary               () { return BinaryVector; }
+    public visitFixedSizeBinary      () { return FixedSizeBinaryVector; }
+    public visitDate                 () { return DateVector; }
+    public visitDateDay              () { return DateDayVector; }
+    public visitDateMillisecond      () { return DateMillisecondVector; }
+    public visitTimestamp            () { return TimestampVector; }
+    public visitTimestampSecond      () { return TimestampSecondVector; }
+    public visitTimestampMillisecond () { return TimestampMillisecondVector; }
+    public visitTimestampMicrosecond () { return TimestampMicrosecondVector; }
+    public visitTimestampNanosecond  () { return TimestampNanosecondVector; }
+    public visitTime                 () { return TimeVector; }
+    public visitTimeSecond           () { return TimeSecondVector; }
+    public visitTimeMillisecond      () { return TimeMillisecondVector; }
+    public visitTimeMicrosecond      () { return TimeMicrosecondVector; }
+    public visitTimeNanosecond       () { return TimeNanosecondVector; }
+    public visitDecimal              () { return DecimalVector; }
+    public visitList                 () { return ListVector; }
+    public visitStruct               () { return StructVector; }
+    public visitUnion                () { return UnionVector; }
+    public visitDenseUnion           () { return DenseUnionVector; }
+    public visitSparseUnion          () { return SparseUnionVector; }
+    public visitDictionary           () { return DictionaryVector; }
+    public visitInterval             () { return IntervalVector; }
+    public visitIntervalDayTime      () { return IntervalDayTimeVector; }
+    public visitIntervalYearMonth    () { return IntervalYearMonthVector; }
+    public visitFixedSizeList        () { return FixedSizeListVector; }
+    public visitMap                  () { return MapVector; }
 }
 
 export const instance = new GetVectorConstructor();
