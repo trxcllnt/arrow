@@ -195,6 +195,10 @@ export const intervalYearMonth = (length = 100, nullCount = length * 0.2 | 0) =>
 export const fixedSizeList = (length = 100, nullCount = length * 0.2 | 0, listSize = 2, child = defaultListChild) => vectorGenerator.visit(new FixedSizeList(listSize, child), length, nullCount);
 export const map = (length = 100, nullCount = length * 0.2 | 0, children: Field[] = defaultStructChildren.slice()) => vectorGenerator.visit(new Map_(children), length, nullCount);
 
+export const vecs = {
+    null_, bool, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float16, float32, float64, utf8, binary, fixedSizeBinary, dateDay, dateMillisecond, timestampSecond, timestampMillisecond, timestampMicrosecond, timestampNanosecond, timeSecond, timeMillisecond, timeMicrosecond, timeNanosecond, decimal, list, struct, denseUnion, sparseUnion, dictionary, intervalDayTime, intervalYearMonth, fixedSizeList, map
+} as { [k: string]: (...args: any[]) => any };
+
 function generateNull<T extends Null>(this: TestDataVectorGenerator, type: T, length = 100): GeneratedTestData<T> {
     return { values: () => Array.from({ length }, () => null), vector: Vector.new(Data.Null(type, 0, length, 0, null)) };
 }
@@ -242,7 +246,7 @@ function generateFloat<T extends Float>(this: TestDataVectorGenerator, type: T, 
         });
         return values;
     });
-    iterateBitmap(length, nullBitmap, (i, valid) => !valid && (data[i] = 0));
+    iterateBitmap(length, nullBitmap, (i, valid) => data[i] = !valid ? 0 : data[i] * Math.random());
     return { values, vector: Vector.new(Data.Float(type, 0, length, nullCount, nullBitmap, data)) };
 }
 

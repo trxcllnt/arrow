@@ -17,11 +17,10 @@
 
 import * as fs from 'fs';
 import * as Path from 'path';
-import * as generate from '../../../generate-test-data';
+import { generateRandomTables } from '../../../data/tables';
 
 import {
-    Table,
-    Schema, Field,
+    Table, Schema,
     RecordBatchReader,
     RecordBatchStreamWriter
 } from '../../../Arrow';
@@ -139,22 +138,7 @@ import {
 
             expect.hasAssertions();
 
-            const tables = [
-                ['float64', 'dateDay', 'null_', 'timestampMicrosecond'],
-                ['sparseUnion', 'uint8', 'int16', 'timeMillisecond', 'float32', 'int8'],
-                ['intervalYearMonth', 'timeSecond', 'uint32'],
-                ['timeMicrosecond'],
-                ['uint64', 'timestampNanosecond', 'map', 'bool'],
-                ['denseUnion', 'fixedSizeBinary', 'struct', 'list'],
-                ['int32', 'intervalDayTime', 'fixedSizeList', 'uint16'],
-                ['dictionary', 'int64', 'utf8', 'timeNanosecond', 'timestampSecond'],
-                ['dateMillisecond', 'float16', 'binary', 'decimal', 'timestampMillisecond']
-            ].map((names) => {
-                const types = names.map((fn) => (generate as any)[fn](0).vector.type);
-                types.forEach((t) => t.dictionaryVector && (t.dictionaryVector = null));
-                const schema = new Schema(names.map((name, i) => new Field(name, types[i])));
-                return generate.table([1000, 2000, 3000], schema).table;
-            });
+            const tables = [...generateRandomTables([1000, 2000, 3000])];
 
             const stream = concatStream(tables.map((table) =>
                 () => RecordBatchStreamWriter.writeAll(table).toReadableNodeStream()

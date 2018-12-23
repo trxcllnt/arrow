@@ -97,8 +97,8 @@ export class JSONVectorLoader extends VectorLoader {
     protected readOffsets<T extends DataType>(_type: T, { offset } = this.nextBufferRange()) {
         return toArrayBufferView(Uint8Array, toArrayBufferView(Int32Array, this.sources[offset]));
     }
-    protected readTypeIds<T extends DataType>(_type: T, { offset } = this.nextBufferRange()) {
-        return toArrayBufferView(Uint8Array, toArrayBufferView(Int8Array, this.sources[offset]));
+    protected readTypeIds<T extends DataType>(type: T, { offset } = this.nextBufferRange()) {
+        return toArrayBufferView(Uint8Array, toArrayBufferView(type.ArrayType, this.sources[offset]));
     }
     protected readData<T extends DataType>(type: T, { offset } = this.nextBufferRange()) {
         const { sources } = this;

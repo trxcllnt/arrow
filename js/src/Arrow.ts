@@ -70,7 +70,7 @@ export {
 
 export { ByteStream, AsyncByteStream, AsyncByteQueue, ReadableSource, WritableSink } from './io/stream';
 export { RecordBatchReader, RecordBatchFileReader, RecordBatchStreamReader, AsyncRecordBatchFileReader, AsyncRecordBatchStreamReader } from './ipc/reader';
-export { RecordBatchWriter, RecordBatchFileWriter, RecordBatchStreamWriter } from './ipc/writer';
+export { RecordBatchWriter, RecordBatchFileWriter, RecordBatchStreamWriter, RecordBatchJSONWriter } from './ipc/writer';
 export { MessageReader, AsyncMessageReader, JSONMessageReader } from './ipc/message';
 export { Message } from './ipc/metadata/message';
 export { RecordBatch } from './recordbatch';

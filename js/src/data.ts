@@ -72,6 +72,7 @@ export class Data<T extends DataType = DataType> {
 
     public get ArrayType() { return this._type.ArrayType; }
 
+    public get buffers() { return this._buffers; }
     public get values() { return this._buffers[BufferType.DATA]!; }
     public get typeIds() { return this._buffers[BufferType.TYPE]!; }
     public get nullBitmap() { return this._buffers[BufferType.VALIDITY]!; }

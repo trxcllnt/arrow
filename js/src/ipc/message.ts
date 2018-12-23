@@ -187,8 +187,8 @@ export class JSONMessageReader extends MessageReader {
             return (xs || []).reduce<any[][]>((buffers, column: any) => [
                 ...buffers,
                 ...(column['VALIDITY'] && [column['VALIDITY']] || []),
-                ...(column['OFFSET'] && [column['OFFSET']] || []),
                 ...(column['TYPE'] && [column['TYPE']] || []),
+                ...(column['OFFSET'] && [column['OFFSET']] || []),
                 ...(column['DATA'] && [column['DATA']] || []),
                 ...flattenDataSources(column['children'])
             ], [] as any[][]);

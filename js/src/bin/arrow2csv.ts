@@ -29,23 +29,33 @@ const { parse } = require('json-bignum');
 const argv = require(`command-line-args`)(cliOpts(), { partial: true });
 const files = argv.help ? [] : [...(argv.file || []), ...(argv._unknown || [])].filter(Boolean);
 
-process.stdout.on('error', (err) => err.code === 'EPIPE' && process.exit());
-
 (async () => {
 
-    const state = { ...argv, hasRecords: false };
+    const state = {
+        ...argv, closed: false, hasRecords: false
+    };
+
+    process.stdout.on('error', (err) => {
+        if (err.code === 'EPIPE') {
+            state.closed = true;
+            process.stderr.write(`closed due to EPIPE`);
+        }
+    });
+
     const sources = argv.help ? [] : [
         ...files.map((file) => () => fs.createReadStream(file)),
         () => process.stdin
     ].filter(Boolean) as (() => NodeJS.ReadableStream)[];
 
     for (const source of sources) {
+        if (state.closed) { break; }
         const stream = await createRecordBatchStream(source);
-        if (stream) {
+        if (stream && !state.closed) {
             await eos(stream
                 .pipe(transformRecordBatchRowsToString(state))
                 .pipe(process.stdout, { end: false }));
         }
+        if (state.closed) { break; }
     }
 
     return state.hasRecords ? 0 : print_usage();
@@ -79,13 +89,15 @@ async function createRecordBatchStream(createSourceStream: () => NodeJS.Readable
     return (reader && !reader.closed) ? reader.toReadableNodeStream() : null;
 }
 
-function transformRecordBatchRowsToString(state: { schema: any, separator: string, hasRecords: boolean }) {
+function transformRecordBatchRowsToString(state: { closed: boolean, schema: any, separator: string, hasRecords: boolean }) {
     let rowId = 0, separator = `${state.separator || ' |'} `;
     return new stream.Transform({
         encoding: 'utf8',
         writableObjectMode: true,
         readableObjectMode: false,
         transform(batch: RecordBatch, _enc: string, cb: (error?: Error, data?: any) => void) {
+
+            if (state.closed) { return cb(); }
 
             state.hasRecords = state.hasRecords || batch.length > 0;
             if (state.schema && state.schema.length) {
@@ -95,9 +107,7 @@ function transformRecordBatchRowsToString(state: { schema: any, separator: strin
             const maxColWidths = [11];
             const header = ['row_id', ...batch.schema.fields.map((f) => `${f}`)].map(valueToString);
 
-            header.forEach((x, i) => {
-                maxColWidths[i] = Math.max(maxColWidths[i] || 0, x.length);
-            });
+            header.forEach((x, i) => maxColWidths[i] = Math.max(maxColWidths[i] || 0, x.length));
 
             // Pass one to convert to strings and count max column widths
             for (let i = -1, n = batch.length - 1; ++i < n;) {
@@ -108,6 +118,7 @@ function transformRecordBatchRowsToString(state: { schema: any, separator: strin
             }
 
             for (let i = -1, n = batch.length; ++i < n;) {
+                if (state.closed) { break; }
                 if ((rowId + i) % 350 === 0) {
                     this.push(header
                         .map((x, j) => padLeft(x, maxColWidths[j]))

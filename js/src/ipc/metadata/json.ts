@@ -72,8 +72,8 @@ function buffersFromJSON(xs: any[], buffers: BufferRegion[] = []): BufferRegion[
     for (let i = -1, n = (xs || []).length; ++i < n;) {
         const column = xs[i];
         column['VALIDITY'] && buffers.push(new BufferRegion(buffers.length, column['VALIDITY'].length));
-        column['OFFSET'] && buffers.push(new BufferRegion(buffers.length, column['OFFSET'].length));
         column['TYPE'] && buffers.push(new BufferRegion(buffers.length, column['TYPE'].length));
+        column['OFFSET'] && buffers.push(new BufferRegion(buffers.length, column['OFFSET'].length));
         column['DATA'] && buffers.push(new BufferRegion(buffers.length, column['DATA'].length));
         buffers = buffersFromJSON(column['children'], buffers);
     }
@@ -143,6 +143,7 @@ function typeFromJSON(f: any, children?: Field[]): DataType<any> {
         case 'bool':   return new Bool();
         case 'list':   return new List((children || [])[0]);
         case 'struct': return new Struct(children || []);
+        case 'struct_': return new Struct(children || []);
     }
 
     switch (typeId) {

@@ -83,6 +83,9 @@ dist
 targets
 
 # test data files
-test/data/
+test/data/cpp
+test/data/java
+test/data/json
+
 # jest snapshots (too big)
 test/__snapshots__/

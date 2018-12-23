@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Data } from '../data';
 import { Field } from '../schema';
 import { Vector } from '../vector';
 import { DataType } from '../type';
@@ -62,13 +63,13 @@ export class Chunked<T extends DataType = any>
     public get length() { return this._length; }
     public get chunks() { return this._chunks; }
     public get typeId() { return this._type.typeId; }
+    public get data(): Data<T> {
+        return this._chunks[0] ? this._chunks[0].data : <any> null;
+    }
 
     public get ArrayType() { return this._type.ArrayType; }
     public get numChildren() { return this._numChildren; }
-
-    public get data() { return this._chunks[0] ? this._chunks[0].data : <any> null; }
     public get stride() { return this._chunks[0] ? this._chunks[0].stride : 1; }
-
     public get nullCount() {
         let nullCount = this._nullCount;
         if (nullCount < 0) {

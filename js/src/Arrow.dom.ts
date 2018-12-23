@@ -77,7 +77,7 @@ export {
     Utf8Vector,
     ByteStream, AsyncByteStream, AsyncByteQueue, ReadableSource, WritableSink,
     RecordBatchReader, RecordBatchFileReader, RecordBatchStreamReader, AsyncRecordBatchFileReader, AsyncRecordBatchStreamReader,
-    RecordBatchWriter, RecordBatchFileWriter, RecordBatchStreamWriter,
+    RecordBatchWriter, RecordBatchFileWriter, RecordBatchStreamWriter, RecordBatchJSONWriter,
     MessageReader, AsyncMessageReader, JSONMessageReader,
     Message,
     RecordBatch,
