@@ -61,6 +61,7 @@
                 // "test/unit/ipc/reader/streams-dom-tests.ts",
                 // "test/unit/ipc/reader/streams-node-tests.ts",
                 // "test/unit/ipc/writer/writer-tests.ts",
+                // "test/unit/ipc/writer/json-writer-tests.ts",
                 // "test/unit/ipc/writer/streams-dom-tests.ts",
                 // "test/unit/ipc/writer/streams-node-tests.ts",
             ]
@@ -86,6 +87,21 @@
             "args": [
                 // "-i",
                 "test/integration/*"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug bin/arrow2csv",
+            "env": { "ARROW_JS_DEBUG": "src", "TS_NODE_CACHE": "false" },
+            "runtimeArgs": ["-r", "ts-node/register"],
+            "skipFiles": [
+                "<node_internals>/**/*.js",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ],
+            "args": [
+                "${workspaceFolder}/src/bin/arrow2csv.ts",
+                "-f", "./test/data/json/nested.json"
             ]
         },
         {

@@ -17,45 +17,38 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/* tslint:disable */
+
 import * as fs from 'fs';
 import * as stream from 'stream';
-import { promisify } from 'util';
 import { valueToString } from '../util/pretty';
-import { RecordBatch, RecordBatchReader } from '../Arrow.node';
+import { RecordBatch, RecordBatchReader, AsyncByteQueue } from '../Arrow.node';
 
 const padLeft = require('pad-left');
-const eos = promisify(stream.finished);
-const { parse } = require('json-bignum');
+const bignumJSONParse = require('json-bignum').parse;
+const eos = require('util').promisify(stream.finished);
 const argv = require(`command-line-args`)(cliOpts(), { partial: true });
 const files = argv.help ? [] : [...(argv.file || []), ...(argv._unknown || [])].filter(Boolean);
 
+const state = { ...argv, closed: false, hasRecords: false };
+process.stdout.once('error', ({ code }) => (code === 'EPIPE') && (state.closed = true));
+
 (async () => {
-
-    const state = {
-        ...argv, closed: false, hasRecords: false
-    };
-
-    process.stdout.on('error', (err) => {
-        if (err.code === 'EPIPE') {
-            state.closed = true;
-            process.stderr.write(`closed due to EPIPE`);
-        }
-    });
 
     const sources = argv.help ? [] : [
         ...files.map((file) => () => fs.createReadStream(file)),
-        () => process.stdin
+        ...(process.stdin.isTTY ? [] : [() => process.stdin])
     ].filter(Boolean) as (() => NodeJS.ReadableStream)[];
+
+    let reader: RecordBatchReader | null;
 
     for (const source of sources) {
         if (state.closed) { break; }
-        const stream = await createRecordBatchStream(source);
-        if (stream && !state.closed) {
-            await eos(stream
-                .pipe(transformRecordBatchRowsToString(state))
-                .pipe(process.stdout, { end: false }));
+        if (reader = await createRecordBatchReader(source)) {
+            await eos(reader
+                .pipe(recordBatchRowsToString(state))
+                .on('data', (x) => process.stdout.write(x)));
         }
-        if (state.closed) { break; }
     }
 
     return state.hasRecords ? 0 : print_usage();
@@ -67,72 +60,118 @@ const files = argv.help ? [] : [...(argv.file || []), ...(argv._unknown || [])].
     return process.exitCode || 1;
 }).then((code) => process.exit(code));
 
-async function createRecordBatchStream(createSourceStream: () => NodeJS.ReadableStream) {
+async function createRecordBatchReader(createSourceStream: () => NodeJS.ReadableStream) {
 
     let source = createSourceStream();
+    let byteQueue = new AsyncByteQueue();
     let reader: RecordBatchReader | null = null;
+    source.on('end', byteQueue.close.bind(byteQueue))
+        .on('data',  byteQueue.write.bind(byteQueue));
 
     try {
-        reader = await (await RecordBatchReader.from(source)).open(true);
+        reader = await (await RecordBatchReader.from(source)).open();
     } catch (e) { reader = null; }
 
-    if ((!reader || reader.closed) && source instanceof fs.ReadStream) {
+    if (!reader || reader.closed) {
         reader = null;
-        source.close();
+        if (source instanceof fs.ReadStream) { source.close(); }
         try {
-            let path = source.path;
-            let json = parse(await fs.promises.readFile(path, 'utf8'));
+            let json = bignumJSONParse(await byteQueue.toString());
             reader = await (await RecordBatchReader.from(json)).open();
         } catch (e) { reader = null; }
     }
 
-    return (reader && !reader.closed) ? reader.toReadableNodeStream() : null;
+    return (reader && !reader.closed) ? reader : null;
 }
 
-function transformRecordBatchRowsToString(state: { closed: boolean, schema: any, separator: string, hasRecords: boolean }) {
-    let rowId = 0, separator = `${state.separator || ' |'} `;
-    return new stream.Transform({
-        encoding: 'utf8',
-        writableObjectMode: true,
-        readableObjectMode: false,
-        transform(batch: RecordBatch, _enc: string, cb: (error?: Error, data?: any) => void) {
+function recordBatchRowsToString(state: { closed: boolean, schema: any, separator: string, hasRecords: boolean }) {
 
-            if (state.closed) { return cb(); }
+    let rowId = 0, maxColWidths = [15], separator = `${state.separator || ' |'} `;
 
-            state.hasRecords = state.hasRecords || batch.length > 0;
-            if (state.schema && state.schema.length) {
-                batch = batch.select(...state.schema);
-            }
+    return new stream.Transform({ transform, encoding: 'utf8', writableObjectMode: true, readableObjectMode: false });
 
-            const maxColWidths = [11];
-            const header = ['row_id', ...batch.schema.fields.map((f) => `${f}`)].map(valueToString);
-
-            header.forEach((x, i) => maxColWidths[i] = Math.max(maxColWidths[i] || 0, x.length));
-
-            // Pass one to convert to strings and count max column widths
-            for (let i = -1, n = batch.length - 1; ++i < n;) {
-                let row = [rowId + i, ...batch.get(i)!];
-                for (let j = -1, k = row.length; ++j < k; ) {
-                    maxColWidths[j] = Math.max(maxColWidths[j] || 0, valueToString(row[j]).length);
-                }
-            }
-
-            for (let i = -1, n = batch.length; ++i < n;) {
-                if (state.closed) { break; }
-                if ((rowId + i) % 350 === 0) {
-                    this.push(header
-                        .map((x, j) => padLeft(x, maxColWidths[j]))
-                        .join(separator) + '\n');
-                }
-                this.push([rowId + i, ...batch.get(i)!]
-                    .map((x) => valueToString(x))
-                    .map((x, j) => padLeft(x, maxColWidths[j]))
-                    .join(separator) + '\n');
-            }
-            cb();
+    function transform(this: stream.Transform, batch: RecordBatch, _enc: string, cb: (error?: Error, data?: any) => void) {
+        batch = !(state.schema && state.schema.length) ? batch : batch.select(...state.schema);
+        if (batch.length <= 0 || batch.numCols <= 0 || state.closed) {
+            state.hasRecords || (state.hasRecords = false);
+            return cb(undefined, null);
         }
-    });
+
+        state.hasRecords = true;
+        const header = ['row_id', ...batch.schema.fields.map((f) => `${f}`)].map(valueToString);
+
+        // Pass one to convert to strings and count max column widths
+        const newMaxWidths = measureColumnWidths(rowId, batch, header.map((x, i) => Math.max(maxColWidths[i] || 0, x.length)));
+
+        // If any of the column widths changed, print the header again
+        if ((rowId % 350) && JSON.stringify(newMaxWidths) !== JSON.stringify(maxColWidths)) {
+            this.push(`\n${formatRow(header, newMaxWidths, separator)}`);
+        }
+
+        maxColWidths = newMaxWidths;
+
+        for (const row of batch) {
+            if (state.closed) { break; }
+            else if (!row) { continue; }
+            if (!(rowId % 350)) { this.push(`\n${formatRow(header, maxColWidths, separator)}`); }
+            this.push(formatRow([rowId++, ...row].map(valueToString), maxColWidths, separator));
+        }
+        cb();
+    }
 }
+
+function formatRow(row: string[] = [], maxColWidths: number[] = [], separator: string = ' |') {
+    return row.map((x, j) => padLeft(x, maxColWidths[j])).join(separator) + '\n';
+}
+
+function measureColumnWidths(rowId: number, batch: RecordBatch, maxColWidths: number[] = []) {
+    for (const row of batch) {
+        if (!row) { continue; }
+        maxColWidths[0] = Math.max(maxColWidths[0] || 0, (`${rowId++}`).length);
+        for (let val: any, j = -1, k = row.length; ++j < k;) {
+            if (!ArrayBuffer.isView(val = row[j])) {
+                maxColWidths[j + 1] = Math.max(maxColWidths[j + 1] || 0, valueToString(val).length);
+            } else {
+                // If we're printing a column of TypedArrays, ensure the column is wide enough to accommodate
+                // the widest possible element for a given byte size, since JS omits leading zeroes. For example:
+                // 1 |  [1137743649,2170567488,244696391,2122556476]
+                // 2 |                                          null
+                // 3 |   [637174007,2142281880,961736230,2912449282]
+                // 4 |    [1035112265,21832886,412842672,2207710517]
+                // 5 |                                          null
+                // 6 |                                          null
+                // 7 |     [2755142991,4192423256,2994359,467878370]
+                const elementWidth = typedArrayElementWidths.get(val.constructor)!;
+
+                maxColWidths[j + 1] = Math.max(maxColWidths[j + 1] || 0,
+                    2 + // brackets on each end
+                    (val.length - 1) + // commas between elements
+                    (val.length * elementWidth) // width of stringified 2^N-1
+                );
+            }
+        }
+    }
+    return maxColWidths;
+}
+
+// Measure the stringified representation of 2^N-1 for each TypedArray variant
+const typedArrayElementWidths = (() => {
+    const maxElementWidth = (ArrayType: any) => {
+        const octets = Array.from({ length: ArrayType.BYTES_PER_ELEMENT - 1 }, _ => 255);
+        return `${new ArrayType(new Uint8Array([...octets, 254]).buffer)[0]}`.length;
+    };
+    return new Map<any, number>([
+        [Int8Array, maxElementWidth(Int8Array)],
+        [Int16Array, maxElementWidth(Int16Array)],
+        [Int32Array, maxElementWidth(Int32Array)],
+        [Uint8Array, maxElementWidth(Uint8Array)],
+        [Uint16Array, maxElementWidth(Uint16Array)],
+        [Uint32Array, maxElementWidth(Uint32Array)],
+        [Float32Array, maxElementWidth(Float32Array)],
+        [Float64Array, maxElementWidth(Float64Array)],
+        [Uint8ClampedArray, maxElementWidth(Uint8ClampedArray)]
+    ])
+})();
 
 function cliOpts() {
     return [
@@ -185,6 +224,7 @@ function print_usage() {
             header: 'Example',
             content: [
                 '$ arrow2csv --schema foo baz -f simple.arrow --sep ","',
+                '                                                      ',
                 '> "row_id", "foo: Int32", "bar: Float64", "baz: Utf8"',
                 '>        0,            1,              1,        "aa"',
                 '>        1,         null,           null,        null',
