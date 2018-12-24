@@ -15,32 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { Table } from '../table';
 import { Vector } from '../vector';
 import { IntVector } from '../vector/int';
 import { Field, Schema } from '../schema';
 import { Vector as V } from '../interfaces';
 import { Predicate, Col } from './predicate';
 import { RecordBatch } from '../recordbatch';
-import { Table, DataFrame as DF } from '../table';
 import { DataType, Int, Struct, Dictionary } from '../type';
 
 export type BindFunc = (batch: RecordBatch) => void;
 export type NextFunc = (idx: number, batch: RecordBatch) => void;
 
-Table.prototype.scan = tableScan;
-Table.prototype.filter = tableFilter;
-Table.prototype.countBy = tableCountBy;
+Table.prototype.countBy = function(this: Table, name: Col | string) { return new DataFrame(this.chunks).countBy(name); };
+Table.prototype.scan = function(this: Table, next: NextFunc, bind?: BindFunc) { return new DataFrame(this.chunks).scan(next, bind); };
+Table.prototype.filter = function(this: Table, predicate: Predicate): FilteredDataFrame { return new DataFrame(this.chunks).filter(predicate); };
 
-declare module '../table' {
-    interface Table<T extends { [key: string]: DataType } = any> {
-        filter(predicate: Predicate): DF;
-        countBy(name: Col | string): CountByResult;
-        scan(next: NextFunc, bind?: BindFunc): void;
-    }
-}
-
-export class Dataframe<T extends { [key: string]: DataType } = any> extends Table<T> {
-    public filter(predicate: Predicate): DF<T> {
+export class DataFrame<T extends { [key: string]: DataType } = any> extends Table<T> {
+    public filter(predicate: Predicate): FilteredDataFrame<T> {
         return new FilteredDataFrame<T>(this.chunks, predicate);
     }
     public scan(next: NextFunc, bind?: BindFunc) {
@@ -106,11 +98,10 @@ export class CountByResult<T extends DataType = any, TCount extends Int = Int> e
     }
 }
 
-export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> implements DF<T> {
+export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> extends DataFrame<T> {
     private _predicate: Predicate;
-    private _chunks: RecordBatch<T>[];
     constructor (batches: RecordBatch<T>[], predicate: Predicate) {
-        this._chunks = batches;
+        super(batches);
         this._predicate = predicate;
     }
     public scan(next: NextFunc, bind?: BindFunc) {
@@ -175,7 +166,7 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
             }
         }
     }
-    public filter(predicate: Predicate): DF<T> {
+    public filter(predicate: Predicate): FilteredDataFrame<T> {
         return new FilteredDataFrame<T>(
             this._chunks,
             this._predicate.and(predicate)
@@ -213,16 +204,4 @@ export class FilteredDataFrame<T extends { [key: string]: DataType; } = any> imp
         }
         return new CountByResult(vector.dictionary, IntVector.from(counts));
     }
-}
-
-function tableScan(this: Table, next: NextFunc, bind?: BindFunc) {
-    return new Dataframe(this.chunks).scan(next, bind);
-}
-
-function tableFilter(this: Table, predicate: Predicate): DF {
-    return new Dataframe(this.chunks).filter(predicate);
-}
-
-function tableCountBy(this: Table, name: Col | string) {
-    return new Dataframe(this.chunks).countBy(name);
 }

@@ -39,7 +39,7 @@ export {
     Map_,
 } from './type';
 
-export { Table, DataFrame } from './table';
+export { Table } from './table';
 export { Column } from './column';
 export { Schema, Field } from './schema';
 export { Visitor } from './visitor';
@@ -75,7 +75,7 @@ export { MessageReader, AsyncMessageReader, JSONMessageReader } from './ipc/mess
 export { Message } from './ipc/metadata/message';
 export { RecordBatch } from './recordbatch';
 export { ArrowJSONLike, FileHandle, Readable, Writable, ReadableWritable, ReadableDOMStreamOptions } from './io/interfaces';
-export { Dataframe, FilteredDataFrame, CountByResult, BindFunc, NextFunc } from './compute/dataframe';
+export { DataFrame, FilteredDataFrame, CountByResult, BindFunc, NextFunc } from './compute/dataframe';
 
 import * as util_int_ from './util/int';
 import * as util_bit_ from './util/bit';

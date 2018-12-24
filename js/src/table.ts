@@ -20,19 +20,12 @@ import { Schema, Field } from './schema';
 import { isPromise } from './util/compat';
 import { RecordBatch } from './recordbatch';
 import { Vector as VType } from './interfaces';
+import { DataFrame } from './compute/dataframe';
 import { RecordBatchReader } from './ipc/reader';
 import { Vector, Chunked } from './vector/index';
 import { DataType, RowLike, Struct } from './type';
 import { Clonable, Sliceable, Applicative } from './vector';
 import { RecordBatchFileWriter, RecordBatchStreamWriter } from './ipc/writer';
-
-export interface DataFrame<T extends { [key: string]: DataType; } = any> {
-    count(): number;
-    filter(predicate: import('./compute/predicate').Predicate): DataFrame<T>;
-    countBy(name: import('./compute/predicate').Col | string): import('./compute/dataframe').CountByResult;
-    scan(next: import('./compute/dataframe').NextFunc, bind?: import('./compute/dataframe').BindFunc): void;
-    [Symbol.iterator](): IterableIterator<RowLike<T>>;
-}
 
 export interface Table<T extends { [key: string]: DataType; } = any> {
 
@@ -42,6 +35,10 @@ export interface Table<T extends { [key: string]: DataType; } = any> {
     slice(begin?: number, end?: number): Table<T>;
     concat(...others: Vector<Struct<T>>[]): Table<T>;
     clone(chunks?: RecordBatch<T>[], offsets?: Uint32Array): Table<T>;
+
+    scan(next: import('./compute/dataframe').NextFunc, bind?: import('./compute/dataframe').BindFunc): void;
+    countBy(name: import('./compute/predicate').Col | string): import('./compute/dataframe').CountByResult;
+    filter(predicate: import('./compute/predicate').Predicate): import('./compute/dataframe').FilteredDataFrame<T>;
 }
 
 export class Table<T extends { [key: string]: DataType; } = any>

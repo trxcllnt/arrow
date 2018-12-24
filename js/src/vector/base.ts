@@ -66,7 +66,7 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T>
 
     public get [Symbol.toStringTag]() { return `${this.VectorName}<${this.type[Symbol.toStringTag]}>`; }
 
-    public clone<R extends DataType = T>(data: Data<R>, children = this._children, stride = this.stride) {
+    public clone<R extends DataType = T>(data: Data<R>, children = this._children, stride = this._stride) {
         return Vector.new<R>(data, children, stride) as any;
     }
 
@@ -99,7 +99,7 @@ export abstract class BaseVector<T extends DataType = any> extends Vector<T>
     }
 
     // @ts-ignore
-    public toJSON(): any {}
+    public toJSON(): any { return [...this]; }
 
     protected _sliceInternal(self: this, offset: number, length: number) {
         const stride = self.stride;

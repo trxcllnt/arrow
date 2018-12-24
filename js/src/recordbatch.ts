@@ -66,7 +66,7 @@ export class RecordBatch<T extends { [key: string]: DataType } = any>
     }
 
     public clone(data: Data<Struct<T>>, children = this._children) {
-        return new RecordBatch<T>(this.schema, data, children);
+        return new RecordBatch<T>(this._schema, data, children);
     }
 
     public concat(...others: Vector<Struct<T>>[]): Table<T> {
@@ -78,10 +78,10 @@ export class RecordBatch<T extends { [key: string]: DataType } = any>
     public get numCols() { return this._schema.fields.length; }
 
     public select<K extends keyof T = any>(...columnNames: K[]) {
-        const fields = this.schema.fields;
-        const schema = this.schema.select(...columnNames);
+        const fields = this._schema.fields;
+        const schema = this._schema.select(...columnNames);
         const childNames = columnNames.reduce((xs, x) => (xs[x] = true) && xs, <any> {});
-        const childData = this.data.childData.filter((_, i) => childNames[fields[i].name]);
+        const childData = this._data.childData.filter((_, i) => childNames[fields[i].name]);
         const structData = Data.Struct(new Struct(schema.fields), 0, this.length, 0, null, childData);
         return new RecordBatch<{ [P in K]: T[P] }>(schema, structData as Data<Struct<{ [P in K]: T[P] }>>);
     }

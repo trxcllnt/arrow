@@ -22,6 +22,7 @@ import { Chunked } from './vector/chunked';
 import { Clonable, Sliceable, Applicative } from './vector';
 
 export interface Column<T extends DataType = any> {
+    typeId: T['TType'];
     concat(...others: Vector<T>[]): Column<T>;
     slice(begin?: number, end?: number): Column<T>;
     clone(chunks?: Vector<T>[], offsets?: Uint32Array): Column<T>;
@@ -42,7 +43,7 @@ export class Column<T extends DataType = any>
     protected _children?: Column[];
 
     public get field() { return this._field; }
-    public get name() { return this.field.name; }
+    public get name() { return this._field.name; }
 
     public clone(chunks = this._chunks) {
         return new Column(this._field, chunks);
