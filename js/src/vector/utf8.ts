@@ -19,7 +19,7 @@ import { Data } from '../data';
 import { Vector } from '../vector';
 import { BaseVector } from './base';
 import { Binary, Utf8 } from '../type';
-import { encodeUtf8 } from '../visitor/set';
+import { encodeUtf8 } from '../util/utf8';
 
 export class Utf8Vector extends BaseVector<Utf8> {
     /** @nocollapse */

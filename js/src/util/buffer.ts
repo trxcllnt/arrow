@@ -16,6 +16,7 @@
 // under the License.
 
 import { flatbuffers } from 'flatbuffers';
+import { encodeUtf8 } from '../util/utf8';
 import ByteBuffer = flatbuffers.ByteBuffer;
 import { ArrayBufferViewConstructor } from '../interfaces';
 import { isPromise, isIterable, isAsyncIterable, isIteratorResult } from './compat';
@@ -86,7 +87,7 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
     let value: any = isIteratorResult(input) ? input.value : input;
 
     if (!value) { return new ArrayBufferViewCtor(0); }
-    if (typeof value === 'string') { value = decodeUtf8(value); }
+    if (typeof value === 'string') { value = encodeUtf8(value); }
     if (value instanceof ArrayBufferViewCtor) { return value; }
     if (value instanceof ArrayBuffer) { return new ArrayBufferViewCtor(value); }
     if (value instanceof SharedArrayBuf) { return new ArrayBufferViewCtor(value); }
@@ -184,17 +185,6 @@ export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>
 /** @ignore */ export const toFloat32ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Float32Array, input);
 /** @ignore */ export const toFloat64ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Float64Array, input);
 /** @ignore */ export const toUint8ClampedArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint8ClampedArray, input);
-
-/**
- * @ignore
- */
-function decodeUtf8(chunk: string) {
-    const bytes = new Uint8Array(chunk.length);
-    for (let i = -1, n = chunk.length; ++i < n;) {
-        bytes[i] = chunk.charCodeAt(i);
-    }
-    return bytes;
-}
 
 /**
  * @ignore

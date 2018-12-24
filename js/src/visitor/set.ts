@@ -18,7 +18,7 @@
 import { Data } from '../data';
 import { Visitor } from '../visitor';
 import { Vector } from '../interfaces';
-import { TextEncoder } from 'text-encoding-utf-8';
+import { encodeUtf8 } from '../util/utf8';
 import { Type, UnionMode, Precision, DateUnit, TimeUnit, IntervalUnit } from '../enum';
 import {
     DataType, Dictionary,
@@ -32,9 +32,6 @@ import {
     Union, DenseUnion, SparseUnion,
 } from '../type';
 
-export const encodeUtf8 = ((encoder) =>
-    encoder.encode.bind(encoder) as (input?: string, options?: { stream?: boolean }) => Uint8Array
-)(new TextEncoder('utf-8'));
 
 export interface SetVisitor extends Visitor {
     visitMany <T extends Vector>  (nodes: T[], indices: number[], values: T['TValue'][]): void[];

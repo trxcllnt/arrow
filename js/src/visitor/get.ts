@@ -18,7 +18,7 @@
 import { Data } from '../data';
 import { Visitor } from '../visitor';
 import { Vector } from '../interfaces';
-import { TextDecoder } from 'text-encoding-utf-8';
+import { decodeUtf8 } from '../util/utf8';
 import { Type, UnionMode, Precision, DateUnit, TimeUnit, IntervalUnit } from '../enum';
 import {
     DataType, Dictionary,
@@ -31,10 +31,6 @@ import {
     Timestamp, TimestampSecond, TimestampMillisecond, TimestampMicrosecond, TimestampNanosecond,
     Union, DenseUnion, SparseUnion,
 } from '../type';
-
-export const decodeUtf8 = ((decoder) =>
-    decoder.decode.bind(decoder) as (input?: ArrayBufferLike | ArrayBufferView) => string
-)(new TextDecoder('utf-8'));
 
 export interface GetVisitor extends Visitor {
     visitMany <T extends Vector>  (nodes: T[], indices: number[]): T['TValue'][];

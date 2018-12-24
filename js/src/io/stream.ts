@@ -16,8 +16,10 @@
 // under the License.
 
 import streamAdapters from './adapters';
+import { decodeUtf8 } from '../util/utf8';
 import { ITERATOR_DONE, Readable, Writable, AsyncQueue } from './interfaces';
 import { toUint8Array, joinUint8Arrays, ArrayBufferViewInput } from '../util/buffer';
+
 import {
     isPromise, isFetchResponse,
     isIterable, isAsyncIterable,
@@ -36,10 +38,17 @@ export class AsyncByteQueue<T extends ArrayBufferViewInput = Uint8Array> extends
             return super.write(value as T);
         }
     }
+    public toString(sync: true): string;
+    public toString(sync?: false): Promise<string>;
+    public toString(sync = false) {
+        return sync
+            ? decodeUtf8(this.toUint8Array(true))
+            : this.toUint8Array(false).then(decodeUtf8);
+    }
     public toUint8Array(sync: true): Uint8Array;
     public toUint8Array(sync?: false): Promise<Uint8Array>;
     public toUint8Array(sync = false) {
-        return sync ? joinUint8Arrays((this.values as any[]).slice())[0] : (async () => {
+        return sync ? joinUint8Arrays((this._values as any[]).slice())[0] : (async () => {
             let buffers = [], byteLength = 0;
             for await (const chunk of this) {
                 buffers.push(chunk);
