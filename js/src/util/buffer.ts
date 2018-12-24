@@ -56,10 +56,11 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
     // to avoid unnecessarily copying the bytes to do this buffer join. This is a common case during
     // streaming, where we may be reading partial byte ranges out of the same underlying ArrayBuffer
     chunks = collapseContiguousByteRanges(chunks);
-    let offset = 0, index = -1, chunksLen = chunks.length;
+    let offset = 0, index = -1, numChunks = chunks.length;
+    let chunksLen = chunks.reduce((x, y) => x + y.byteLength, 0);
     let source: Uint8Array, sliced: Uint8Array, buffer: Uint8Array | void;
-    let length = typeof size === 'number' ? size : chunks.reduce((x, y) => x + y.length, 0);
-    while (++index < chunksLen) {
+    let length = Math.min(chunksLen, typeof size === 'number' ? size : Infinity);
+    while (++index < numChunks) {
         source = chunks[index];
         sliced = source.subarray(0, Math.min(source.length, length - offset));
         if (length <= (offset + sliced.length)) {

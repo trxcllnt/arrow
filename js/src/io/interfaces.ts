@@ -106,7 +106,7 @@ type Resolution<T> = { resolve: (value?: T | PromiseLike<T>) => void; reject: (r
 export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends ReadableInterop<TReadable>
     implements AsyncIterableIterator<TReadable>, ReadableWritable<TReadable, TWritable> {
 
-    protected values: TWritable[] = [];
+    protected _values: TWritable[] = [];
     protected _error?: { error: any; };
     protected _closedPromise: Promise<void>;
     protected _closedPromiseResolve?: (value?: any) => void;
@@ -122,7 +122,7 @@ export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends R
     public write(value: TWritable) {
         if (this._ensureOpen()) {
             this.resolvers.length <= 0
-                ? (this.values.push(value))
+                ? (this._values.push(value))
                 : (this.resolvers.shift()!.resolve({ done: false, value } as any));
         }
     }
@@ -157,8 +157,8 @@ export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends R
     public async read(size?: number | null): Promise<TReadable | null> { return (await this.next(size, 'read')).value; }
     public async peek(size?: number | null): Promise<TReadable | null> { return (await this.next(size, 'peek')).value; }
     public next(..._args: any[]): Promise<IteratorResult<TReadable>> {
-        if (this.values.length > 0) {
-            return Promise.resolve({ done: false, value: this.values.shift()! } as any);
+        if (this._values.length > 0) {
+            return Promise.resolve({ done: false, value: this._values.shift()! } as any);
         } else if (this._error) {
             return Promise.reject({ done: true, value: this._error.error });
         } else if (!this._closedPromiseResolve) {

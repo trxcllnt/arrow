@@ -77,10 +77,10 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
     }
 
     /** @nocollapse */
-    public static throughNode(): import('stream').Duplex { throw new Error(`"asNodeStream" not available in this environment`); }
+    public static throughNode(): import('stream').Duplex { throw new Error(`"throughNode" not available in this environment`); }
     /** @nocollapse */
     public static throughDOM<T extends { [key: string]: DataType }>(): { writable: WritableStream<Uint8Array>, readable: ReadableStream<RecordBatch<T>> } {
-        throw new Error(`"asDOMStream" not available in this environment`);
+        throw new Error(`"throughDOM" not available in this environment`);
     }
 
     public static from<T extends RecordBatchReader>(source: T): T;

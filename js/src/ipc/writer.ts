@@ -35,8 +35,6 @@ import { ArrayBufferViewInput, toUint8Array } from '../util/buffer';
 import { isWritableDOMStream, isWritableNodeStream, isAsyncIterable } from '../util/compat';
 import { Writable, FileHandle, ReadableInterop, ReadableDOMStreamOptions } from '../io/interfaces';
 
-const kAlignmentBytes = new Uint8Array(64).fill(0);
-
 export type OpenArgs = FileHandle | NodeJS.WritableStream | WritableStream<Uint8Array> | UnderlyingSink<Uint8Array>;
 
 export class RecordBatchWriter<T extends { [key: string]: DataType } = any> extends ReadableInterop<Uint8Array> implements Writable<RecordBatch<T>> {
@@ -165,7 +163,7 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
     }
 
     protected _writePadding(nBytes: number) {
-        return nBytes > 0 ? this._write(kAlignmentBytes.subarray(0, nBytes)) : this;
+        return nBytes > 0 ? this._write(new Uint8Array(nBytes)) : this;
     }
 
     protected _writeRecordBatch(records: RecordBatch<T>) {
@@ -245,7 +243,7 @@ export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any
         return !isAsyncIterable(input) ? writeAll(new RecordBatchStreamWriter<T>(), input) : writeAllAsync(new RecordBatchStreamWriter<T>(), input);
     }
     public close() {
-        this._writePadding(4);
+        this._writePadding(4); // eos bytes
         return super.close();
     }
 }
