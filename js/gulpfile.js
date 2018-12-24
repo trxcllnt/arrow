@@ -84,7 +84,7 @@ gulp.task(`package`, gulpConcurrent(getTasks(`package`)));
 gulp.task(`default`,  gulp.series(`clean`, `build`, `test`));
 
 function gulpConcurrent(tasks) {
-    const numCPUs = require('os').cpus().length;
+    const numCPUs = Math.max(1, require('os').cpus().length * 0.75) | 0;
     return () => Observable.from(tasks.map((task) => gulp.series(task)))
         .flatMap((task) => Observable.bindNodeCallback(task)(), numCPUs);
 }
