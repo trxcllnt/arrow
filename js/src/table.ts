@@ -54,10 +54,11 @@ export class Table<T extends { [key: string]: DataType; } = any>
     public static from<T extends { [key: string]: DataType } = any>(): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: RecordBatchReader<T>): Table<T>;
     public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg0): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg1): Table<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg2): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg2): Table<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg1): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg3): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg4): Promise<Table<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: import('./ipc/reader').FromArg5): Promise<Table<T>>;
     public static from<T extends { [key: string]: DataType } = any>(source: PromiseLike<RecordBatchReader<T>>): Promise<Table<T>>;
     /** @nocollapse */
     public static from<T extends { [key: string]: DataType } = any>(source?: any) {

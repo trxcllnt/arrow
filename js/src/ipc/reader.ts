@@ -33,11 +33,12 @@ import { isPromise, isArrowJSON, isFileHandle, isFetchResponse, isAsyncIterable,
 import { MessageReader, AsyncMessageReader, checkForMagicArrowString, magicLength, magicAndPadding, magicX2AndPadding, JSONMessageReader } from './message';
 
 export type FromArg0 = ArrowJSONLike;
-export type FromArg1 = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
-export type FromArg2 = PromiseLike<Iterable<ArrayBufferViewInput> | ArrayBufferViewInput>;
-export type FromArg3 = NodeJS.ReadableStream | ReadableStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput>;
-export type FromArg4 = Response | FileHandle | PromiseLike<FileHandle> | PromiseLike<Response>;
-export type FromArgs = FromArg0 | FromArg3 | FromArg1 | FromArg2 | FromArg4;
+export type FromArg1 = PromiseLike<ArrowJSONLike>;
+export type FromArg2 = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
+export type FromArg3 = PromiseLike<Iterable<ArrayBufferViewInput> | ArrayBufferViewInput>;
+export type FromArg4 = NodeJS.ReadableStream | ReadableStream<ArrayBufferViewInput> | AsyncIterable<ArrayBufferViewInput>;
+export type FromArg5 = Response | FileHandle | PromiseLike<FileHandle> | PromiseLike<Response>;
+export type FromArgs = FromArg0 | FromArg1 | FromArg2 | FromArg3 | FromArg4 | FromArg5;
 
 export abstract class RecordBatchReader<T extends { [key: string]: DataType } = any> extends ReadableInterop<RecordBatch<T>> {
 
@@ -85,10 +86,11 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
 
     public static from<T extends RecordBatchReader>(source: T): T;
     public static from<T extends { [key: string]: DataType } = any>(source: FromArg0): RecordBatchStreamReader<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg1): RecordBatchFileReader<T> | RecordBatchStreamReader<T>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): Promise<RecordBatchFileReader<T> | RecordBatchStreamReader<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<RecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
-    public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<AsyncRecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg1): Promise<RecordBatchStreamReader<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg2): RecordBatchFileReader<T> | RecordBatchStreamReader<T>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg3): Promise<RecordBatchFileReader<T> | RecordBatchStreamReader<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg4): Promise<RecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
+    public static from<T extends { [key: string]: DataType } = any>(source: FromArg5): Promise<AsyncRecordBatchFileReader<T> | AsyncRecordBatchStreamReader<T>>;
     /** @nocollapse */
     public static from<T extends { [key: string]: DataType } = any>(source: any) {
         if (source instanceof RecordBatchReader) {
@@ -97,10 +99,8 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
             return RecordBatchReader.fromJSON<T>(source);
         } else if (isFileHandle(source)) {
             return RecordBatchReader.fromFileHandle<T>(source);
-        } else if (isPromise<FromArg1>(source)) {
-            return (async () => await RecordBatchReader.from<T>(await source))();
-        } else if (isPromise<FileHandle | Response>(source)) {
-            return (async () => await RecordBatchReader.from<T>(await source))();
+        } else if (isPromise<any>(source)) {
+            return (async () => await RecordBatchReader.from<any>(await source))();
         } else if (isFetchResponse(source) || isReadableDOMStream(source) || isReadableNodeStream(source) || isAsyncIterable(source)) {
             return RecordBatchReader.fromAsyncByteStream<T>(new AsyncByteStream(source));
         }
