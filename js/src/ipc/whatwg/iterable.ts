@@ -15,36 +15,42 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import { toUint8Array } from '../../util/buffer';
 import { ReadableDOMStreamOptions } from '../../io/interfaces';
 import { isIterable, isAsyncIterable } from '../../util/compat';
+import { protectArrayBufferFromWhatwgRefImpl } from './hack';
 
 export function toReadableDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableDOMStreamOptions): ReadableStream<T> {
     if (isAsyncIterable<T>(source)) { return asyncIterableAsReadableDOMStream(source, options); }
     if (isIterable<T>(source)) { return iterableAsReadableDOMStream(source, options); }
+    /* istanbul ignore next */
     throw new Error(`toReadableDOMStream() must be called with an Iterable or AsyncIterable`);
 }
 
 function iterableAsReadableDOMStream<T>(source: Iterable<T>, options?: ReadableDOMStreamOptions) {
 
     let it: Iterator<T> | null = null;
-    const bm = (options && options.type === 'bytes');
+    const bm = (options && options.type === 'bytes') || false;
+    const hwm = options && options.highWaterMark || (2 ** 24);
 
     return new ReadableStream<T>({
         ...options as any,
         start(controller) { next(controller, it || (it = source[Symbol.iterator]())); },
         pull(controller) { it ? (next(controller, it)) : controller.close(); },
         cancel() { (it && (it.return && it.return()) || true) && (it = null); }
-    });
+    }, { highWaterMark: bm ? hwm : undefined, ...options });
 
     function next(controller: ReadableStreamDefaultController<T>, it: Iterator<T>) {
-        let size = controller.desiredSize;
+        let buf: Uint8Array;
         let r: IteratorResult<T> | null = null;
+        let size = controller.desiredSize || null;
         while (!(r = it.next(bm ? size : null)).done) {
-            controller.enqueue(r.value);
-            if (size != null) {
-                size -= (bm && ArrayBuffer.isView(r.value) ? r.value.byteLength : 1);
-                if (size <= 0) { return; }
+            if (ArrayBuffer.isView(r.value) && (buf = toUint8Array(r.value))) {
+                size != null && bm && (size = size - buf.byteLength + 1);
+                r.value = <any> protectArrayBufferFromWhatwgRefImpl(buf);
             }
+            controller.enqueue(r.value);
+            if (size != null && --size <= 0) { return; }
         }
         controller.close();
     }
@@ -53,24 +59,27 @@ function iterableAsReadableDOMStream<T>(source: Iterable<T>, options?: ReadableD
 function asyncIterableAsReadableDOMStream<T>(source: AsyncIterable<T>, options?: ReadableDOMStreamOptions) {
 
     let it: AsyncIterator<T> | null = null;
-    const bm = (options && options.type === 'bytes');
+    const bm = (options && options.type === 'bytes') || false;
+    const hwm = options && options.highWaterMark || (2 ** 24);
 
     return new ReadableStream<T>({
         ...options as any,
         async start(controller) { await next(controller, it || (it = source[Symbol.asyncIterator]())); },
         async pull(controller) { it ? (await next(controller, it)) : controller.close(); },
         async cancel() { (it && (it.return && await it.return()) || true) && (it = null); },
-    });
+    }, { highWaterMark: bm ? hwm : undefined, ...options });
 
     async function next(controller: ReadableStreamDefaultController<T>, it: AsyncIterator<T>) {
-        let size = controller.desiredSize;
+        let buf: Uint8Array;
         let r: IteratorResult<T> | null = null;
+        let size = controller.desiredSize || null;
         while (!(r = await it.next(bm ? size : null)).done) {
-            controller.enqueue(r.value);
-            if (size != null) {
-                size -= (bm && ArrayBuffer.isView(r.value) ? r.value.byteLength : 1);
-                if (size <= 0) { return; }
+            if (ArrayBuffer.isView(r.value) && (buf = toUint8Array(r.value))) {
+                size != null && bm && (size = size - buf.byteLength + 1);
+                r.value = <any> protectArrayBufferFromWhatwgRefImpl(buf);
             }
+            controller.enqueue(r.value);
+            if (size != null && --size <= 0) { return; }
         }
         controller.close();
     }

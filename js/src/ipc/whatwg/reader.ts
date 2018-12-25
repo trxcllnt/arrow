@@ -26,7 +26,7 @@ export function recordBatchReaderThroughDOMStream<T extends { [key: string]: Dat
     let reader: RecordBatchReader<T> | null = null;
 
     const readable = new ReadableStream<RecordBatch<T>>({
-        async cancel() { await Promise.all<any>([queue.close(), reader && reader.cancel()]); },
+        async cancel() { await queue.close(); },
         async start(controller) { await next(controller, reader || (reader = await open())); },
         async pull(controller) { reader ? await next(controller, reader) : controller.close(); }
     });

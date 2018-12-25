@@ -58,8 +58,10 @@ export class MessageReader implements IterableIterator<Message> {
         if (buf.byteLength < bodyLength) {
             throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
-        // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
-        return buf.byteOffset % 8 === 0 ? buf : buf.slice();
+        // 1. Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
+        // 2. Work around https://github.com/whatwg/streams/blob/0ebe4b042e467d9876d80ae045de3843092ad797/reference-implementation/lib/helpers.js#L126
+        return /* 1. */ (buf.byteOffset % 8 === 0) &&
+               /* 2. */ (buf.byteOffset + buf.byteLength) <= buf.buffer.byteLength ? buf : buf.slice();
     }
     public readSchema(throwIfNull = false) {
         const type = MessageHeader.Schema;
@@ -119,8 +121,10 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
         if (buf.byteLength < bodyLength) {
             throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
-        // Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
-        return buf.byteOffset % 8 === 0 ? buf : buf.slice();
+        // 1. Work around bugs in fs.ReadStream's internal Buffer pooling, see: https://github.com/nodejs/node/issues/24817
+        // 2. Work around https://github.com/whatwg/streams/blob/0ebe4b042e467d9876d80ae045de3843092ad797/reference-implementation/lib/helpers.js#L126
+        return /* 1. */ (buf.byteOffset % 8 === 0) &&
+               /* 2. */ (buf.byteOffset + buf.byteLength) <= buf.buffer.byteLength ? buf : buf.slice();
     }
     public async readSchema(throwIfNull = false) {
         const type = MessageHeader.Schema;

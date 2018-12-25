@@ -37,19 +37,14 @@ class RecordBatchWriterDuplex<T extends { [key: string]: DataType } = any> exten
     }
     _final(cb?: CB) {
         const writer = this._writer;
-        if (writer) { writer.close(); }
-        if (cb) { cb(); }
+        writer && writer.close();
+        cb && cb();
     }
     _write(x: any, _: string, cb: CB) {
         const writer = this._writer;
-        if (writer) { writer.write(x); }
-        if (cb) { cb(); }
+        writer && writer.write(x);
+        cb && cb();
         return true;
-    }
-    _writev(xs: { chunk: any, encoding: string }[], cb: CB) {
-        const writer = this._writer;
-        if (writer) { xs.forEach(({ chunk }) => writer.write(chunk)); }
-        if (cb) { cb(); }
     }
     _read(size: number) {
         const it = this._reader;
@@ -59,8 +54,6 @@ class RecordBatchWriterDuplex<T extends { [key: string]: DataType } = any> exten
     }
     _destroy(err: Error | null, cb: (error: Error | null) => void) {
         const writer = this._writer;
-        const reader = this._reader;
-        if (reader) { reader.cancel(err); }
         if (writer) { err ? writer.abort(err) : writer.close(); }
         cb(this._reader = this._writer = null);
     }
