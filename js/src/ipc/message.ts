@@ -92,8 +92,8 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
     constructor(source: FileHandle, byteLength?: number);
     constructor(source: any, byteLength?: number) {
         this.source = source instanceof AsyncByteStream ? source
-            : (isFileHandle(source) && typeof byteLength === 'number')
-            ? new AsyncRandomAccessFile(source, byteLength)
+            : isFileHandle(source)
+            ? new AsyncRandomAccessFile(source, byteLength!)
             : new AsyncByteStream(source);
     }
     public [Symbol.asyncIterator](): AsyncIterableIterator<Message> { return this as AsyncIterableIterator<Message>; }
