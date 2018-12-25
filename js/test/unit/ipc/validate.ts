@@ -18,112 +18,55 @@
 import {
     Schema,
     RecordBatch,
-    MessageReader,
     RecordBatchReader,
-    AsyncMessageReader,
     RecordBatchFileReader,
-    RecordBatchStreamReader
+    RecordBatchStreamReader,
 } from '../../Arrow';
 
-export function simpleStreamSyncMessageReaderTest(reader: MessageReader) {
-    let index = 0;
-    for (let message of reader) {
-        if (index++ === 0) {
-            expect(message.isSchema()).toBe(true);
-            expect(message.bodyLength).toBe(0);
-        } else {
-            expect(message.isRecordBatch()).toBe(true);
-        }
-        const body = reader.readMessageBody(message.bodyLength);
-        expect(body).toBeInstanceOf(Uint8Array);
-        expect(body.byteLength).toBe(message.bodyLength);
-    }
-    reader.return();
-    return reader;
-}
-
-export async function simpleStreamAsyncMessageReaderTest(reader: AsyncMessageReader) {
-    let index = 0;
-    for await (let message of reader) {
-        if (index++ === 0) {
-            expect(message.isSchema()).toBe(true);
-            expect(message.bodyLength).toBe(0);
-        } else {
-            expect(message.isRecordBatch()).toBe(true);
-        }
-        const body = await reader.readMessageBody(message.bodyLength);
-        expect(body).toBeInstanceOf(Uint8Array);
-        expect(body.byteLength).toBe(message.bodyLength);
-    }
-    await reader.return();
-    return reader;
-}
-
-export function testSimpleRecordBatchJSONReader(r: RecordBatchStreamReader) {
+export function validateRecordBatchReader<T extends RecordBatchFileReader | RecordBatchStreamReader>(type: 'json' | 'file' | 'stream', numBatches: number, r: T) {
     const reader = r.open();
-    expect(reader.isStream()).toBe(true);
+    expect(reader).toBeInstanceOf(RecordBatchReader);
+    expect(type === 'file' ? reader.isFile() : reader.isStream()).toBe(true);
     expect(reader.schema).toBeInstanceOf(Schema);
-    testSimpleRecordBatchIterator(reader[Symbol.iterator]());
+    validateRecordBatchIterator(numBatches, reader[Symbol.iterator]());
     expect(reader.closed).toBe(reader.autoClose);
     return reader;
 }
 
-export function testSimpleRecordBatchFileReader<T extends RecordBatchFileReader | RecordBatchStreamReader>(r: T) {
-    const reader = r.open();
-    expect(reader.isFile()).toBe(true);
-    expect(reader.schema).toBeInstanceOf(Schema);
-    testSimpleRecordBatchIterator(reader[Symbol.iterator]());
-    expect(reader.closed).toBe(reader.autoClose);
-    return reader;
-}
-
-export function testSimpleRecordBatchStreamReader<T extends RecordBatchFileReader | RecordBatchStreamReader>(r: T) {
-    const reader = r.open();
-    expect(reader.isStream()).toBe(true);
-    expect(reader.schema).toBeInstanceOf(Schema);
-    testSimpleRecordBatchIterator(reader[Symbol.iterator]());
-    expect(reader.closed).toBe(reader.autoClose);
-    return reader;
-}
-
-export async function testSimpleAsyncRecordBatchFileReader<T extends RecordBatchReader>(r: T) {
+export async function validateAsyncRecordBatchReader<T extends RecordBatchReader>(type: 'json' | 'file' | 'stream', numBatches: number, r: T) {
     const reader = await r.open();
-    expect(reader.isFile()).toBe(true);
+    expect(reader).toBeInstanceOf(RecordBatchReader);
     expect(reader.schema).toBeInstanceOf(Schema);
-    await testSimpleAsyncRecordBatchIterator(reader[Symbol.asyncIterator]());
+    expect(type === 'file' ? reader.isFile() : reader.isStream()).toBe(true);
+    await validateRecordBatchAsyncIterator(numBatches, reader[Symbol.asyncIterator]());
     expect(reader.closed).toBe(reader.autoClose);
     return reader;
 }
 
-export async function testSimpleAsyncRecordBatchStreamReader<T extends RecordBatchReader>(r: T) {
-    const reader = await r.open();
-    expect(reader.isStream()).toBe(true);
-    expect(reader.schema).toBeInstanceOf(Schema);
-    await testSimpleAsyncRecordBatchIterator(reader[Symbol.asyncIterator]());
-    expect(reader.closed).toBe(reader.autoClose);
-    return reader;
-}
-
-export function testSimpleRecordBatchIterator(iterator: IterableIterator<RecordBatch>) {
+export function validateRecordBatchIterator(numBatches: number, iterator: Iterable<RecordBatch> | IterableIterator<RecordBatch>) {
     let i = 0;
     try {
         for (const recordBatch of iterator) {
             expect(recordBatch).toBeInstanceOf(RecordBatch);
-            i++;
+            expect(i++).toBeLessThan(numBatches);
         }
     } catch (e) { throw new Error(`${i}: ${e}`); }
-    expect(i).toBe(3);
-    iterator.return!();
+    expect(i).toBe(numBatches);
+    if (typeof (iterator as any).return === 'function') {
+        (iterator as any).return();
+    }
 }
 
-export async function testSimpleAsyncRecordBatchIterator(iterator: AsyncIterableIterator<RecordBatch>) {
+export async function validateRecordBatchAsyncIterator(numBatches: number, iterator: AsyncIterable<RecordBatch> | AsyncIterableIterator<RecordBatch>) {
     let i = 0;
     try {
         for await (const recordBatch of iterator) {
             expect(recordBatch).toBeInstanceOf(RecordBatch);
-            i++;
+            expect(i++).toBeLessThan(numBatches);
         }
     } catch (e) { throw new Error(`${i}: ${e}`); }
-    expect(i).toBe(3);
-    await iterator.return!();
+    expect(i).toBe(numBatches);
+    if (typeof (iterator as any).return === 'function') {
+        await (iterator as any).return();
+    }
 }

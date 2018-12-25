@@ -15,19 +15,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as fs from 'fs';
-import * as Path from 'path';
-import { RecordBatchReader } from '../../../Arrow';
-import { testSimpleRecordBatchJSONReader } from '../validate';
+import {
+    generateRandomTables,
+    // generateDictionaryTables
+} from '../../../data/tables';
 
-/* tslint:disable */
+import { ArrowIOTestHelper } from '../helpers';
+import { RecordBatchReader } from '../../../Arrow';
+import { validateRecordBatchReader } from '../validate';
+
+// /* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
 
-const simpleJSONPath = Path.resolve(__dirname, `../../../data/json/simple.json`);
-const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
+for (const table of generateRandomTables([10, 20, 30])) {
 
-describe('RecordBatchJSONReader', () => {
-    it('should read all RecordBatches from Arrow JSON data', () => {
-        testSimpleRecordBatchJSONReader(RecordBatchReader.from(simpleJSONData));
+    const io = ArrowIOTestHelper.json(table);
+    const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
+
+    describe(`RecordBatchJSONReader (${name})`, () => {
+        describe(`should read all RecordBatches`, () => {
+            test(`Uint8Array`, io.buffer((buffer) => {
+                const json = bignumJSONParse(Buffer.from(buffer).toString());
+                validateRecordBatchReader('json', 3, RecordBatchReader.from(json));
+            }));
+        });
     });
-});
+}

@@ -15,25 +15,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as fs from 'fs';
-import * as Path from 'path';
 import {
-    concatBuffersAsync,
-    convertNodeToDOMStream,
-    readableDOMStreamToAsyncIterator
-} from '../util';
+    generateRandomTables,
+    // generateDictionaryTables
+} from '../../../data/tables';
+
 import {
     RecordBatchReader,
     RecordBatchWriter,
     RecordBatchFileWriter,
-    RecordBatchStreamWriter
+    RecordBatchJSONWriter,
+    RecordBatchStreamWriter,
 } from '../../../Arrow';
+
 import {
-    testSimpleRecordBatchFileReader,
-    testSimpleRecordBatchStreamReader,
-    testSimpleAsyncRecordBatchIterator,
-    testSimpleAsyncRecordBatchFileReader,
-    testSimpleAsyncRecordBatchStreamReader
+    ArrowIOTestHelper,
+    concatBuffersAsync,
+    readableDOMStreamToAsyncIterator
+} from '../helpers';
+
+import {
+    validateRecordBatchReader,
+    validateAsyncRecordBatchReader,
+    validateRecordBatchAsyncIterator
 } from '../validate';
 
 (() => {
@@ -43,117 +47,180 @@ import {
     }
 
     /* tslint:disable */
-    // const concatStream = require('multistream');
-    /* tslint:disable */
-    // const { parse: bignumJSONParse } = require('json-bignum');
+    const { parse: bignumJSONParse } = require('json-bignum');
 
-    // const simpleJSONPath = Path.resolve(__dirname, `../../../data/json/simple.json`);
-    const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);
-    const simpleStreamPath = Path.resolve(__dirname, `../../../data/cpp/stream/simple.arrow`);
-    const simpleFileData = fs.readFileSync(simpleFilePath) as Uint8Array;
-    const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
-    // const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
+    for (const table of generateRandomTables([10, 20, 30])) {
 
-    describe(`RecordBatchWriter.throughDOM`, () => {
-        it('should read all Arrow file format messages from an fs.ReadStream', async () => {
+        const file = ArrowIOTestHelper.file(table);
+        const json = ArrowIOTestHelper.json(table);
+        const stream = ArrowIOTestHelper.stream(table);
+        const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
 
-            const stream = fs
-                .createReadStream(simpleFilePath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM())
-                .pipeThrough(RecordBatchWriter.throughDOM())
-                .pipeThrough(RecordBatchReader.throughDOM());
+        describe(`RecordBatchReader.throughDOM (${name})`, () => {
 
-            await testSimpleAsyncRecordBatchIterator(readableDOMStreamToAsyncIterator(stream));
-        });
-        it('should read all Arrow stream format messages from an fs.ReadStream', async () => {
+            describe('file', () => {
+                describe(`convert`, () => {
+                    test('ReadableStream', file.whatwgReadableStream(validateConvert.bind(0, RecordBatchStreamWriter)));
+                    test('ReadableByteStream', file.whatwgReadableByteStream(validateConvert.bind(0, RecordBatchStreamWriter)));
+                });
+                describe(`through`, () => {
+                    test('ReadableStream', file.whatwgReadableStream(validateThrough.bind(0, RecordBatchFileWriter)));
+                    test('ReadableByteStream', file.whatwgReadableByteStream(validateThrough.bind(0, RecordBatchFileWriter)));
+                });
+            });
 
-            const stream = fs
-                .createReadStream(simpleStreamPath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM())
-                .pipeThrough(RecordBatchWriter.throughDOM())
-                .pipeThrough(RecordBatchReader.throughDOM());
+            describe('stream', () => {
+                describe(`convert`, () => {
+                    test('ReadableStream', stream.whatwgReadableStream(validateConvert.bind(0, RecordBatchFileWriter)));
+                    test('ReadableByteStream', stream.whatwgReadableByteStream(validateConvert.bind(0, RecordBatchFileWriter)));
+                });
+                describe(`through`, () => {
+                    test('ReadableStream', stream.whatwgReadableStream(validateThrough.bind(0, RecordBatchStreamWriter)));
+                    test('ReadableByteStream', stream.whatwgReadableByteStream(validateThrough.bind(0, RecordBatchStreamWriter)));
+                });
+            });
 
-            await testSimpleAsyncRecordBatchIterator(readableDOMStreamToAsyncIterator(stream));
-        });
-    });
-
-    describe(`RecordBatchFileWriter.throughDOM`, () => {
-        it('should convert an Arrow stream to file format', async () => {
-
-            const stream = fs
-                .createReadStream(simpleStreamPath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM())
-                .pipeThrough(RecordBatchFileWriter.throughDOM());
-
-            const buffer = await concatBuffersAsync(readableDOMStreamToAsyncIterator(stream));
-
-            testSimpleRecordBatchFileReader(RecordBatchReader.from(buffer));
-        });
-        it('should convert an Arrow stream to file format (async)', async () => {
-
-            const stream = fs
-                .createReadStream(simpleStreamPath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM())
-                .pipeThrough(RecordBatchFileWriter.throughDOM());
-
-            const reader = await RecordBatchReader.from(readableDOMStreamToAsyncIterator(stream));
-
-            testSimpleAsyncRecordBatchFileReader(reader);
-        });
-    });
-
-    describe(`RecordBatchStreamWriter.throughDOM`, () => {
-        it('should convert an Arrow file to stream format', async () => {
-
-            const stream = fs
-                .createReadStream(simpleFilePath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM())
-                .pipeThrough(RecordBatchStreamWriter.throughDOM());
-
-            const buffer = await concatBuffersAsync(readableDOMStreamToAsyncIterator(stream));
-
-            testSimpleRecordBatchStreamReader(RecordBatchReader.from(buffer));
-        });
-        it('should convert an Arrow file to stream format (async)', async () => {
-
-            const stream = fs
-                .createReadStream(simpleFilePath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM())
-                .pipeThrough(RecordBatchStreamWriter.throughDOM());
-
-            const reader = await RecordBatchReader.from(stream);
-
-            testSimpleAsyncRecordBatchStreamReader(reader);
-        });
-    });
-
-    describe('RecordBatchFileWriter', () => {
-        it('toReadableDOMStream should return an Arrow file ReadableStream', async () => {
-            const writer = new RecordBatchFileWriter();
-            for (const batch of RecordBatchReader.from(simpleStreamData)) {
-                writer.write(batch);
+            async function validateConvert(RBWImplementation: typeof RecordBatchWriter, source: ReadableStream) {
+                const stream = source
+                    .pipeThrough(RecordBatchReader.throughDOM())
+                    .pipeThrough(RBWImplementation.throughDOM());
+                const type = RBWImplementation === RecordBatchFileWriter ? 'file' : 'stream';
+                await validateAsyncRecordBatchReader(type, 3, await RecordBatchReader.from(stream));
             }
-            writer.close();
-            const reader = await RecordBatchReader.from(writer.toReadableDOMStream());
-            testSimpleAsyncRecordBatchFileReader(reader);
+
+            async function validateThrough(RBWImplementation: typeof RecordBatchWriter, source: ReadableStream) {
+                const stream = source
+                    .pipeThrough(RecordBatchReader.throughDOM())
+                    .pipeThrough(RBWImplementation.throughDOM())
+                    .pipeThrough(RecordBatchReader.throughDOM());
+                await validateRecordBatchAsyncIterator(3, readableDOMStreamToAsyncIterator(stream));
+            }
         });
-    });
+
+        describe(`toReadableDOMStream (${name})`, () => {
+
+            const wrapArgInPromise = (fn: (p: Promise<any>) => any) => (x: any) => fn(Promise.resolve(x));
+
+            describe(`RecordBatchJSONWriter`, () => {
+
+                const toJSON = (x: any): { schema: any } => bignumJSONParse(`${Buffer.from(x)}`);
+
+                test('Uint8Array', json.buffer((source) => validate(toJSON(source))));
+                test('Promise<Uint8Array>', json.buffer((source) => validate(Promise.resolve(toJSON(source)))));
+
+                async function validate(source: { schema: any } | Promise<{ schema: any }>) {
+                    const reader = await RecordBatchReader.from(<any> source);
+                    const writer = await RecordBatchJSONWriter.writeAll(reader);
+                    const buffer = await concatBuffersAsync(writer.toReadableDOMStream());
+                    validateRecordBatchReader('json', 3, RecordBatchReader.from(toJSON(buffer)));
+                }
+            });
+
+            describe(`RecordBatchFileWriter`, () => {
+
+                describe(`sync write/read`, () => {
+
+                    test(`Uint8Array`, file.buffer(validate));
+                    test(`Iterable`, file.iterable(validate));
+                    test('AsyncIterable', file.asyncIterable(validate));
+                    test('fs.FileHandle', file.fsFileHandle(validate));
+                    test('fs.ReadStream', file.fsReadableStream(validate));
+                    test('stream.Readable', file.nodeReadableStream(validate));
+                    test('whatwg.ReadableStream', file.whatwgReadableStream(validate));
+                    test('whatwg.ReadableByteStream', file.whatwgReadableByteStream(validate));
+                    test('Promise<AsyncIterable>', file.asyncIterable(wrapArgInPromise(validate)));
+                    test('Promise<fs.FileHandle>', file.fsFileHandle(wrapArgInPromise(validate)));
+                    test('Promise<fs.ReadStream>', file.fsReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<stream.Readable>', file.nodeReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableStream>', file.whatwgReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableByteStream>', file.whatwgReadableByteStream(wrapArgInPromise(validate)));
+
+                    async function validate(source: any) {
+                        const reader = await RecordBatchReader.from(source);
+                        const writer = await RecordBatchFileWriter.writeAll(reader);
+                        const stream = await RecordBatchReader.from(writer.toReadableDOMStream());
+                        await validateAsyncRecordBatchReader('file', 3, stream);
+                    }
+                });
+
+                describe(`async write/read`, () => {
+
+                    test(`Uint8Array`, file.buffer(validate));
+                    test(`Iterable`, file.iterable(validate));
+                    test('AsyncIterable', file.asyncIterable(validate));
+                    test('fs.FileHandle', file.fsFileHandle(validate));
+                    test('fs.ReadStream', file.fsReadableStream(validate));
+                    test('stream.Readable', file.nodeReadableStream(validate));
+                    test('whatwg.ReadableStream', file.whatwgReadableStream(validate));
+                    test('whatwg.ReadableByteStream', file.whatwgReadableByteStream(validate));
+                    test('Promise<AsyncIterable>', file.asyncIterable(wrapArgInPromise(validate)));
+                    test('Promise<fs.FileHandle>', file.fsFileHandle(wrapArgInPromise(validate)));
+                    test('Promise<fs.ReadStream>', file.fsReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<stream.Readable>', file.nodeReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableStream>', file.whatwgReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableByteStream>', file.whatwgReadableByteStream(wrapArgInPromise(validate)));
     
-    describe('RecordBatchStreamWriter', () => {
-        it('toReadableDOMStream should return an Arrow stream ReadableStream', async () => {
-            const writer = new RecordBatchStreamWriter();
-            for (const batch of RecordBatchReader.from(simpleFileData)) {
-                writer.write(batch);
-            }
-            writer.close();
-            const reader = await RecordBatchReader.from(writer.toReadableDOMStream());
-            testSimpleAsyncRecordBatchStreamReader(reader);
+                    async function validate(source: any) {
+                        const writer = new RecordBatchFileWriter();
+                        /* no await */ writer.writeAll(await RecordBatchReader.from(source));
+                        const reader = await RecordBatchReader.from(writer.toReadableDOMStream());
+                        await validateAsyncRecordBatchReader('file', 3, reader);
+                    }
+                });
+            });
+
+            describe(`RecordBatchStreamWriter`, () => {
+
+                describe(`sync write/read`, () => {
+
+                    test(`Uint8Array`, stream.buffer(validate));
+                    test(`Iterable`, stream.iterable(validate));
+                    test('AsyncIterable', stream.asyncIterable(validate));
+                    test('fs.FileHandle', stream.fsFileHandle(validate));
+                    test('fs.ReadStream', stream.fsReadableStream(validate));
+                    test('stream.Readable', stream.nodeReadableStream(validate));
+                    test('whatwg.ReadableStream', stream.whatwgReadableStream(validate));
+                    test('whatwg.ReadableByteStream', stream.whatwgReadableByteStream(validate));
+                    test('Promise<AsyncIterable>', stream.asyncIterable(wrapArgInPromise(validate)));
+                    test('Promise<fs.FileHandle>', stream.fsFileHandle(wrapArgInPromise(validate)));
+                    test('Promise<fs.ReadStream>', stream.fsReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<stream.Readable>', stream.nodeReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableStream>', stream.whatwgReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableByteStream>', stream.whatwgReadableByteStream(wrapArgInPromise(validate)));
+
+                    async function validate(source: any) {
+                        const reader = await RecordBatchReader.from(source);
+                        const writer = await RecordBatchStreamWriter.writeAll(reader);
+                        const stream = await RecordBatchReader.from(writer.toReadableDOMStream());
+                        await validateAsyncRecordBatchReader('stream', 3, stream);
+                    }
+                });
+
+                describe(`async write/read`, () => {
+
+                    test(`Uint8Array`, stream.buffer(validate));
+                    test(`Iterable`, stream.iterable(validate));
+                    test('AsyncIterable', stream.asyncIterable(validate));
+                    test('fs.FileHandle', stream.fsFileHandle(validate));
+                    test('fs.ReadStream', stream.fsReadableStream(validate));
+                    test('stream.Readable', stream.nodeReadableStream(validate));
+                    test('whatwg.ReadableStream', stream.whatwgReadableStream(validate));
+                    test('whatwg.ReadableByteStream', stream.whatwgReadableByteStream(validate));
+                    test('Promise<AsyncIterable>', stream.asyncIterable(wrapArgInPromise(validate)));
+                    test('Promise<fs.FileHandle>', stream.fsFileHandle(wrapArgInPromise(validate)));
+                    test('Promise<fs.ReadStream>', stream.fsReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<stream.Readable>', stream.nodeReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableStream>', stream.whatwgReadableStream(wrapArgInPromise(validate)));
+                    test('Promise<ReadableByteStream>', stream.whatwgReadableByteStream(wrapArgInPromise(validate)));
+
+                    async function validate(source: any) {
+                        const writer = new RecordBatchStreamWriter();
+                        /* no await */ writer.writeAll(await RecordBatchReader.from(source));
+                        const reader = await RecordBatchReader.from(writer.toReadableDOMStream());
+                        await validateAsyncRecordBatchReader('stream', 3, reader);
+                    }
+                });
+            });
         });
-    });
+    }
 })();

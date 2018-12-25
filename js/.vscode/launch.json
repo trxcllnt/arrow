@@ -60,8 +60,9 @@
                 // "test/unit/ipc/reader/stream-reader-tests.ts",
                 // "test/unit/ipc/reader/streams-dom-tests.ts",
                 // "test/unit/ipc/reader/streams-node-tests.ts",
-                // "test/unit/ipc/writer/writer-tests.ts",
+                // "test/unit/ipc/writer/file-writer-tests.ts",
                 // "test/unit/ipc/writer/json-writer-tests.ts",
+                // "test/unit/ipc/writer/stream-writer-tests.ts",
                 // "test/unit/ipc/writer/streams-dom-tests.ts",
                 // "test/unit/ipc/writer/streams-node-tests.ts",
             ]

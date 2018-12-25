@@ -15,14 +15,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as fs from 'fs';
-import * as Path from 'path';
-import { nodeToDOMStream } from '../util';
-import { toArray } from 'ix/asynciterable/toarray';
-import { chunkedIterable, asyncChunkedIterable } from '../util';
 import {
-    testSimpleRecordBatchFileReader,
-    testSimpleAsyncRecordBatchFileReader,
+    generateRandomTables,
+    // generateDictionaryTables
+} from '../../../data/tables';
+import { ArrowIOTestHelper } from '../helpers';
+import { toArray } from 'ix/asynciterable/toarray';
+
+import {
+    validateRecordBatchReader,
+    validateAsyncRecordBatchReader
 } from '../validate';
 
 import {
@@ -31,73 +33,91 @@ import {
     AsyncRecordBatchFileReader
 } from '../../../Arrow';
 
-const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);
-const simpleFileData = fs.readFileSync(simpleFilePath);
+for (const table of generateRandomTables([10, 20, 30])) {
 
-describe('RecordBatchFileReader', () => {
-    it('should read all RecordBatches from a Buffer of Arrow data in memory', () => {
-        testSimpleRecordBatchFileReader(RecordBatchReader.from(simpleFileData));
-    });
-    it('should read all RecordBatches from an Iterable that yields buffers of Arrow messages in memory', () => {
-        testSimpleRecordBatchFileReader(RecordBatchReader.from(chunkedIterable(simpleFileData)));
-    });
-    it('should allow random access to record batches after iterating when autoClose=false', () => {
-        const reader = RecordBatchReader.from(simpleFileData) as RecordBatchFileReader;
-        const schema = reader.open(false).schema;
-        const batches = [...reader];
-        expect(reader.closed).toBe(false);
-        expect(reader.schema).toBe(schema);
-        while (batches.length > 0) {
-            const expected = batches.pop()!;
-            const actual = reader.readRecordBatch(batches.length);
-            expect(actual).toEqualRecordBatch(expected);
-        }
-        reader.cancel();
-        expect(reader.closed).toBe(true);
-        expect(reader.schema).toBeUndefined();
-    });
-});
+    const io = ArrowIOTestHelper.file(table);
+    const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
 
-describe('AsyncRecordBatchFileReader', () => {
-
-    it('should read all RecordBatches from an fs.ReadStream', async () => {
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(fs.createReadStream(simpleFilePath)));
+    const validate = (source: any) => { validateRecordBatchReader('file', 3, RecordBatchReader.from(source)); }
+    const validateAsync = async (source: any) => { await validateAsyncRecordBatchReader('file', 3, await RecordBatchReader.from(source)); }
+    const validateAsyncWrapped = async (source: any) => { await validateAsyncRecordBatchReader('file', 3, await RecordBatchReader.from(Promise.resolve(source))); }
+    
+    describe(`RecordBatchFileReader (${name})`, () => {
+        describe(`should read all RecordBatches`, () => {
+            test(`Uint8Array`, io.buffer(validate));
+            test(`Iterable`, io.iterable(validate));
+        });
+        describe(`should allow random access to record batches after iterating when autoClose=false`, () => {
+            test(`Uint8Array`, io.buffer(validateRandomAccess));
+            test(`Iterable`, io.iterable(validateRandomAccess));
+        });
     });
 
-    it('should read all RecordBatches from a Promise<fs.promises.FileHandle>', async () => {
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(fs.promises.open(simpleFilePath, 'r')));
-    });
+    describe(`AsyncRecordBatchFileReader (${name})`, () => {
+        describe(`should read all RecordBatches`, () => {
 
-    it('should read all RecordBatches from an fs.promises.FileHandle', async () => {
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(await fs.promises.open(simpleFilePath, 'r')));
-    });
+            test('AsyncIterable', io.asyncIterable(validateAsync));
+            test('fs.FileHandle', io.fsFileHandle(validateAsync));
+            test('fs.ReadStream', io.fsReadableStream(validateAsync));
+            test('stream.Readable', io.nodeReadableStream(validateAsync));
+            test('whatwg.ReadableStream', io.whatwgReadableStream(validateAsync));
+            test('whatwg.ReadableByteStream', io.whatwgReadableByteStream(validateAsync));
 
-    it('should read all RecordBatches from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(asyncChunkedIterable(simpleFileData)));
-    });
+            test('Promise<AsyncIterable>', io.asyncIterable(validateAsyncWrapped));
+            test('Promise<fs.FileHandle>', io.fsFileHandle(validateAsyncWrapped));
+            test('Promise<fs.ReadStream>', io.fsReadableStream(validateAsyncWrapped));
+            test('Promise<stream.Readable>', io.nodeReadableStream(validateAsyncWrapped));
+            test('Promise<ReadableStream>', io.whatwgReadableStream(validateAsyncWrapped));
+            test('Promise<ReadableByteStream>', io.whatwgReadableByteStream(validateAsyncWrapped));
+        });
 
-    it('should read all RecordBatches from a whatwg ReadableStream', async () => {
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(nodeToDOMStream(fs.createReadStream(simpleFilePath))));
-    });
+        describe(`should allow random access to record batches after iterating when autoClose=false`, () => {
 
-    it('should read all RecordBatches from a whatwg ReadableByteStream', async () => {
-        await testSimpleAsyncRecordBatchFileReader(await RecordBatchReader.from(nodeToDOMStream(fs.createReadStream(simpleFilePath), { type: 'bytes' })));
-    });
+            test('AsyncIterable', io.asyncIterable(validateRandomAccessAsync));
+            test('fs.FileHandle', io.fsFileHandle(validateRandomAccessAsync));
+            test('fs.ReadStream', io.fsReadableStream(validateRandomAccessAsync));
+            test('stream.Readable', io.nodeReadableStream(validateRandomAccessAsync));
+            test('whatwg.ReadableStream', io.whatwgReadableStream(validateRandomAccessAsync));
+            test('whatwg.ReadableByteStream', io.whatwgReadableByteStream(validateRandomAccessAsync));
 
-    it('should allow random access to record batches after iterating when autoClose=false', async () => {
-        const source = (await fs.promises.open(simpleFilePath, 'r'));
-        const reader = (await RecordBatchReader.from(source)) as AsyncRecordBatchFileReader;
-        const schema = (await reader.open(false)).schema;
-        const batches = await toArray(reader);
-        expect(reader.closed).toBe(false);
-        expect(reader.schema).toBe(schema);
-        while (batches.length > 0) {
-            const expected = batches.pop()!;
-            const actual = await reader.readRecordBatch(batches.length);
-            expect(actual).toEqualRecordBatch(expected);
-        }
-        await reader.cancel();
-        expect(reader.closed).toBe(true);
-        expect(reader.schema).toBeUndefined();
+            test('Promise<AsyncIterable>', io.asyncIterable(validateRandomAccessAsync));
+            test('Promise<fs.FileHandle>', io.fsFileHandle(validateRandomAccessAsync));
+            test('Promise<fs.ReadStream>', io.fsReadableStream(validateRandomAccessAsync));
+            test('Promise<stream.Readable>', io.nodeReadableStream(validateRandomAccessAsync));
+            test('Promise<ReadableStream>', io.whatwgReadableStream(validateRandomAccessAsync));
+            test('Promise<ReadableByteStream>', io.whatwgReadableByteStream(validateRandomAccessAsync));
+        });
     });
-});
+}
+
+function validateRandomAccess(source: any) {
+    const reader = RecordBatchReader.from(source) as RecordBatchFileReader;
+    const schema = reader.open(false).schema;
+    const batches = [...reader];
+    expect(reader.closed).toBe(false);
+    expect(reader.schema).toBe(schema);
+    while (batches.length > 0) {
+        const expected = batches.pop()!;
+        const actual = reader.readRecordBatch(batches.length);
+        expect(actual).toEqualRecordBatch(expected);
+    }
+    reader.cancel();
+    expect(reader.closed).toBe(true);
+    expect(reader.schema).toBeUndefined();
+}
+
+async function validateRandomAccessAsync(source: any) {
+    const reader = (await RecordBatchReader.from(source)) as AsyncRecordBatchFileReader;
+    const schema = (await reader.open(false)).schema;
+    const batches = await toArray(reader);
+    expect(reader.closed).toBe(false);
+    expect(reader.schema).toBe(schema);
+    while (batches.length > 0) {
+        const expected = batches.pop()!;
+        const actual = await reader.readRecordBatch(batches.length);
+        expect(actual).toEqualRecordBatch(expected);
+    }
+    await reader.cancel();
+    expect(reader.closed).toBe(true);
+    expect(reader.schema).toBeUndefined();
+}

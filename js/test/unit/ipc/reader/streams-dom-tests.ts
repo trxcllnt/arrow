@@ -15,26 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as fs from 'fs';
-import * as Path from 'path';
-import { generateRandomTables } from '../../../data/tables';
+import {
+    generateRandomTables,
+    // generateDictionaryTables
+} from '../../../data/tables';
 
 import {
-    nodeToDOMStream,
-    convertNodeToDOMStream,
-    readableDOMStreamToAsyncIterator
-} from '../util';
-
-import {
-    Table, Schema,
+    Table,
     RecordBatchReader,
     RecordBatchStreamWriter
 } from '../../../Arrow';
 
-import {
-    testSimpleAsyncRecordBatchIterator,
-    testSimpleAsyncRecordBatchStreamReader
-} from '../validate';
+import { validateRecordBatchAsyncIterator } from '../validate';
+import { ArrowIOTestHelper, readableDOMStreamToAsyncIterator } from '../helpers';
 
 (() => {
 
@@ -43,124 +36,104 @@ import {
     }
 
     /* tslint:disable */
+    const { parse: bignumJSONParse } = require('json-bignum');
+    /* tslint:disable */
     const { concatStream } = require('web-stream-tools').default;
 
-    /* tslint:disable */
-    const { parse: bignumJSONParse } = require('json-bignum');
+    for (const table of generateRandomTables([10, 20, 30])) {
 
-    const simpleJSONPath = Path.resolve(__dirname, `../../../data/json/simple.json`);
-    const simpleFilePath = Path.resolve(__dirname, `../../../data/cpp/file/simple.arrow`);
-    const simpleStreamPath = Path.resolve(__dirname, `../../../data/cpp/stream/simple.arrow`);
-    const simpleFileData = fs.readFileSync(simpleFilePath) as Uint8Array;
-    const simpleStreamData = fs.readFileSync(simpleStreamPath) as Uint8Array;
-    const simpleJSONData = bignumJSONParse('' + fs.readFileSync(simpleJSONPath)) as { schema: any };
+        const file = ArrowIOTestHelper.file(table);
+        const json = ArrowIOTestHelper.json(table);
+        const stream = ArrowIOTestHelper.stream(table);
+        const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
 
-    describe(`RecordBatchReader.throughDOM`, () => {
-        it('should read all Arrow file format messages from a WhatWG ReadableStream', async () => {
-            const stream = fs
-                .createReadStream(simpleFilePath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM());
-            await testSimpleAsyncRecordBatchIterator(readableDOMStreamToAsyncIterator(stream));
-        });
-        it('should read all Arrow stream format messages from a WhatWG ReadableStream', async () => {
-            const stream = fs
-                .createReadStream(simpleFilePath)
-                .pipe(convertNodeToDOMStream()).dom
-                .pipeThrough(RecordBatchReader.throughDOM());
-            await testSimpleAsyncRecordBatchIterator(readableDOMStreamToAsyncIterator(stream));
-        });
-    });
-
-    describe('RecordBatchJSONReader', () => {
-        it('toReadableDOMStream should yield all RecordBatches', async () => {
-            const reader = RecordBatchReader.from(simpleJSONData);
-            const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    describe('RecordBatchFileReader', () => {
-        it('toReadableDOMStream should yield all RecordBatches', async () => {
-            const reader = RecordBatchReader.from(simpleFileData).open();
-            const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    describe('RecordBatchStreamReader', () => {
-        it('toReadableDOMStream should yield all RecordBatches', async () => {
-            const reader = RecordBatchReader.from(simpleStreamData);
-            const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    describe('AsyncRecordBatchFileReader', () => {
-        it('toReadableDOMStream should read all RecordBatches from an fs.ReadStream', async () => {
-            const reader = await RecordBatchReader.from(fs.createReadStream(simpleFilePath));
-            const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-        it('toReadableDOMStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
-            const reader = await RecordBatchReader.from(await fs.promises.open(simpleFilePath, 'r'));
-            const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-    });
-
-    describe('AsyncRecordBatchStreamReader', () => {
-        it('toReadableDOMStream should read all RecordBatches from an fs.ReadStream', async () => {
-            const reader = await RecordBatchReader.from(fs.createReadStream(simpleStreamPath));
-            const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-        it('toReadableDOMStream should read all RecordBatches from an fs.promises.FileHandle', async () => {
-            const reader = await RecordBatchReader.from(await fs.promises.open(simpleStreamPath, 'r'));
-            const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
-            await testSimpleAsyncRecordBatchIterator(iterator);
-        });
-        it('should read all RecordBatches from a WhatWG ReadableStream that yields multiple tables', async () => {
-
-            const source = concatStream([
-                nodeToDOMStream(fs.createReadStream(simpleStreamPath)),
-                nodeToDOMStream(fs.createReadStream(simpleStreamPath))
-            ]) as ReadableStream<Uint8Array>;
-    
-            let reader = await (await RecordBatchReader.from(source)).open(false);
-
-            reader = await testSimpleAsyncRecordBatchStreamReader(reader);
-            expect(reader.schema).toBeInstanceOf(Schema);
-            expect(reader.reset().schema).toBeUndefined();
-    
-            reader = await testSimpleAsyncRecordBatchStreamReader(reader);
-            await reader.cancel();
-            expect(reader.schema).toBeUndefined();
-            expect((await reader.open()).schema).toBeUndefined();
+        describe(`RecordBatchReader.throughDOM (${name})`, () => {
+            describe('file', () => {
+                test('ReadableStream', file.whatwgReadableStream(validate));
+                test('ReadableByteStream', file.whatwgReadableByteStream(validate));
+            });
+            describe('stream', () => {
+                test('ReadableStream', stream.whatwgReadableStream(validate));
+                test('ReadableByteStream', stream.whatwgReadableByteStream(validate));
+            });
+            async function validate(source: ReadableStream) {
+                const stream = source.pipeThrough(RecordBatchReader.throughDOM());
+                await validateRecordBatchAsyncIterator(3, readableDOMStreamToAsyncIterator(stream));
+            }
         });
 
-        it('should not close the underlying WhatWG ReadableStream when reading multiple tables', async () => {
+        describe(`toReadableDOMStream (${name})`, () => {
 
-            expect.hasAssertions();
+            describe(`RecordBatchJSONReader`, () => {
+                test('Uint8Array', json.buffer((source) => validate(bignumJSONParse(`${Buffer.from(source)}`))));
+            });
 
-            const tables = [...generateRandomTables([1000, 2000, 3000])];
+            describe(`RecordBatchFileReader`, () => {
+                test(`Uint8Array`, file.buffer(validate));
+                test(`Iterable`, file.iterable(validate));
+                test('AsyncIterable', file.asyncIterable(validate));
+                test('fs.FileHandle', file.fsFileHandle(validate));
+                test('fs.ReadStream', file.fsReadableStream(validate));
+                test('stream.Readable', file.nodeReadableStream(validate));
+                test('whatwg.ReadableStream', file.whatwgReadableStream(validate));
+                test('whatwg.ReadableByteStream', file.whatwgReadableByteStream(validate));
+                test('Promise<AsyncIterable>', file.asyncIterable((source) => validate(Promise.resolve(source))));
+                test('Promise<fs.FileHandle>', file.fsFileHandle((source) => validate(Promise.resolve(source))));
+                test('Promise<fs.ReadStream>', file.fsReadableStream((source) => validate(Promise.resolve(source))));
+                test('Promise<stream.Readable>', file.nodeReadableStream((source) => validate(Promise.resolve(source))));
+                test('Promise<ReadableStream>', file.whatwgReadableStream((source) => validate(Promise.resolve(source))));
+                test('Promise<ReadableByteStream>', file.whatwgReadableByteStream((source) => validate(Promise.resolve(source))));
+            });
 
-            const stream = concatStream(tables.map((table) =>
-                RecordBatchStreamWriter.writeAll(table).toReadableDOMStream()
-            )) as ReadableStream<Uint8Array>;
-    
-            let index = -1;
-            let reader = await RecordBatchReader.from(stream);
+            describe(`RecordBatchStreamReader`, () => {
+                test(`Uint8Array`, stream.buffer(validate));
+                test(`Iterable`, stream.iterable(validate));
+                test('AsyncIterable', stream.asyncIterable(validate));
+                test('fs.FileHandle', stream.fsFileHandle(validate));
+                test('fs.ReadStream', stream.fsReadableStream(validate));
+                test('stream.Readable', stream.nodeReadableStream(validate));
+                test('whatwg.ReadableStream', stream.whatwgReadableStream(validate));
+                test('whatwg.ReadableByteStream', stream.whatwgReadableByteStream(validate));
+                test('Promise<AsyncIterable>', stream.asyncIterable((source) => validate(Promise.resolve(source))));
+                test('Promise<fs.FileHandle>', stream.fsFileHandle((source) => validate(Promise.resolve(source))));
+                test('Promise<fs.ReadStream>', stream.fsReadableStream((source) => validate(Promise.resolve(source))));
+                test('Promise<stream.Readable>', stream.nodeReadableStream((source) => validate(Promise.resolve(source))));
+                test('Promise<ReadableStream>', stream.whatwgReadableStream((source) => validate(Promise.resolve(source))));
+                test('Promise<ReadableByteStream>', stream.whatwgReadableByteStream((source) => validate(Promise.resolve(source))));
+            });
 
-            try {
-                while (!(await reader.reset().open(false)).closed) {
-                    const sourceTable = tables[++index];
-                    const streamTable = await Table.from(reader);
-                    expect(streamTable).toEqualTable(sourceTable);
-                }
-            } finally { reader.cancel(); }
-
-            expect(index).toBe(tables.length - 1);
+            async function validate(source: any) {
+                const reader: RecordBatchReader = await RecordBatchReader.from(source);
+                const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
+                await validateRecordBatchAsyncIterator(3, iterator);
+            }
         });
+    }
+
+    it('should not close the underlying WhatWG ReadableStream when reading multiple tables', async () => {
+
+        expect.hasAssertions();
+
+        const tables = [...generateRandomTables([10, 20, 30])];
+
+        const stream = concatStream(tables.map((table, i) =>
+            RecordBatchStreamWriter.writeAll(table).toReadableDOMStream({
+                // Alternate between bytes mode and regular mode because code coverage
+                type: i % 2 === 0 ? 'bytes' : undefined
+            })
+        )) as ReadableStream<Uint8Array>;
+
+        let index = -1;
+        let reader = await RecordBatchReader.from(stream);
+
+        try {
+            while (!(await reader.reset().open(false)).closed) {
+                const sourceTable = tables[++index];
+                const streamTable = await Table.from(reader);
+                expect(streamTable).toEqualTable(sourceTable);
+            }
+        } finally { reader.cancel(); }
+
+        expect(index).toBe(tables.length - 1);
     });
 })();

@@ -21,29 +21,26 @@ import {
 } from '../../../data/tables';
 
 import { validateRecordBatchIterator } from '../validate';
-import { Table, RecordBatchJSONWriter } from '../../../Arrow';
+import { Table, RecordBatchFileWriter } from '../../../Arrow';
 
-/* tslint:disable */
-const { parse: bignumJSONParse } = require('json-bignum');
-
-describe('RecordBatchJSONWriter', () => {
+describe('RecordBatchFileWriter', () => {
     for (const table of generateRandomTables([10, 20, 30])) {
-        testJSONWriter(table, `[${table.schema.fields.join(', ')}]`);
+        testFileWriter(table, `[${table.schema.fields.join(', ')}]`);
     }
     for (const table of generateDictionaryTables([10, 20, 30])) {
-        testJSONWriter(table, `${table.schema.fields[0]}`);
+        testFileWriter(table, `${table.schema.fields[0]}`);
     }
 });
 
-function testJSONWriter(table: Table, name: string) {
-    describe(`should write the Arrow IPC JSON format (${name})`, () => {
+function testFileWriter(table: Table, name: string) {
+    describe(`should write the Arrow IPC file format (${name})`, () => {
         test(`Table`, validateTable.bind(0, table));
     });
 }
 
 async function validateTable(source: Table) {
-    const writer = RecordBatchJSONWriter.writeAll(source);
-    const result = Table.from(bignumJSONParse(await writer.toString()));
+    const writer = RecordBatchFileWriter.writeAll(source);
+    const result = await Table.from(writer.toUint8Array());
     validateRecordBatchIterator(3, source.chunks);
     expect(result).toEqualTable(source);
 }

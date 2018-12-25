@@ -15,86 +15,51 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as fs from 'fs';
-import * as Path from 'path';
-import { Schema, RecordBatchReader } from '../../../Arrow';
-import { nodeToDOMStream, chunkedIterable, asyncChunkedIterable } from '../util';
 import {
-    testSimpleRecordBatchStreamReader,
-    testSimpleAsyncRecordBatchStreamReader,
+    generateRandomTables,
+    // generateDictionaryTables
+} from '../../../data/tables';
+
+import {
+    validateRecordBatchReader,
+    validateAsyncRecordBatchReader
 } from '../validate';
 
-const simpleStreamPath = Path.resolve(__dirname, `../../../data/cpp/stream/simple.arrow`);
-const simpleStreamData = fs.readFileSync(simpleStreamPath);
+import { ArrowIOTestHelper } from '../helpers';
+import { RecordBatchReader } from '../../../Arrow';
 
-describe('RecordBatchStreamReader', () => {
-    it('should read all RecordBatches from a Buffer of Arrow messages in memory', () => {
-        testSimpleRecordBatchStreamReader(RecordBatchReader.from(simpleStreamData));
-    });
-    it('should read all RecordBatches from an Iterable that yields buffers of Arrow messages in memory', () => {
-        testSimpleRecordBatchStreamReader(RecordBatchReader.from(chunkedIterable(simpleStreamData)));
-    });
-    it('should read all RecordBatches from a Promise<Buffer> of Arrow messages in memory', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from((async () => simpleStreamData)()));
-    });
-    it('should read all RecordBatches from an Iterable that yields multiple tables as buffers of Arrow messages in memory', () => {
+for (const table of generateRandomTables([10, 20, 30])) {
 
-        const source = (function *() {
-            yield* chunkedIterable(simpleStreamData);
-            yield* chunkedIterable(simpleStreamData);
-        }());
+    const io = ArrowIOTestHelper.stream(table);
+    const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
 
-        let reader = RecordBatchReader.from(source).open(false);
+    const validate = (source: any) => { validateRecordBatchReader('stream', 3, RecordBatchReader.from(source)); }
+    const validateAsync = async (source: any) => { await validateAsyncRecordBatchReader('stream', 3, await RecordBatchReader.from(source)); }
+    const validateAsyncWrapped = async (source: any) => { await validateAsyncRecordBatchReader('stream', 3, await RecordBatchReader.from(Promise.resolve(source))); }
 
-        reader = testSimpleRecordBatchStreamReader(reader);
-        expect(reader.schema).toBeInstanceOf(Schema);
-        expect(reader.reset().schema).toBeUndefined();
-
-        reader = testSimpleRecordBatchStreamReader(reader);
-        reader.cancel();
-        expect(reader.schema).toBeUndefined();
-        expect(reader.open().schema).toBeUndefined();
-    });
-});
-
-describe('AsyncRecordBatchStreamReader', () => {
-
-    it('should read all RecordBatches from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(asyncChunkedIterable(simpleStreamData)));
+    describe(`RecordBatchStreamReader (${name})`, () => {
+        describe(`should read all RecordBatches`, () => {
+            test(`Uint8Array`, io.buffer(validate));
+            test(`Iterable`, io.iterable(validate));
+        });
     });
 
-    it('should read all RecordBatches from an fs.ReadStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(fs.createReadStream(simpleStreamPath)));
+    describe(`AsyncRecordBatchStreamReader (${name})`, () => {
+        describe(`should read all RecordBatches`, () => {
+
+            test('AsyncIterable', io.asyncIterable(validateAsync));
+            test('fs.FileHandle', io.fsFileHandle(validateAsync));
+            test('fs.ReadStream', io.fsReadableStream(validateAsync));
+            test('stream.Readable', io.nodeReadableStream(validateAsync));
+            test('whatwg.ReadableStream', io.whatwgReadableStream(validateAsync));
+            test('whatwg.ReadableByteStream', io.whatwgReadableByteStream(validateAsync));
+
+            test('Promise<AsyncIterable>', io.asyncIterable(validateAsyncWrapped));
+            test('Promise<fs.FileHandle>', io.fsFileHandle(validateAsyncWrapped));
+            test('Promise<fs.ReadStream>', io.fsReadableStream(validateAsyncWrapped));
+            test('Promise<stream.Readable>', io.nodeReadableStream(validateAsyncWrapped));
+            test('Promise<ReadableStream>', io.whatwgReadableStream(validateAsyncWrapped));
+            test('Promise<ReadableByteStream>', io.whatwgReadableByteStream(validateAsyncWrapped));
+        });
     });
-
-    it('should read all RecordBatches from an fs.promises.FileHandle', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(await fs.promises.open(simpleStreamPath, 'r')));
-    });
-
-    it('should read all RecordBatches from a whatwg ReadableStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
-    });
-
-    it('should read all RecordBatches from a whatwg ReadableByteStream', async () => {
-        await testSimpleAsyncRecordBatchStreamReader(await RecordBatchReader.from(nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
-    });
-
-    it('should read all RecordBatches from an AsyncIterable that yields multiple tables as buffers of Arrow messages in memory', async () => {
-
-        const source = (async function *() {
-            yield* asyncChunkedIterable(simpleStreamData);
-            yield* asyncChunkedIterable(simpleStreamData);
-        }());
-
-        let reader = await (await RecordBatchReader.from(source)).open(false);
-
-        reader = await testSimpleAsyncRecordBatchStreamReader(reader);
-        expect(reader.schema).toBeInstanceOf(Schema);
-        expect(reader.reset().schema).toBeUndefined();
-
-        reader = await testSimpleAsyncRecordBatchStreamReader(reader);
-        await reader.cancel();
-        expect(reader.schema).toBeUndefined();
-        expect((await reader.open()).schema).toBeUndefined();
-    });
-});
+}

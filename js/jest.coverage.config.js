@@ -17,6 +17,7 @@
 
 module.exports = {
     ...require('./jest.config'),
+    "reporters": undefined,
     "globals": {
         "ts-jest": {
             "diagnostics": false,

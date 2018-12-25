@@ -15,43 +15,102 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as fs from 'fs';
-import * as Path from 'path';
-import { MessageReader, AsyncMessageReader } from '../../Arrow';
-import { nodeToDOMStream, chunkedIterable, asyncChunkedIterable } from './util';
+// import * as fs from 'fs';
 import {
-    simpleStreamSyncMessageReaderTest,
-    simpleStreamAsyncMessageReaderTest,
-} from './validate';
+    generateRandomTables,
+    // generateDictionaryTables
+} from '../../data/tables';
 
-const simpleStreamPath = Path.resolve(__dirname, `../../data/cpp/stream/simple.arrow`);
-const simpleStreamData = fs.readFileSync(simpleStreamPath);
+import { ArrowIOTestHelper } from './helpers';
 
-describe('MessageReader', () => {
-    it('should read all messages from an Arrow Buffer stream', () => {
-        simpleStreamSyncMessageReaderTest(new MessageReader(simpleStreamData));
-    });
-    it('should read all messages from an Iterable that yields buffers of Arrow messages in memory', () => {
-        simpleStreamSyncMessageReaderTest(new MessageReader(chunkedIterable(simpleStreamData)));
-    });
-});
+import {
+    Chunked,
+    MessageReader,
+    AsyncMessageReader
+} from '../../Arrow';
 
-describe('AsyncMessageReader', () => {
-    it('should read all messages from a whatwg ReadableStream', async () => {
-        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(
-            nodeToDOMStream(fs.createReadStream(simpleStreamPath))));
+for (const table of generateRandomTables([10, 20, 30])) {
+
+    const io = ArrowIOTestHelper.stream(table);
+    const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
+    let numMessages = /* schema message */ 1 + table.chunks.length;
+    
+    // count dictionary chunks
+    table.schema.dictionaryFields.forEach((fields) => {
+        const vector = fields[0].type.dictionaryVector as Chunked;
+        numMessages += (vector.chunks ? vector.chunks.length : 1);
     });
-    it('should read all messages from a whatwg ReadableByteStream', async () => {
-        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(
-            nodeToDOMStream(fs.createReadStream(simpleStreamPath), { type: 'bytes' })));
+
+    const validate = validateMessageReader.bind(0, numMessages);
+    const validateAsync = validateAsyncMessageReader.bind(0, numMessages);
+
+    describe(`MessageReader (${name})`, () => {
+        describe(`should read all Messages`, () => {
+            test(`Uint8Array`, io.buffer(validate));
+            test(`Iterable`, io.iterable(validate));
+        });
     });
-    it('should read all messages from a NodeJS ReadableStream', async () => {
-        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(fs.createReadStream(simpleStreamPath)));
+
+    describe(`AsyncMessageReader (${name})`, () => {
+        describe(`should read all Messages`, () => {
+            test('AsyncIterable', io.asyncIterable(validateAsync));
+            test('fs.FileHandle', io.fsFileHandle(validateAsync));
+            test('fs.ReadStream', io.fsReadableStream(validateAsync));
+            test('stream.Readable', io.nodeReadableStream(validateAsync));
+            test('whatwg.ReadableStream', io.whatwgReadableStream(validateAsync));
+            test('whatwg.ReadableByteStream', io.whatwgReadableByteStream(validateAsync));
+        });
     });
-    it('should read all messages from a Promise<Buffer> of Arrow messages in memory', async () => {
-        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader((async () => simpleStreamData)()));
-    });
-    it('should read all messages from an AsyncIterable that yields buffers of Arrow messages in memory', async () => {
-        await simpleStreamAsyncMessageReaderTest(new AsyncMessageReader(asyncChunkedIterable(simpleStreamData)));
-    });
-});
+}
+
+export function validateMessageReader(numMessages: number, source: any) {
+    const reader = new MessageReader(source);
+    let index = 0;
+    for (let message of reader) {
+
+        if (index === 0) {
+            expect(message.isSchema()).toBe(true);
+            expect(message.bodyLength).toBe(0);
+        } else {
+            expect(message.isSchema()).toBe(false);
+            expect(message.isRecordBatch() || message.isDictionaryBatch()).toBe(true);
+        }
+
+        try {
+            expect(message.bodyLength % 8).toBe(0);
+        } catch (e) { throw new Error(`bodyLength: ${e}`) };
+
+        const body = reader.readMessageBody(message.bodyLength);
+        expect(body).toBeInstanceOf(Uint8Array);
+        expect(body.byteLength).toBe(message.bodyLength);
+        expect(index++).toBeLessThan(numMessages);
+    }
+    expect(index).toBe(numMessages);
+    reader.return();
+}
+
+export async function validateAsyncMessageReader(numMessages: number, source: any) {
+    const reader = new AsyncMessageReader(source);
+    let index = 0;
+    for await (let message of reader) {
+
+        if (index === 0) {
+            expect(message.isSchema()).toBe(true);
+            expect(message.bodyLength).toBe(0);
+        } else {
+            expect(message.isSchema()).toBe(false);
+            expect(message.isRecordBatch() || message.isDictionaryBatch()).toBe(true);
+        }
+
+        try {
+            expect(message.bodyLength % 8).toBe(0);
+        } catch (e) { throw new Error(`bodyLength: ${e}`) };
+
+        const body = await reader.readMessageBody(message.bodyLength);
+        expect(body).toBeInstanceOf(Uint8Array);
+        expect(body.byteLength).toBe(message.bodyLength);
+        expect(index++).toBeLessThan(numMessages);
+    }
+    expect(index).toBe(numMessages);
+    await reader.return();
+}
