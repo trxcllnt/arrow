@@ -74,6 +74,7 @@ async function createRecordBatchReader(createSourceStream: () => NodeJS.Readable
 
     if (!reader || reader.closed) {
         reader = null;
+        await byteQueue.closed;
         if (source instanceof fs.ReadStream) { source.close(); }
         try {
             let json = bignumJSONParse(await byteQueue.toString());
