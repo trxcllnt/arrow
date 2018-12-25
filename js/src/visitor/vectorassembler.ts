@@ -76,6 +76,7 @@ export class VectorAssembler extends Visitor {
         if (!DataType.isDictionary(vector.type)) {
             const { data, length, nullCount } = vector;
             if (length > 2147483647) {
+                /* istanbul ignore next */
                 throw new RangeError('Cannot write arrays larger than 2^31 - 1 in length');
             }
             addBuffer.call(this, nullCount <= 0
@@ -169,8 +170,11 @@ function assembleBoolVector<T extends Bool>(this: VectorAssembler, vector: VType
         // If values is already a Uint8Array, slice the bitmap (fast path)
         return addBuffer.call(this, truncateBitmap(vector.offset, vector.length, values));
     }
-    // Otherwise if the underlying data *isn't* a Uint8Array, enumerate
-    // the values as bools and re-pack them into a Uint8Array (slow path)
+    // Otherwise if the underlying data *isn't* a Uint8Array, enumerate the
+    // values as bools and re-pack them into a Uint8Array. This code isn't
+    // reachable unless you're trying to manipulate the Data internals,
+    // we we're only doing this for safety.
+    /* istanbul ignore next */
     return addBuffer.call(this, packBools(vector));
 }
 

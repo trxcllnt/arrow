@@ -23,6 +23,7 @@ type ReadableOptions = import('stream').ReadableOptions;
 export function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableOptions): Readable {
     if (isAsyncIterable<T>(source)) { return new AsyncIterableReadable(source[Symbol.asyncIterator](), options); }
     if (isIterable<T>(source)) { return new IterableReadable(source[Symbol.iterator](), options); }
+    /* istanbul ignore next */
     throw new Error(`toReadableNodeStream() must be called with an Iterable or AsyncIterable`);
 }
 
@@ -44,9 +45,9 @@ class IterableReadable<T extends Uint8Array | any> extends Readable {
     }
     _destroy(e: Error | null, cb: (e: Error | null) => void) {
         let it = this._iterator, fn: any;
-        if (it) { fn = e != null ? it.throw : it.return; }
-        if (fn) { fn.call(it, e); }
-        if (cb) { cb(null); }
+        it && (fn = e != null && it.throw || it.return);
+        fn && fn.call(it, e);
+        cb && cb(null);
     }
     private _pull(size: number, it: Iterator<T>) {
         const bm = this._bytesMode;
@@ -82,10 +83,8 @@ class AsyncIterableReadable<T extends Uint8Array | any> extends Readable {
     }
     _destroy(e: Error | null, cb: (e: Error | null) => void) {
         let it = this._iterator, fn: any;
-        if (it) { fn = e != null ? it.throw : it.return; }
-        if (fn) {
-            fn.call(it, e).then(() => cb && cb(null));
-        } else if (cb) { cb(null); }
+        it && (fn = e != null && it.throw || it.return);
+        fn && fn.call(it, e).then(() => cb && cb(null)) || (cb && cb(null));
     }
     private async _pull(size: number, it: AsyncIterator<T>) {
         const bm = this._bytesMode;

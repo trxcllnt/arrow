@@ -125,18 +125,21 @@ const getUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: num
     return bytes !== null ? decodeUtf8(bytes) : null as any;
 };
 
+/* istanbul ignore next */
 const getInt = <T extends Int>(vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.bitWidth < 64
         ? getNumeric(<any> vector, index)
         : getNumericX2(<any> vector, index)
 );
 
+/* istanbul ignore next */
 const getFloat = <T extends Float> (vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.precision !== Precision.HALF
         ? getNumeric(vector as any, index)
         : getFloat16(vector as any, index)
 );
 
+/* istanbul ignore next */
 const getDate = <T extends Date_> (vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.unit === DateUnit.DAY
         ? getDateDay(vector as any, index)
@@ -147,6 +150,7 @@ const getTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vec
 const getTimestampMillisecond = <T extends TimestampMillisecond>({ values }: Vector<T>, index: number): T['TValue'] => epochMillisecondsLongToMs(values, index * 2);
 const getTimestampMicrosecond = <T extends TimestampMicrosecond>({ values }: Vector<T>, index: number): T['TValue'] => epochMicrosecondsLongToMs(values, index * 2);
 const getTimestampNanosecond  = <T extends TimestampNanosecond> ({ values }: Vector<T>, index: number): T['TValue'] => epochNanosecondsLongToMs(values, index * 2);
+/* istanbul ignore next */
 const getTimestamp            = <T extends Timestamp>(vector: Vector<T>, index: number): T['TValue'] => {
     switch (vector.type.unit) {
         case TimeUnit.SECOND:      return      getTimestampSecond(vector as Vector<TimestampSecond>, index);
@@ -160,6 +164,7 @@ const getTimeSecond      = <T extends TimeSecond>     ({ values, stride }: Vecto
 const getTimeMillisecond = <T extends TimeMillisecond>({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
 const getTimeMicrosecond = <T extends TimeMicrosecond>({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
 const getTimeNanosecond  = <T extends TimeNanosecond> ({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
+/* istanbul ignore next */
 const getTime            = <T extends Time>(vector: Vector<T>, index: number): T['TValue'] => {
     switch (vector.type.unit) {
         case TimeUnit.SECOND:      return      getTimeSecond(vector as Vector<TimeSecond>, index);
@@ -183,6 +188,7 @@ const getNested = <
     return vector.rowProxy.bind(vector, index);
 };
 
+/* istanbul ignore next */
 const getUnion = <
     V extends Vector<Union> | Vector<DenseUnion> | Vector<SparseUnion>
 >(vector: V, index: number): V['TValue'] => {
@@ -207,6 +213,7 @@ const getDictionary = <T extends Dictionary>(vector: Vector<T>, index: number): 
     return vector.getValue(vector.getKey(index)!);
 };
 
+/* istanbul ignore next */
 const getInterval = <T extends Interval>(vector: Vector<T>, index: number): T['TValue'] =>
     (vector.type.unit === IntervalUnit.DAY_TIME)
         ? getIntervalDayTime(vector as any, index)

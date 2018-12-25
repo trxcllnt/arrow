@@ -101,6 +101,19 @@ function validateVector({ values: createValues, vector }: { values: () => any[],
         } catch (e) { throw new Error(`${vector}[${i}]: ${e}`); }
     });
 
+    test(`sets expected values`, () => {
+        expect.hasAssertions();
+        let i = -1, n = vector.length, actual, expected;
+        try {
+            while (++i < n) {
+                expected = vector.get(i);
+                vector.set(i, expected);
+                actual = vector.get(i);
+                expect(actual).toArrowCompare(expected);
+            }
+        } catch (e) { throw new Error(`${vector}[${i}]: ${e}`); }
+    });
+
     test(`iterates expected values`, () => {
         expect.hasAssertions();
         let i = -1, actual, expected;
@@ -124,6 +137,10 @@ function validateVector({ values: createValues, vector }: { values: () => any[],
                 expected = values.findIndex(compare(value));
                 expect(actual).toBe(expected);
             }
+            // I would be pretty surprised if randomatic ever generates these values
+            expect(vector.indexOf('purple elephants')).toBe(-1);
+            expect(vector.indexOf('whistling wombats')).toBe(-1);
+            expect(vector.indexOf('carnivorous novices')).toBe(-1);
         } catch (e) { throw new Error(`${vector}[${i}]: ${e}`); }
     });
 }

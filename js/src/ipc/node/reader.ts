@@ -38,19 +38,14 @@ class RecordBatchReaderDuplex<T extends { [key: string]: DataType } = any> exten
     }
     _final(cb?: CB) {
         const aq = this._asyncQueue;
-        if (aq) { aq.close(); }
-        if (cb) { cb(); }
+        aq && aq.close();
+        cb && cb();
     }
     _write(x: any, _: string, cb: CB) {
         const aq = this._asyncQueue;
-        if (aq) { aq.write(x); }
-        if (cb) { cb(); }
+        aq && aq.write(x);
+        cb && cb();
         return true;
-    }
-    _writev(xs: { chunk: any, encoding: string }[], cb: CB) {
-        const aq = this._asyncQueue;
-        if (aq) { xs.forEach(({ chunk }) => aq.write(chunk)); }
-        if (cb) { cb(); }
     }
     _read(size: number) {
         const aq = this._asyncQueue;

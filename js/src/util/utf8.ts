@@ -16,26 +16,29 @@
 // under the License.
 
 import { toUint8Array } from './buffer';
-import { TextDecoder, TextEncoder } from 'text-encoding-utf-8';
+import {
+    TextDecoder as TextDecoderPolyfill,
+    TextEncoder as TextEncoderPolyfill,
+} from 'text-encoding-utf-8';
 
 /**
  * @ignore
  */
 export const decodeUtf8 = ((decoder) => {
     /** @suppress {missingRequire} */
-    const BufferCtor = typeof Buffer !== "undefined" ? Buffer : null;
-    return !BufferCtor ? decoder.decode.bind(decoder) : (input: ArrayBufferLike | ArrayBufferView) => {
+    const NodeBuffer = typeof Buffer !== 'undefined' ? Buffer : null;
+    return !NodeBuffer ? decoder.decode.bind(decoder) : (input: ArrayBufferLike | ArrayBufferView) => {
         const { buffer, byteOffset, length } = toUint8Array(input);
-        return BufferCtor.from(buffer, byteOffset, length).toString();
+        return NodeBuffer.from(buffer, byteOffset, length).toString();
     };
-})(new TextDecoder('utf-8'));
+})(new (typeof TextDecoder !== 'undefined' ? TextDecoder : TextDecoderPolyfill)());
 
 /**
  * @ignore
  */
 export const encodeUtf8 = ((encoder) => {
     /** @suppress {missingRequire} */
-    const BufferCtor = typeof Buffer !== "undefined" ? Buffer : null;
-    return !BufferCtor ? encoder.encode.bind(encoder) :
-        (input = '') => toUint8Array(BufferCtor.from(input, 'utf8'));
-})(new TextEncoder('utf-8'));
+    const NodeBuffer = typeof Buffer !== 'undefined' ? Buffer : null;
+    return !NodeBuffer ? encoder.encode.bind(encoder) :
+        (input = '') => toUint8Array(NodeBuffer.from(input, 'utf8'));
+})(new (typeof TextEncoder !== 'undefined' ? TextEncoder : TextEncoderPolyfill)());

@@ -474,7 +474,7 @@ class AsyncRecordBatchFileReaderImpl<T extends { [key: string]: DataType } = any
         if (!this.closed && !this.footer) {
             this.schema = (this.footer = await this.readFooter()).schema;
             for (const block of this.footer.dictionaryBatches()) {
-                block && this.readDictionaryBatch(this.dictionaryIndex++);
+                block && await this.readDictionaryBatch(this.dictionaryIndex++);
             }
         }
         return await super.open(autoClose);
