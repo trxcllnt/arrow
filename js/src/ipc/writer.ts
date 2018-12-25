@@ -32,12 +32,14 @@ import { VectorAssembler } from '../visitor/vectorassembler';
 import { JSONTypeAssembler } from '../visitor/jsontypeassembler';
 import { JSONVectorAssembler } from '../visitor/jsonvectorassembler';
 import { ArrayBufferViewInput, toUint8Array } from '../util/buffer';
-import { isWritableDOMStream, isWritableNodeStream, isAsyncIterable } from '../util/compat';
-import { Writable, FileHandle, ReadableInterop, ReadableDOMStreamOptions } from '../io/interfaces';
+import { Writable, ReadableInterop, ReadableDOMStreamOptions } from '../io/interfaces';
+import { isPromise, isAsyncIterable, isWritableDOMStream, isWritableNodeStream } from '../util/compat';
 
-export type OpenArgs = FileHandle | NodeJS.WritableStream | WritableStream<Uint8Array> | UnderlyingSink<Uint8Array>;
+// export type OpenArgs = FileHandle | NodeJS.WritableStream | WritableStream<Uint8Array> | UnderlyingSink<Uint8Array>;
 
-export class RecordBatchWriter<T extends { [key: string]: DataType } = any> extends ReadableInterop<Uint8Array> implements Writable<RecordBatch<T>> {
+export class RecordBatchWriter<T extends { [key: string]: DataType } = any>
+    extends ReadableInterop<Uint8Array>
+    implements Writable<RecordBatch<T>> {
 
     /** @nocollapse */
     public static throughNode(): import('stream').Duplex { throw new Error(`"throughNode" not available in this environment`); }
@@ -54,10 +56,28 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
     protected _dictionaryBlocks: FileBlock[] = [];
     protected _recordBatchBlocks: FileBlock[] = [];
 
+    public toString(sync: true): string;
+    public toString(sync?: false): Promise<string>;
+    public toString(sync: any = false) {
+        return this._sink.toString(sync) as Promise<string> | string;
+    }
     public toUint8Array(sync: true): Uint8Array;
     public toUint8Array(sync?: false): Promise<Uint8Array>;
     public toUint8Array(sync: any = false) {
         return this._sink.toUint8Array(sync) as Promise<Uint8Array> | Uint8Array;
+    }
+
+    public writeAll(input: Table<T> | Iterable<RecordBatch<T>>): this;
+    public writeAll(input: AsyncIterable<RecordBatch<T>>): Promise<this>;
+    public writeAll(input: PromiseLike<AsyncIterable<RecordBatch<T>>>): Promise<this>;
+    public writeAll(input: PromiseLike<Table<T> | Iterable<RecordBatch<T>>>): Promise<this>;
+    public writeAll(input: PromiseLike<any> | Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+        if (isPromise<any>(input)) {
+            return input.then((x) => this.writeAll(x));
+        } else if(isAsyncIterable<RecordBatch<T>>(input)) {
+            return writeAllAsync(this, input);
+        }
+        return writeAll(this, <any> input);
     }
 
     public get closed() { return this._sink.closed; }
@@ -131,10 +151,12 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
     }
 
     protected _write(chunk: ArrayBufferViewInput) {
-        const buffer = toUint8Array(chunk);
-        if (buffer && buffer.byteLength > 0) {
-            this._sink.write(buffer);
-            this._position += buffer.byteLength;
+        if (this._started) {
+            const buffer = toUint8Array(chunk);
+            if (buffer && buffer.byteLength > 0) {
+                this._sink.write(buffer);
+                this._position += buffer.byteLength;
+            }
         }
         return this;
     }
@@ -217,12 +239,16 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
 
 export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
 
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchFileWriter<T>;
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchFileWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchFileWriter<T>;
+    // @ts-ignore
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchFileWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<AsyncIterable<RecordBatch<T>>>): Promise<RecordBatchFileWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<Table<T> | Iterable<RecordBatch<T>>>): Promise<RecordBatchFileWriter<T>>;
     /** @nocollapse */
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
-        return !isAsyncIterable(input) ? writeAll(new RecordBatchFileWriter<T>(), input) : writeAllAsync(new RecordBatchFileWriter<T>(), input);
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<any> | Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+        return new RecordBatchFileWriter<T>().writeAll(input as any);
     }
+
     public close() {
         this._writeFooter();
         return super.close();
@@ -236,12 +262,16 @@ export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> 
 
 export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
 
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchStreamWriter<T>;
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchStreamWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchStreamWriter<T>;
+    // @ts-ignore
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchStreamWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<AsyncIterable<RecordBatch<T>>>): Promise<RecordBatchStreamWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<Table<T> | Iterable<RecordBatch<T>>>): Promise<RecordBatchStreamWriter<T>>;
     /** @nocollapse */
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
-        return !isAsyncIterable(input) ? writeAll(new RecordBatchStreamWriter<T>(), input) : writeAllAsync(new RecordBatchStreamWriter<T>(), input);
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<any> | Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+        return new RecordBatchStreamWriter<T>().writeAll(input as any);
     }
+
     public close() {
         this._writePadding(4); // eos bytes
         return super.close();
@@ -249,12 +279,17 @@ export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any
 }
 
 export class RecordBatchJSONWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchJSONWriter<T>;
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchJSONWriter<T>>;
+
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchJSONWriter<T>;
+    // @ts-ignore
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: AsyncIterable<RecordBatch<T>>): Promise<RecordBatchJSONWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<AsyncIterable<RecordBatch<T>>>): Promise<RecordBatchJSONWriter<T>>;
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<Table<T> | Iterable<RecordBatch<T>>>): Promise<RecordBatchJSONWriter<T>>;
     /** @nocollapse */
-    public static writeAll<T extends { [key: string]: DataType } = any>(input: Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
-        return !isAsyncIterable(input) ? writeAll(new RecordBatchJSONWriter<T>(), input) : writeAllAsync(new RecordBatchJSONWriter<T>(), input);
+    public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: PromiseLike<any> | Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
+        return new RecordBatchJSONWriter<T>().writeAll(input as any);
     }
+
     protected _writeMessage() { return this; }
     protected _writeSchema(schema: Schema<T>) {
         return this._write(`{\n  "schema": ${
@@ -291,15 +326,17 @@ export class RecordBatchJSONWriter<T extends { [key: string]: DataType } = any> 
     }
 }
 
-function writeAll<T extends RecordBatchWriter<R>, R extends { [key: string]: DataType } = any>(writer: T, input: Table<R> | Iterable<RecordBatch<R>>) {
+function writeAll<T extends { [key: string]: DataType } = any>(writer: RecordBatchWriter<T>, input: Table<T> | Iterable<RecordBatch<T>>) {
     const chunks = (input instanceof Table) ? input.chunks : input;
     for (const batch of chunks) { writer.write(batch); }
     writer.close();
     return writer;
 }
 
-async function writeAllAsync<T extends RecordBatchWriter<R>, R extends { [key: string]: DataType } = any>(writer: T, batches: AsyncIterable<RecordBatch<R>>) {
-    for await (const batch of batches) { writer.write(batch); }
+async function writeAllAsync<T extends { [key: string]: DataType } = any>(writer: RecordBatchWriter<T>, batches: AsyncIterable<RecordBatch<T>>) {
+    for await (const batch of batches) {
+        writer.write(batch);
+    }
     writer.close();
     return writer;
 }
