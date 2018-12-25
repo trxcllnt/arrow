@@ -21,21 +21,18 @@ export const ITERATOR_DONE: any = Object.freeze({ done: true, value: void (0) })
 
 export type FileHandle = import('fs').promises.FileHandle;
 export type ArrowJSONLike = { schema: any; batches?: any[]; dictionaries?: any[]; };
-export type ReadableDOMStreamOptions = { type: 'bytes' | undefined, autoAllocateChunkSize?: number };
+export type ReadableDOMStreamOptions = { type: 'bytes' | undefined, autoAllocateChunkSize?: number, highWaterMark?: number };
 
 /**
  * @ignore
  */
 export class ArrowJSON {
+    // @ts-ignore
     constructor(private _json: ArrowJSONLike) {}
     public get schema(): any { return this._json['schema']; }
     public get batches(): any[] { return (this._json['batches'] || []) as any[]; }
     public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
 }
-
-Object.defineProperty(ArrowJSON.prototype, 'schema', { get() { return this._json['schema']; }});
-Object.defineProperty(ArrowJSON.prototype, 'batches', { get() { return (this._json['batches'] || []) as any[]; }});
-Object.defineProperty(ArrowJSON.prototype, 'dictionaries', { get() { return (this._json['dictionaries'] || []) as any[]; }});
 
 /**
  * @ignore
@@ -146,10 +143,18 @@ export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends R
 
     public [Symbol.asyncIterator]() { return this; }
     public toReadableDOMStream(options?: ReadableDOMStreamOptions) {
-        return streamAdapters.toReadableDOMStream(this, options);
+        return streamAdapters.toReadableDOMStream(
+            (this._closedPromiseResolve || this._error)
+                ? (this as AsyncIterable<TReadable>)
+                : (this._values as any) as Iterable<TReadable>,
+            options);
     }
     public toReadableNodeStream(options?: import('stream').ReadableOptions) {
-        return streamAdapters.toReadableNodeStream(this, options);
+        return streamAdapters.toReadableNodeStream(
+            (this._closedPromiseResolve || this._error)
+                ? (this as AsyncIterable<TReadable>)
+                : (this._values as any) as Iterable<TReadable>,
+            options);
     }
     public async throw(_?: any) { await this.abort(_); return ITERATOR_DONE; }
     public async return(_?: any) { await this.close(); return ITERATOR_DONE; }
@@ -174,6 +179,6 @@ export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends R
         if (this._closedPromiseResolve) {
             return true;
         }
-        throw new Error(`${this.constructor.name} is closed`);
+        throw new Error(`${this} is closed`);
     }
 }
