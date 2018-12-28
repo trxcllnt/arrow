@@ -65,7 +65,8 @@ cdef class StructType(DataType):
     cdef:
         const CStructType* struct_type
 
-    cdef Field child_by_name(self, name)
+    cdef Field field(self, int i)
+    cdef Field field_by_name(self, name)
 
 
 cdef class DictionaryType(DataType):
@@ -178,7 +179,11 @@ cdef class FixedSizeBinaryValue(ArrayValue):
     pass
 
 
-cdef class Array:
+cdef class _PandasConvertible:
+    pass
+
+
+cdef class Array(_PandasConvertible):
     cdef:
         shared_ptr[CArray] sp_array
         CArray* ap
@@ -305,7 +310,7 @@ cdef object box_scalar(DataType type,
                        int64_t index)
 
 
-cdef class ChunkedArray:
+cdef class ChunkedArray(_PandasConvertible):
     cdef:
         shared_ptr[CChunkedArray] sp_chunked_array
         CChunkedArray* chunked_array
@@ -314,7 +319,7 @@ cdef class ChunkedArray:
     cdef getitem(self, int64_t i)
 
 
-cdef class Column:
+cdef class Column(_PandasConvertible):
     cdef:
         shared_ptr[CColumn] sp_column
         CColumn* column
@@ -322,7 +327,7 @@ cdef class Column:
     cdef void init(self, const shared_ptr[CColumn]& column)
 
 
-cdef class Table:
+cdef class Table(_PandasConvertible):
     cdef:
         shared_ptr[CTable] sp_table
         CTable* table
@@ -330,7 +335,7 @@ cdef class Table:
     cdef void init(self, const shared_ptr[CTable]& table)
 
 
-cdef class RecordBatch:
+cdef class RecordBatch(_PandasConvertible):
     cdef:
         shared_ptr[CRecordBatch] sp_batch
         CRecordBatch* batch
@@ -396,6 +401,8 @@ cdef object pyarrow_wrap_metadata(
 #
 
 cdef public object pyarrow_wrap_array(const shared_ptr[CArray]& sp_array)
+cdef public object pyarrow_wrap_chunked_array(
+    const shared_ptr[CChunkedArray]& sp_array)
 # XXX pyarrow.h calls it `wrap_record_batch`
 cdef public object pyarrow_wrap_batch(const shared_ptr[CRecordBatch]& cbatch)
 cdef public object pyarrow_wrap_buffer(const shared_ptr[CBuffer]& buf)
