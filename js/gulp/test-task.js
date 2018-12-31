@@ -49,20 +49,15 @@ const testOptions = {
 };
 
 const testTask = ((cache, execArgv, testOptions) => memoizeTask(cache, function test(target, format) {
-    const args = [...execArgv];
     const opts = { ...testOptions };
-    if (!argv.coverage) {
-        args.push(`test/${argv.integration ? `integration/*` : `unit/*`}`);
-    }
-    opts.env = { ...opts.env,
+    const args = [...execArgv, `test/unit/`];
+    opts.env = {
+        ...opts.env,
         TEST_TARGET: target,
         TEST_MODULE: format,
         TEST_DOM_STREAMS: (target ==='src' || format === 'umd').toString(),
         TEST_NODE_STREAMS: (target ==='src' || format !== 'umd').toString(),
-        TEST_TS_SOURCE: !!argv.coverage || (target === 'src') || (opts.env.TEST_TS_SOURCE === 'true'),
-        JSON_FILES: JSON.stringify(Array.isArray(argv.json_files) ? argv.json_files : [argv.json_files]),
-        ARROW_FILES: JSON.stringify(Array.isArray(argv.arrow_files) ? argv.arrow_files : [argv.arrow_files]),
-        ARROW_STREAMS: JSON.stringify(Array.isArray(argv.arrow_streams) ? argv.arrow_streams : [argv.arrow_streams]),
+        TEST_TS_SOURCE: !!argv.coverage || (target === 'src') || (opts.env.TEST_TS_SOURCE === 'true')
     };
     return asyncDone(() => child_process.spawn(`node`, args, opts));
 }))({}, [jest, ...jestArgv], testOptions);

@@ -132,7 +132,7 @@ function toEqualVector<
     (() => {
         for (let i = -1, n = v1.length; ++i < n;) {
             let x1 = v1.get(i), x2 = v2.get(i);
-            if (this.utils.stringify(x1) !== this.utils.stringify(x2)) {
+            if (!util.createElementComparator(x2)(x1)) {
                 getFailures.push(`${i}: ${format(this, x1, x2, ' !== ')}`);
             }
         }
@@ -142,7 +142,7 @@ function toEqualVector<
         let i = -1;
         for (let [x1, x2] of zip(v1, v2)) {
             ++i;
-            if (this.utils.stringify(x1) !== this.utils.stringify(x2)) {
+            if (!util.createElementComparator(x2)(x1)) {
                 iteratorFailures.push(`${i}: ${format(this, x1, x2, ' !== ')}`);
             }
         }

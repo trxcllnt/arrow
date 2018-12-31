@@ -18,8 +18,6 @@
 /* tslint:disable */
 // Dynamically load an Arrow target build based on command line arguments
 
-import './jest-extensions';
-
 import '@mattiasbuelens/web-streams-polyfill';
 
 /* tslint:disable */

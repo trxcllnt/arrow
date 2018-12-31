@@ -30,7 +30,6 @@
                 "READABLE_STREAM": "disable",
                 "TEST_DOM_STREAMS": "true",
                 "TEST_NODE_STREAMS": "true",
-                "TEST_FILE_NAMES": "primitive-empty primitive simple datetime decimal dictionary nested struct_example",
                 // Modify these environment variables to run tests on a specific compilation target + module format combo
                 "TEST_TS_SOURCE": "true",
                 // "TEST_TS_SOURCE": "false",
@@ -40,7 +39,6 @@
             "args": [
                 // "-i",
                 "test/unit/",
-                "test/integration/",
 
                 // Uncomment any of these to run individual test suites
                 // "test/unit/int-tests.ts",
@@ -74,22 +72,17 @@
             "request": "launch",
             "name": "Debug Integration Tests",
             "cwd": "${workspaceRoot}",
-            "program": "${workspaceFolder}/node_modules/.bin/jest",
+            "program": "${workspaceFolder}/bin/integration.js",
             "skipFiles": [
                 "<node_internals>/**/*.js",
                 "${workspaceFolder}/node_modules/**/*.js"
             ],
             "env": {
-                "TEST_TS_SOURCE": "true",
                 "NODE_NO_WARNINGS": "1",
-                "READABLE_STREAM": "disable",
-                "TEST_DOM_STREAMS": "true",
-                "TEST_NODE_STREAMS": "true",
-                "TEST_FILE_NAMES": "primitive-empty primitive simple datetime decimal dictionary nested struct_example"
+                "READABLE_STREAM": "disable"
             },
             "args": [
-                // "-i",
-                "test/integration/*"
+                "--mode", "VALIDATE"
             ]
         },
         {
