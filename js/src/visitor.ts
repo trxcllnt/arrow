@@ -223,3 +223,31 @@ export interface Visitor {
     visitFixedSizeList         (node: any, ...args: any[]): any;
     visitMap                   (node: any, ...args: any[]): any;
 }
+
+// Add these here so they're picked up by the externs creator
+// in the build, and closure-compiler doesn't minify them away
+(Visitor.prototype as any).visitInt8 = null;
+(Visitor.prototype as any).visitInt16 = null;
+(Visitor.prototype as any).visitInt32 = null;
+(Visitor.prototype as any).visitInt64 = null;
+(Visitor.prototype as any).visitUint8 = null;
+(Visitor.prototype as any).visitUint16 = null;
+(Visitor.prototype as any).visitUint32 = null;
+(Visitor.prototype as any).visitUint64 = null;
+(Visitor.prototype as any).visitFloat16 = null;
+(Visitor.prototype as any).visitFloat32 = null;
+(Visitor.prototype as any).visitFloat64 = null;
+(Visitor.prototype as any).visitDateDay = null;
+(Visitor.prototype as any).visitDateMillisecond = null;
+(Visitor.prototype as any).visitTimestampSecond = null;
+(Visitor.prototype as any).visitTimestampMillisecond = null;
+(Visitor.prototype as any).visitTimestampMicrosecond = null;
+(Visitor.prototype as any).visitTimestampNanosecond = null;
+(Visitor.prototype as any).visitTimeSecond = null;
+(Visitor.prototype as any).visitTimeMillisecond = null;
+(Visitor.prototype as any).visitTimeMicrosecond = null;
+(Visitor.prototype as any).visitTimeNanosecond = null;
+(Visitor.prototype as any).visitDenseUnion = null;
+(Visitor.prototype as any).visitSparseUnion = null;
+(Visitor.prototype as any).visitIntervalDayTime = null;
+(Visitor.prototype as any).visitIntervalYearMonth = null;

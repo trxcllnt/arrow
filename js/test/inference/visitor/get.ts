@@ -1,10 +1,12 @@
-import { Data } from '../../../src/data';
-import { Vector } from '../../../src/vector';
-import { Bool, List, Dictionary } from '../../../src/type';
+import {
+    Data, Vector,
+    Bool, List, Dictionary
+} from '../../Arrow';
+
 import { instance as getVisitor } from '../../../src/visitor/get';
 
 const data_Bool = new Data(new Bool(), 0, 0);
-const data_List_Bool = new Data(new List<Bool>([]), 0, 0);
+const data_List_Bool = new Data(new List<Bool>(null as any), 0, 0);
 const data_Dictionary_Bool = new Data(new Dictionary<Bool>(null!, null!), 0, 0);
 const data_Dictionary_List_Bool = new Data(new Dictionary<List<Bool>>(null!, null!), 0, 0);
 
