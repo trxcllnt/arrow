@@ -38,10 +38,10 @@ for (const table of generateRandomTables([10, 20, 30])) {
     const io = ArrowIOTestHelper.file(table);
     const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
 
-    const validate = (source: any) => { validateRecordBatchReader('file', 3, RecordBatchReader.from(source)); }
-    const validateAsync = async (source: any) => { await validateAsyncRecordBatchReader('file', 3, await RecordBatchReader.from(source)); }
-    const validateAsyncWrapped = async (source: any) => { await validateAsyncRecordBatchReader('file', 3, await RecordBatchReader.from(Promise.resolve(source))); }
-    
+    const validate = (source: any) => { validateRecordBatchReader('file', 3, RecordBatchReader.from(source)); };
+    const validateAsync = async (source: any) => { await validateAsyncRecordBatchReader('file', 3, await RecordBatchReader.from(source)); };
+    const validateAsyncWrapped = async (source: any) => { await validateAsyncRecordBatchReader('file', 3, await RecordBatchReader.from(Promise.resolve(source))); };
+
     describe(`RecordBatchFileReader (${name})`, () => {
         describe(`should read all RecordBatches`, () => {
             test(`Uint8Array`, io.buffer(validate));

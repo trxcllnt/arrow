@@ -72,7 +72,7 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any>
     public writeAll(input: PromiseLike<any> | Table<T> | Iterable<RecordBatch<T>> | AsyncIterable<RecordBatch<T>>) {
         if (isPromise<any>(input)) {
             return input.then((x) => this.writeAll(x));
-        } else if(isAsyncIterable<RecordBatch<T>>(input)) {
+        } else if (isAsyncIterable<RecordBatch<T>>(input)) {
             return writeAllAsync(this, input);
         }
         return writeAll(this, <any> input);

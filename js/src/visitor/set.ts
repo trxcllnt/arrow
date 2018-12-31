@@ -32,7 +32,6 @@ import {
     Union, DenseUnion, SparseUnion,
 } from '../type';
 
-
 export interface SetVisitor extends Visitor {
     visitMany <T extends Vector>  (nodes: T[], indices: number[], values: T['TValue'][]): void[];
     visit     <T extends Vector>  (node: T, index: number, value: T['TValue']          ): void;

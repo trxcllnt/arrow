@@ -55,7 +55,7 @@ export function* generateRandomTables(batchLengths = [1000, 2000, 3000], minCols
  * Yields a series of tables containing a single Dictionary-encoded column.
  * Each yielded table will be a unique combination of dictionary and indexType,
  * such that consuming all tables ensures all Arrow types dictionary-encode.
- * 
+ *
  * @param batchLengths number[] Number and length of recordbatches to generate
  */
 export function* generateDictionaryTables(batchLengths = [100, 200, 300]) {

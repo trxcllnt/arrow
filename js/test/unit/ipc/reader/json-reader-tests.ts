@@ -24,7 +24,7 @@ import { ArrowIOTestHelper } from '../helpers';
 import { RecordBatchReader } from '../../../Arrow';
 import { validateRecordBatchReader } from '../validate';
 
-// /* tslint:disable */
+/* tslint:disable */
 const { parse: bignumJSONParse } = require('json-bignum');
 
 for (const table of generateRandomTables([10, 20, 30])) {

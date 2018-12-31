@@ -167,7 +167,7 @@ export class JSONVectorAssembler extends Visitor {
 function* binaryToString(vector: Vector<Binary> | Vector<FixedSizeBinary>) {
     for (const octets of vector as Iterable<Uint8Array>) {
         yield octets.reduce((str, byte) => {
-            return `${str}${('0' + (byte & 0xFF).toString(16)).slice(-2)}`
+            return `${str}${('0' + (byte & 0xFF).toString(16)).slice(-2)}`;
         }, '').toUpperCase();
     }
 }

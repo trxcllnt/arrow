@@ -62,7 +62,7 @@ export class AsyncRandomAccessFile extends AsyncByteStream {
     public size: number;
     public position: number = 0;
     protected file: FileHandle | null;
-    protected _pendingSize?: Promise<void>
+    protected _pendingSize?: Promise<void>;
     constructor(file: FileHandle, byteLength?: number) {
         super();
         this.file = file;

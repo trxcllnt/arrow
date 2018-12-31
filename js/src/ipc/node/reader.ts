@@ -55,7 +55,7 @@ class RecordBatchReaderDuplex<T extends { [key: string]: DataType } = any> exten
             (async () => {
                 if (!this._reader) {
                     this._reader = await this._open(aq);
-                };
+                }
                 this._pulling = await this._pull(size, this._reader);
             })();
         }

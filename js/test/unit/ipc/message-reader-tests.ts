@@ -34,7 +34,7 @@ for (const table of generateRandomTables([10, 20, 30])) {
     const io = ArrowIOTestHelper.stream(table);
     const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
     let numMessages = /* schema message */ 1 + table.chunks.length;
-    
+
     // count dictionary chunks
     table.schema.dictionaryFields.forEach((fields) => {
         const vector = fields[0].type.dictionaryVector as Chunked;
@@ -78,7 +78,7 @@ export function validateMessageReader(numMessages: number, source: any) {
 
         try {
             expect(message.bodyLength % 8).toBe(0);
-        } catch (e) { throw new Error(`bodyLength: ${e}`) };
+        } catch (e) { throw new Error(`bodyLength: ${e}`); }
 
         const body = reader.readMessageBody(message.bodyLength);
         expect(body).toBeInstanceOf(Uint8Array);
@@ -104,7 +104,7 @@ export async function validateAsyncMessageReader(numMessages: number, source: an
 
         try {
             expect(message.bodyLength % 8).toBe(0);
-        } catch (e) { throw new Error(`bodyLength: ${e}`) };
+        } catch (e) { throw new Error(`bodyLength: ${e}`); }
 
         const body = await reader.readMessageBody(message.bodyLength);
         expect(body).toBeInstanceOf(Uint8Array);
