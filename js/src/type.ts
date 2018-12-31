@@ -30,10 +30,13 @@ import {
     DateUnit, TimeUnit, IntervalUnit
 } from './enum';
 
+/** @ignore */
 export type TimeBitWidth = 32 | 64;
+/** @ignore */
 export type IntBitWidth = 8 | 16 | 32 | 64;
+/** @ignore */
 export type IsSigned = { 'true': true; 'false': false };
-
+/** @ignore */
 export type RowLike<T extends { [key: string]: DataType; }> =
       { readonly length: number }
     & ( Iterable<T[keyof T]['TValue']> )
@@ -92,7 +95,9 @@ export class Null extends DataType<Type.Null> {
     })(Null.prototype);
 }
 
+/** @ignore */
 type Ints = Type.Int | Type.Int8 | Type.Int16 | Type.Int32 | Type.Int64 | Type.Uint8 | Type.Uint16 | Type.Uint32 | Type.Uint64;
+/** @ignore */
 type IType = {
     [Type.Int   ]: { bitWidth: IntBitWidth; isSigned: true | false; TArray: IntArray;    TValue: number | Int32Array | Uint32Array; };
     [Type.Int8  ]: { bitWidth:           8; isSigned: true;         TArray: Int8Array;   TValue: number;            };
@@ -140,7 +145,9 @@ export class Uint16 extends Int_<Type.Uint16> { constructor() { super(false, 16)
 export class Uint32 extends Int_<Type.Uint32> { constructor() { super(false, 32); } }
 export class Uint64 extends Int_<Type.Uint64> { constructor() { super(false, 64); } }
 
+/** @ignore */
 type Floats = Type.Float | Type.Float16 | Type.Float32 | Type.Float64;
+/** @ignore */
 type FType = {
     [Type.Float  ]: { precision: Precision;        TArray: FloatArray;    TValue: number; };
     [Type.Float16]: { precision: Precision.HALF;   TArray: Uint16Array;   TValue: number; };
@@ -229,6 +236,7 @@ export class Decimal extends DataType<Type.Decimal> {
     })(Decimal.prototype);
 }
 
+/** @ignore */
 export type Dates = Type.Date | Type.DateDay | Type.DateMillisecond;
 export interface Date_<T extends Dates = Dates> extends DataType<T> { TArray: Int32Array; TValue: Date; ArrayType: typeof Int32Array; }
 export class Date_<T extends Dates = Dates> extends DataType<T> {
@@ -247,7 +255,9 @@ export class Date_<T extends Dates = Dates> extends DataType<T> {
 export class DateDay extends Date_<Type.DateDay> { constructor() { super(DateUnit.DAY); } }
 export class DateMillisecond extends Date_<Type.DateMillisecond> { constructor() { super(DateUnit.MILLISECOND); } }
 
+/** @ignore */
 type Times = Type.Time | Type.TimeSecond | Type.TimeMillisecond | Type.TimeMicrosecond | Type.TimeNanosecond;
+/** @ignore */
 type TimesType = {
     [Type.Time           ]: { unit: TimeUnit;             TValue: number | Int32Array };
     [Type.TimeSecond     ]: { unit: TimeUnit.SECOND;      TValue: number;             };
@@ -279,6 +289,7 @@ export class TimeMillisecond extends Time_<Type.TimeMillisecond> { constructor()
 export class TimeMicrosecond extends Time_<Type.TimeMicrosecond> { constructor() { super(TimeUnit.MICROSECOND, 64); } }
 export class TimeNanosecond extends Time_<Type.TimeNanosecond> { constructor() { super(TimeUnit.NANOSECOND, 64); } }
 
+/** @ignore */
 type Timestamps = Type.Timestamp | Type.TimestampSecond | Type.TimestampMillisecond | Type.TimestampMicrosecond | Type.TimestampNanosecond;
 interface Timestamp_<T extends Timestamps = Timestamps> extends DataType<T> { TArray: Int32Array; TValue: number; ArrayType: typeof Int32Array; }
 class Timestamp_<T extends Timestamps = Timestamps> extends DataType<T> {
@@ -302,6 +313,7 @@ export class TimestampMillisecond extends Timestamp_<Type.TimestampMillisecond> 
 export class TimestampMicrosecond extends Timestamp_<Type.TimestampMicrosecond> { constructor(timezone?: string | null) { super(TimeUnit.MICROSECOND, timezone); } }
 export class TimestampNanosecond extends Timestamp_<Type.TimestampNanosecond> { constructor(timezone?: string | null) { super(TimeUnit.NANOSECOND, timezone); } }
 
+/** @ignore */
 type Intervals = Type.Interval | Type.IntervalDayTime | Type.IntervalYearMonth;
 interface Interval_<T extends Intervals = Intervals> extends DataType<T> { TArray: Int32Array; TValue: Int32Array; ArrayType: typeof Int32Array; }
 class Interval_<T extends Intervals = Intervals> extends DataType<T> {
@@ -353,6 +365,7 @@ export class Struct<T extends { [key: string]: DataType; } = any> extends DataTy
     })(Struct.prototype);
 }
 
+/** @ignore */
 type Unions = Type.Union | Type.DenseUnion | Type.SparseUnion;
 interface Union_<T extends Unions = Unions> extends DataType<T> { TArray: Int32Array; TValue: any[]; }
 class Union_<T extends Unions = Unions> extends DataType<T> {
@@ -443,8 +456,10 @@ export class Map_<T extends { [key: string]: DataType; } = any> extends DataType
     })(Map_.prototype);
 }
 
+/** @ignore */
 const getId = ((atomicDictionaryId) => () => ++atomicDictionaryId)(-1);
 
+/** @ignore */
 export type TKeys = Int8 | Int16 | Int32 | Uint8 | Uint16 | Uint32;
 
 export interface Dictionary<T extends DataType = any, TKey extends TKeys = TKeys> extends DataType<Type.Dictionary> { TArray: TKey['TArray']; TValue: T['TValue']; }
@@ -479,6 +494,9 @@ export class Dictionary<T extends DataType = any, TKey extends TKeys = TKeys> ex
     })(Dictionary.prototype);
 }
 
+/** @ignore */
 export interface IterableArrayLike<T = any> extends ArrayLike<T>, Iterable<T> {}
+/** @ignore */
 export type FloatArray = Uint16Array | Float32Array | Float64Array;
+/** @ignore */
 export type IntArray = Int8Array | Int16Array | Int32Array | Uint8Array | Uint16Array | Uint32Array;

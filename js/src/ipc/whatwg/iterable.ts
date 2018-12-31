@@ -20,6 +20,7 @@ import { ReadableDOMStreamOptions } from '../../io/interfaces';
 import { isIterable, isAsyncIterable } from '../../util/compat';
 import { protectArrayBufferFromWhatwgRefImpl } from './hack';
 
+/** @ignore */
 export function toReadableDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableDOMStreamOptions): ReadableStream<T> {
     if (isAsyncIterable<T>(source)) { return asyncIterableAsReadableDOMStream(source, options); }
     if (isIterable<T>(source)) { return iterableAsReadableDOMStream(source, options); }
@@ -27,6 +28,7 @@ export function toReadableDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, o
     throw new Error(`toReadableDOMStream() must be called with an Iterable or AsyncIterable`);
 }
 
+/** @ignore */
 function iterableAsReadableDOMStream<T>(source: Iterable<T>, options?: ReadableDOMStreamOptions) {
 
     let it: Iterator<T> | null = null;
@@ -56,6 +58,7 @@ function iterableAsReadableDOMStream<T>(source: Iterable<T>, options?: ReadableD
     }
 }
 
+/** @ignore */
 function asyncIterableAsReadableDOMStream<T>(source: AsyncIterable<T>, options?: ReadableDOMStreamOptions) {
 
     let it: AsyncIterator<T> | null = null;

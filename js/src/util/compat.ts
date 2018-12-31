@@ -17,13 +17,17 @@
 
 import { ReadableInterop, ArrowJSONLike } from '../io/interfaces';
 
+/** @ignore */
 type FSReadStream = import('fs').ReadStream;
+/** @ignore */
 type FileHandle = import('fs').promises.FileHandle;
 
+/** @ignore */
 export interface Subscription {
     unsubscribe: () => void;
 }
 
+/** @ignore */
 export interface Observer<T> {
     closed?: boolean;
     next: (value: T) => void;
@@ -31,13 +35,14 @@ export interface Observer<T> {
     complete: () => void;
 }
 
+/** @ignore */
 export interface Observable<T> {
     subscribe: (observer: Observer<T>) => Subscription;
 }
 
-const isObject = (x: any) => x != null && Object(x) === x;
-const hasFuncs = (x: any, ...fn: PropertyKey[]) => hasProps(x, ...fn.map((f) => [f, 'function'] as [PropertyKey, string]));
-const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.every(([k, t]) => t ? (x[k] != null && typeof x[k] === t) : (k in x));
+/** @ignore */ const isObject = (x: any) => x != null && Object(x) === x;
+/** @ignore */ const hasFuncs = (x: any, ...fn: PropertyKey[]) => hasProps(x, ...fn.map((f) => [f, 'function'] as [PropertyKey, string]));
+/** @ignore */ const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.every(([k, t]) => t ? (x[k] != null && typeof x[k] === t) : (k in x));
 
 /** @ignore */ export const isPromise            = <T = any>(x: any): x is PromiseLike<T>        => hasFuncs(x, 'then');
 /** @ignore */ export const isObservable         = <T = any>(x: any): x is Observable<T>         => hasFuncs(x, 'subscribe');

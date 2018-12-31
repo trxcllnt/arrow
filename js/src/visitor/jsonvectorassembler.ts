@@ -163,6 +163,7 @@ export class JSONVectorAssembler extends Visitor {
     }
 }
 
+/** @ignore */
 function* binaryToString(vector: Vector<Binary> | Vector<FixedSizeBinary>) {
     for (const octets of vector as Iterable<Uint8Array>) {
         yield octets.reduce((str, byte) => {
@@ -171,12 +172,14 @@ function* binaryToString(vector: Vector<Binary> | Vector<FixedSizeBinary>) {
     }
 }
 
+/** @ignore */
 function* bigNumsToStrings(values: Uint32Array | Int32Array, stride: number) {
     for (let i = -1, n = values.length / stride; ++i < n;) {
         yield bignumToString(values.subarray((i + 0) * stride, (i + 1) * stride));
     }
 }
 
+/** @ignore */
 function bignumToString({ buffer, byteOffset, length }: Uint32Array | Int32Array) {
 
     let digits = '', i = -1;

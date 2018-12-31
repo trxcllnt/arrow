@@ -88,11 +88,13 @@ export interface IndexOfVisitor extends Visitor {
 export class IndexOfVisitor extends Visitor {
 }
 
+/** @ignore */
 function nullIndexOf(vector: Vector<Null>, searchElement?: null) {
     // if you're looking for nulls and the vector isn't empty, we've got 'em!
     return searchElement === null && vector.length > 0 ? 0 : -1;
 }
 
+/** @ignore */
 function indexOfNull<T extends DataType>(vector: Vector<T>, fromIndex?: number): number {
     const { nullBitmap } = vector;
     if (!nullBitmap || vector.nullCount <= 0) {
@@ -106,6 +108,7 @@ function indexOfNull<T extends DataType>(vector: Vector<T>, fromIndex?: number):
     return -1;
 }
 
+/** @ignore */
 function indexOfValue<T extends DataType>(vector: Vector<T>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
     if (searchElement === undefined) { return -1; }
     if (searchElement === null) { return indexOfNull(vector, fromIndex); }
@@ -118,6 +121,7 @@ function indexOfValue<T extends DataType>(vector: Vector<T>, searchElement?: T['
     return -1;
 }
 
+/** @ignore */
 function indexOfUnion<T extends DataType>(vector: Vector<T>, searchElement?: T['TValue'] | null, fromIndex?: number): number {
     // Unions are special -- they do have a nullBitmap, but so can their children.
     // If the searchElement is null, we don't know whether it came from the Union's

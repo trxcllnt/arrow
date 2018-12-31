@@ -38,6 +38,7 @@ const kIsFakeBuffer = Symbol.for('isFakeBuffer');
 // 1. https://github.com/whatwg/streams/blob/0ebe4b042e467d9876d80ae045de3843092ad797/reference-implementation/lib/helpers.js#L126
 // 2. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/transfer
 
+/** @ignore */
 export function protectArrayBufferFromWhatwgRefImpl(value: Uint8Array) {
     const real = value.buffer;
     if (!(real as any)[kIsFakeBuffer]) {

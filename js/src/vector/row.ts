@@ -21,12 +21,13 @@ import { DataType, RowLike } from '../type';
 import { valueToString } from '../util/pretty';
 import { StructVector } from '../vector/struct';
 
-const columnDescriptor = { enumerable: true, configurable: false, get: () => {} };
-const lengthDescriptor = { writable: false, enumerable: false, configurable: false, value: -1 };
-const rowIndexDescriptor = { writable: false, enumerable: false, configurable: true, value: null as any };
-const rowParentDescriptor = { writable: false, enumerable: false, configurable: false, value: null as any };
-const row = { parent: rowParentDescriptor, rowIndex: rowIndexDescriptor };
+/** @ignore */ const columnDescriptor = { enumerable: true, configurable: false, get: () => {} };
+/** @ignore */ const lengthDescriptor = { writable: false, enumerable: false, configurable: false, value: -1 };
+/** @ignore */ const rowIndexDescriptor = { writable: false, enumerable: false, configurable: true, value: null as any };
+/** @ignore */ const rowParentDescriptor = { writable: false, enumerable: false, configurable: false, value: null as any };
+/** @ignore */ const row = { parent: rowParentDescriptor, rowIndex: rowIndexDescriptor };
 
+/** @ignore */
 export class Row<T extends { [key: string]: DataType }> implements Iterable<T[keyof T]['TValue']> {
     [key: string]: T[keyof T]['TValue'];
     /** @nocollapse */

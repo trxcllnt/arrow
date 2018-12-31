@@ -50,6 +50,7 @@ export abstract class Visitor {
     public visitMap             (_node: any, ..._args: any[]): any { return null; }
 }
 
+/** @ignore */
 function getVisitFn<T extends DataType>(visitor: Visitor, node: any, throwIfNotFound = true) {
     let fn: any = null;
     let dtype: T['TType'] = Type.NONE;
@@ -109,6 +110,7 @@ function getVisitFn<T extends DataType>(visitor: Visitor, node: any, throwIfNotF
     throw new Error(`Unrecognized type '${Type[dtype]}'`);
 }
 
+/** @ignore */
 function inferDType<T extends DataType>(type: T): Type {
     switch (type.typeId) {
         case Type.Null: return Type.Null;

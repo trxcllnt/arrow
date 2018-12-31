@@ -25,9 +25,7 @@ import {
 
 import { ReadableDOMStreamOptions } from './interfaces';
 
-/**
- * @ignore
- */
+/** @ignore */
 export default {
     fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
         return pump(fromIterable<T>(source));
@@ -51,8 +49,10 @@ export default {
     },
 };
 
+/** @ignore */
 const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; };
 
+/** @ignore */
 function* fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T): IterableIterator<Uint8Array> {
 
     let done: boolean, threw = false;
@@ -98,6 +98,7 @@ function* fromIterable<T extends ArrayBufferViewInput>(source: Iterable<T> | T):
     }
 }
 
+/** @ignore */
 async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
 
     let done: boolean, threw = false;
@@ -147,6 +148,7 @@ async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncI
 // All this manual Uint8Array chunk management can be avoided if/when engines
 // add support for ArrayBuffer.transfer() or ArrayBuffer.prototype.realloc():
 // https://github.com/domenic/proposal-arraybuffer-transfer
+/** @ignore */
 async function* fromReadableDOMStream<T extends ArrayBufferViewInput>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
 
     let done = false, threw = false;
@@ -194,6 +196,7 @@ async function* fromReadableDOMStream<T extends ArrayBufferViewInput>(source: Re
     }
 }
 
+/** @ignore */
 class AdaptiveByteReader<T extends ArrayBufferViewInput> {
 
     private supportsBYOB: boolean;
@@ -275,6 +278,7 @@ class AdaptiveByteReader<T extends ArrayBufferViewInput> {
     }
 }
 
+/** @ignore */
 async function readInto(reader: ReadableStreamBYOBReader, buffer: ArrayBufferLike, offset: number, size: number): Promise<ReadableStreamReadResult<Uint8Array>> {
     if (offset >= size) {
         return { done: false, value: new Uint8Array(buffer, 0, size) };
@@ -286,8 +290,11 @@ async function readInto(reader: ReadableStreamBYOBReader, buffer: ArrayBufferLik
     return { done, value: new Uint8Array(value.buffer, 0, offset) };
 }
 
+/** @ignore */
 type EventName = 'end' | 'error' | 'readable';
+/** @ignore */
 type Event = [EventName, (_: any) => void, Promise<[EventName, Error | null]>];
+/** @ignore */
 const onEvent = <T extends string>(stream: NodeJS.ReadableStream, event: T) => {
     let handler = (_: any) => resolve([event, _]);
     let resolve: (value?: [T, any] | PromiseLike<[T, any]>) => void;
@@ -296,6 +303,7 @@ const onEvent = <T extends string>(stream: NodeJS.ReadableStream, event: T) => {
     )] as Event;
 };
 
+/** @ignore */
 async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
 
     let events: Event[] = [];

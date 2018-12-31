@@ -15,8 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/** @ignore */
 const carryBit16 = 1 << 16;
 
+/** @ignore */
 function intAsHex(value: number): string {
     if (value < 0) {
         value = 0xFFFFFFFF + value + 1;
@@ -24,7 +26,9 @@ function intAsHex(value: number): string {
     return `0x${value.toString(16)}`;
 }
 
+/** @ignore */
 const kInt32DecimalDigits = 8;
+/** @ignore */
 const kPowersOfTen = [1,
                       10,
                       100,

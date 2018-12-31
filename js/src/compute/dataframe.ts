@@ -24,7 +24,9 @@ import { Predicate, Col } from './predicate';
 import { RecordBatch } from '../recordbatch';
 import { DataType, Int, Struct, Dictionary } from '../type';
 
+/** @ignore */
 export type BindFunc = (batch: RecordBatch) => void;
+/** @ignore */
 export type NextFunc = (idx: number, batch: RecordBatch) => void;
 
 Table.prototype.countBy = function(this: Table, name: Col | string) { return new DataFrame(this.chunks).countBy(name); };

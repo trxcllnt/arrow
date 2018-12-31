@@ -25,11 +25,12 @@ import { toUint8Array, ArrayBufferViewInput } from '../util/buffer';
 import { ByteStream, ReadableSource, AsyncByteStream } from '../io/stream';
 import { ArrowJSON, ArrowJSONLike, ITERATOR_DONE, FileHandle } from '../io/interfaces';
 
-const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
-const nullMessage              = (type: MessageHeader) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`;
-const invalidMessageMetadata   = (expected: number, actual: number) => `Expected to read ${expected} metadata bytes, but only read ${actual}.`;
-const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
+/** @ignore */ const invalidMessageType       = (type: MessageHeader) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`;
+/** @ignore */ const nullMessage              = (type: MessageHeader) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`;
+/** @ignore */ const invalidMessageMetadata   = (expected: number, actual: number) => `Expected to read ${expected} metadata bytes, but only read ${actual}.`;
+/** @ignore */ const invalidMessageBodyLength = (expected: number, actual: number) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`;
 
+/** @ignore */
 export class MessageReader implements IterableIterator<Message> {
     protected source: ByteStream;
     constructor(source: ByteStream | ArrayBufferViewInput | Iterable<ArrayBufferViewInput>) {
@@ -88,6 +89,7 @@ export class MessageReader implements IterableIterator<Message> {
     }
 }
 
+/** @ignore */
 export class AsyncMessageReader implements AsyncIterableIterator<Message> {
     protected source: AsyncByteStream;
     constructor(source: ReadableSource<Uint8Array>);
@@ -151,6 +153,7 @@ export class AsyncMessageReader implements AsyncIterableIterator<Message> {
     }
 }
 
+/** @ignore */
 export class JSONMessageReader extends MessageReader {
     private _schema = false;
     private _json: ArrowJSON;
@@ -217,14 +220,18 @@ export class JSONMessageReader extends MessageReader {
     }
 }
 
+/** @ignore */
 export const PADDING = 4;
+/** @ignore */
 export const MAGIC_STR = 'ARROW1';
+/** @ignore */
 export const MAGIC = new Uint8Array(MAGIC_STR.length);
 
 for (let i = 0; i < MAGIC_STR.length; i += 1 | 0) {
     MAGIC[i] = MAGIC_STR.charCodeAt(i);
 }
 
+/** @ignore */
 export function checkForMagicArrowString(buffer: Uint8Array, index = 0) {
     for (let i = -1, n = MAGIC.length; ++i < n;) {
         if (MAGIC[i] !== buffer[index + i]) {
@@ -234,19 +241,9 @@ export function checkForMagicArrowString(buffer: Uint8Array, index = 0) {
     return true;
 }
 
-export function isValidArrowFile(bb: ByteBuffer) {
-    let fileLength = bb.capacity(), footerLength: number, lengthOffset: number;
-    if ((fileLength < magicX2AndPadding /*                                  Arrow buffer too small */) ||
-        (!checkForMagicArrowString(bb.bytes(), 0) /*                        Missing magic start    */) ||
-        (!checkForMagicArrowString(bb.bytes(), fileLength - magicLength) /* Missing magic end      */) ||
-        (/*                                                                 Invalid footer length  */
-        (footerLength = bb.readInt32(lengthOffset = fileLength - magicAndPadding)) < 1 &&
-        (footerLength + lengthOffset > fileLength))) {
-        return false;
-    }
-    return true;
-}
-
+/** @ignore */
 export const magicLength = MAGIC.length;
+/** @ignore */
 export const magicAndPadding = magicLength + PADDING;
+/** @ignore */
 export const magicX2AndPadding = magicLength * 2 + PADDING;

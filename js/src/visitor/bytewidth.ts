@@ -29,8 +29,8 @@ import {
     List, FixedSizeList, Map_, Struct, Union,
 } from '../type';
 
-const sum = (x: number, y: number) => x + y;
-const variableWidthColumnErrorMessage = (type: DataType) => `Cannot compute the byte width of variable-width column ${type}`;
+/** @ignore */ const sum = (x: number, y: number) => x + y;
+/** @ignore */ const variableWidthColumnErrorMessage = (type: DataType) => `Cannot compute the byte width of variable-width column ${type}`;
 
 export interface ByteWidthVisitor extends Visitor {
     visitMany <T extends DataType>(nodes: T[]     ): number[];

@@ -21,6 +21,7 @@ import * as type from './type';
 import { DataType } from './type';
 import * as vecs from './vector/index';
 
+/** @ignore */
 export interface ArrayBufferViewConstructor<T extends ArrayBufferView> {
     readonly prototype: T;
     new(length: number): T;
@@ -44,19 +45,7 @@ export interface ArrayBufferViewConstructor<T extends ArrayBufferView> {
     from(arrayLike: ArrayLike<number>, mapfn?: (v: number, k: number) => number, thisArg?: any): T;
 }
 
-// export type FunctionArgs<F> = F extends (...args: infer T) => any ? T : never;
-// export type ConstructorArgs<TCtor> = TCtor extends new (_: any, ...args: infer TArgs) => any ? TArgs : never;
-
-/**
- * Obtain the constructor function args of an instance type
- */
-export type ConstructorArgs<
-    T,
-    TArgs extends any[] = any[],
-    TCtor extends new (_: any, ...args: TArgs) => T =
-                  new (_: any, ...args: TArgs) => T
-> = TCtor extends new (_: any, ...args: infer TArgs) => T ? TArgs : never;
-
+/** @ignore */
 export type VectorCtorArgs<
     T extends Vector<R>,
     R extends DataType = any,
@@ -67,6 +56,7 @@ export type VectorCtorArgs<
 
 /**
  * Obtain the constructor function of an instance type
+ * @ignore
  */
 export type ConstructorType<
     T,
@@ -74,6 +64,7 @@ export type ConstructorType<
                   new (...args: any[]) => T
 > = TCtor extends new (...args: any[]) => T ? TCtor : never;
 
+/** @ignore */
 export type VectorCtorType<
     T extends Vector<R>,
     R extends DataType = any,
@@ -81,12 +72,14 @@ export type VectorCtorType<
                   new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T
 > = TCtor extends new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T ? TCtor : never;
 
+/** @ignore */
 export type Vector<T extends Type | DataType = any> =
     T extends Type          ? TypeToVector<T>     :
     T extends DataType      ? DataTypeToVector<T> :
                               never
     ;
 
+/** @ignore */
 export type VectorCtor<T extends Type | DataType | Vector> =
     T extends Vector        ? VectorCtorType<T>                  :
     T extends Type          ? VectorCtorType<Vector<T>>          :
@@ -94,6 +87,7 @@ export type VectorCtor<T extends Type | DataType | Vector> =
                               VectorCtorType<vecs.BaseVector>
     ;
 
+/** @ignore */
 export type DataTypeCtor<T extends Type | DataType | Vector = any> =
     T extends DataType      ? ConstructorType<T>                 :
     T extends Vector        ? ConstructorType<T['type']>         :
@@ -101,6 +95,7 @@ export type DataTypeCtor<T extends Type | DataType | Vector = any> =
                               never
     ;
 
+/** @ignore */
 type TypeToVector<T extends Type> =
     T extends Type.Null                 ? vecs.NullVector                 :
     T extends Type.Bool                 ? vecs.BoolVector                 :
@@ -148,6 +143,7 @@ type TypeToVector<T extends Type> =
                                           vecs.BaseVector
     ;
 
+/** @ignore */
 type DataTypeToVector<T extends DataType = any> =
     T extends type.Null                 ? vecs.NullVector                          :
     T extends type.Bool                 ? vecs.BoolVector                          :
@@ -195,6 +191,7 @@ type DataTypeToVector<T extends DataType = any> =
                                           vecs.BaseVector<T>
     ;
 
+/** @ignore */
 type TypeToDataType<T extends Type> =
       T extends Type.Null                 ? type.Null
     : T extends Type.Bool                 ? type.Bool

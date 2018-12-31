@@ -20,6 +20,7 @@ import { isIterable, isAsyncIterable } from '../../util/compat';
 
 type ReadableOptions = import('stream').ReadableOptions;
 
+/** @ignore */
 export function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableOptions): Readable {
     if (isAsyncIterable<T>(source)) { return new AsyncIterableReadable(source[Symbol.asyncIterator](), options); }
     if (isIterable<T>(source)) { return new IterableReadable(source[Symbol.iterator](), options); }
@@ -27,6 +28,7 @@ export function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, 
     throw new Error(`toReadableNodeStream() must be called with an Iterable or AsyncIterable`);
 }
 
+/** @ignore */
 class IterableReadable<T extends Uint8Array | any> extends Readable {
     private _pulling: boolean;
     private _bytesMode: boolean;
@@ -65,6 +67,7 @@ class IterableReadable<T extends Uint8Array | any> extends Readable {
     }
 }
 
+/** @ignore */
 class AsyncIterableReadable<T extends Uint8Array | any> extends Readable {
     private _pulling: boolean;
     private _bytesMode: boolean;

@@ -32,14 +32,15 @@ import {
 // doing some computation. To avoid doing this eagerly, we set the null count
 // to -1 (any negative number will do). When Array::null_count is called the
 // first time, the null count will be computed. See ARROW-33
-export type kUnknownNullCount = -1;
-export const kUnknownNullCount = -1;
+/** @ignore */ export type kUnknownNullCount = -1;
+/** @ignore */ export const kUnknownNullCount = -1;
 
-export type NullBuffer = Uint8Array | null | undefined;
-export type TypeIdsBuffer = Int8Array  | ArrayLike<number> | Iterable<number>;
-export type ValueOffsetsBuffer = Int32Array  | ArrayLike<number> | Iterable<number>;
-export type DataBuffer<T extends DataType> = T['TArray'] | ArrayLike<number> | Iterable<number>;
+/** @ignore */ export type NullBuffer = Uint8Array | null | undefined;
+/** @ignore */ export type TypeIdsBuffer = Int8Array  | ArrayLike<number> | Iterable<number>;
+/** @ignore */ export type ValueOffsetsBuffer = Int32Array  | ArrayLike<number> | Iterable<number>;
+/** @ignore */ export type DataBuffer<T extends DataType> = T['TArray'] | ArrayLike<number> | Iterable<number>;
 
+/** @ignore */
 export interface Buffers<T extends DataType> {
       [BufferType.OFFSET]?: Int32Array;
         [BufferType.DATA]?: T['TArray'];
@@ -53,6 +54,7 @@ export interface Data<T extends DataType = DataType> {
     readonly TValue: T['TValue'];
 }
 
+/** @ignore */
 export class Data<T extends DataType = DataType> {
 
     protected _type: T;

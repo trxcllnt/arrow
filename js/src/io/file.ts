@@ -18,9 +18,7 @@
 import { FileHandle } from './interfaces';
 import { ByteStream, AsyncByteStream } from './stream';
 
-/**
- * @ignore
- */
+/** @ignore */
 export class RandomAccessFile extends ByteStream {
     public size: number;
     public position: number = 0;
@@ -58,9 +56,7 @@ export class RandomAccessFile extends ByteStream {
     public return(value?: any) { this.close(); return { done: true, value }; }
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export class AsyncRandomAccessFile extends AsyncByteStream {
     // @ts-ignore
     public size: number;

@@ -15,20 +15,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { TextEncoder } from 'text-encoding-utf-8';
-
 import { Data } from '../data';
 import * as type from '../type';
 import { Field } from '../schema';
 import { DataType } from '../type';
 import { Visitor } from '../visitor';
 import { packBools } from '../util/bit';
+import { encodeUtf8 } from '../util/utf8';
 import { Int64, Int128 } from '../util/int';
 import { UnionMode, DateUnit } from '../enum';
 import { toArrayBufferView } from '../util/buffer';
 import { BufferRegion, FieldNode } from '../ipc/metadata/message';
-
-const utf8Encoder = new TextEncoder('utf-8');
 
 export interface VectorLoader extends Visitor {
     visitMany <T extends DataType>(nodes: (Field<T> | T)[]): Data<T>[];
@@ -115,12 +112,13 @@ export class JSONVectorLoader extends VectorLoader {
         } else if (DataType.isBool(type)) {
             return packBools(sources[offset] as number[]);
         } else if (DataType.isUtf8(type)) {
-            return utf8Encoder.encode((sources[offset] as string[]).join(''));
+            return encodeUtf8((sources[offset] as string[]).join(''));
         }
         return toArrayBufferView(Uint8Array, toArrayBufferView(type.ArrayType, sources[offset].map((x) => +x)));
     }
 }
 
+/** @ignore */
 function binaryDataFromJSON(values: string[]) {
     // "DATA": ["49BC7D5B6C47D2","3F5FB6D9322026"]
     // There are definitely more efficient ways to do this... but it gets the

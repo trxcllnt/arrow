@@ -18,21 +18,27 @@
 import { Vector } from '../vector';
 import { Row } from '../vector/row';
 
+/** @ignore */
 type RangeLike = { length: number; stride?: number };
+/** @ignore */
 type ClampThen<T extends RangeLike> = (source: T, index: number) => any;
+/** @ignore */
 type ClampRangeThen<T extends RangeLike> = (source: T, offset: number, length: number) => any;
 
 export function clampIndex<T extends RangeLike>(source: T, index: number): number;
 export function clampIndex<T extends RangeLike, N extends ClampThen<T> = ClampThen<T>>(source: T, index: number, then: N): ReturnType<N>;
+/** @ignore */
 export function clampIndex<T extends RangeLike, N extends ClampThen<T> = ClampThen<T>>(source: T, index: number, then?: N) {
     const length = source.length;
     const adjust = index > -1 ? index : (length + (index % length));
     return then ? then(source, adjust) : adjust;
 }
 
+/** @ignore */
 let tmp: number;
 export function clampRange<T extends RangeLike>(source: T, begin: number | undefined, end: number | undefined): [number, number];
 export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = ClampRangeThen<T>>(source: T, begin: number | undefined, end: number | undefined, then: N): ReturnType<N>;
+/** @ignore */
 export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = ClampRangeThen<T>>(source: T, begin: number | undefined, end: number | undefined, then?: N) {
 
     // Adjust args similar to Array.prototype.slice. Normalize begin/end to
@@ -52,6 +58,7 @@ export function clampRange<T extends RangeLike, N extends ClampRangeThen<T> = Cl
     return then ? then(source, lhs, rhs) : [lhs, rhs];
 }
 
+/** @ignore */
 export function createElementComparator(search: any) {
     // Compare primitives
     if (search == null || typeof search !== 'object') {

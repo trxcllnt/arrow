@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/** @ignore */
 export function valueToString(x: any) {
     return typeof x === 'string' ? `"${x}"` : ArrayBuffer.isView(x) ? `[${x}]` : JSON.stringify(x);
 }

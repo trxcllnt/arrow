@@ -35,8 +35,6 @@ import { ArrayBufferViewInput, toUint8Array } from '../util/buffer';
 import { Writable, ReadableInterop, ReadableDOMStreamOptions } from '../io/interfaces';
 import { isPromise, isAsyncIterable, isWritableDOMStream, isWritableNodeStream } from '../util/compat';
 
-// export type OpenArgs = FileHandle | NodeJS.WritableStream | WritableStream<Uint8Array> | UnderlyingSink<Uint8Array>;
-
 export class RecordBatchWriter<T extends { [key: string]: DataType } = any>
     extends ReadableInterop<Uint8Array>
     implements Writable<RecordBatch<T>> {
@@ -237,6 +235,7 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any>
     }
 }
 
+/** @ignore */
 export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
 
     public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchFileWriter<T>;
@@ -260,6 +259,7 @@ export class RecordBatchFileWriter<T extends { [key: string]: DataType } = any> 
     }
 }
 
+/** @ignore */
 export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
 
     public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchStreamWriter<T>;
@@ -278,6 +278,7 @@ export class RecordBatchStreamWriter<T extends { [key: string]: DataType } = any
     }
 }
 
+/** @ignore */
 export class RecordBatchJSONWriter<T extends { [key: string]: DataType } = any> extends RecordBatchWriter<T> {
 
     public static writeAll<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, input: Table<T> | Iterable<RecordBatch<T>>): RecordBatchJSONWriter<T>;
@@ -326,6 +327,7 @@ export class RecordBatchJSONWriter<T extends { [key: string]: DataType } = any> 
     }
 }
 
+/** @ignore */
 function writeAll<T extends { [key: string]: DataType } = any>(writer: RecordBatchWriter<T>, input: Table<T> | Iterable<RecordBatch<T>>) {
     const chunks = (input instanceof Table) ? input.chunks : input;
     for (const batch of chunks) { writer.write(batch); }
@@ -333,6 +335,7 @@ function writeAll<T extends { [key: string]: DataType } = any>(writer: RecordBat
     return writer;
 }
 
+/** @ignore */
 async function writeAllAsync<T extends { [key: string]: DataType } = any>(writer: RecordBatchWriter<T>, batches: AsyncIterable<RecordBatch<T>>) {
     for await (const batch of batches) {
         writer.write(batch);
@@ -341,6 +344,7 @@ async function writeAllAsync<T extends { [key: string]: DataType } = any>(writer
     return writer;
 }
 
+/** @ignore */
 function fieldToJSON({ name, type, nullable }: Field): object {
     const assembler = new JSONTypeAssembler();
     return {
@@ -355,6 +359,7 @@ function fieldToJSON({ name, type, nullable }: Field): object {
     };
 }
 
+/** @ignore */
 function dictionaryBatchToJSON(schema: Schema, dictionary: Vector, id: number, isDelta = false) {
     const f = schema.dictionaryFields.get(id)![0];
     const field = new Field(f.name, f.type.dictionary, f.nullable, f.metadata);
@@ -369,6 +374,7 @@ function dictionaryBatchToJSON(schema: Schema, dictionary: Vector, id: number, i
     }, null, 2);
 }
 
+/** @ignore */
 function recordBatchToJSON(records: RecordBatch) {
     return JSON.stringify({
         'count': records.length,

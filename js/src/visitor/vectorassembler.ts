@@ -104,6 +104,7 @@ export class VectorAssembler extends Visitor {
     protected _bufferRegions: BufferRegion[] = [];
 }
 
+/** @ignore */
 function addBuffer(this: VectorAssembler, values: ArrayBufferView) {
     const byteLength = (values.byteLength + 7) & ~7; // Round up to a multiple of 8
     this.buffers.push(values);
@@ -112,6 +113,7 @@ function addBuffer(this: VectorAssembler, values: ArrayBufferView) {
     return this;
 }
 
+/** @ignore */
 function assembleUnion<T extends Union>(this: VectorAssembler, vector: VType<T>) {
     const { type, length, typeIds, valueOffsets } = vector;
     // All Union Vectors have a typeIds buffer
@@ -160,6 +162,7 @@ function assembleUnion<T extends Union>(this: VectorAssembler, vector: VType<T>)
     return this;
 }
 
+/** @ignore */
 function assembleBoolVector<T extends Bool>(this: VectorAssembler, vector: VType<T>) {
     // Bool vector is a special case of FlatVector, as its data buffer needs to stay packed
     let values: Uint8Array;
@@ -178,10 +181,12 @@ function assembleBoolVector<T extends Bool>(this: VectorAssembler, vector: VType
     return addBuffer.call(this, packBools(vector));
 }
 
+/** @ignore */
 function assembleFlatVector<T extends Int | Float | FixedSizeBinary | Date_ | Timestamp | Time | Decimal | Interval>(this: VectorAssembler, vector: VType<T>) {
     return addBuffer.call(this, vector.values.subarray(0, vector.length * vector.stride));
 }
 
+/** @ignore */
 function assembleFlatListVector<T extends Utf8 | Binary>(this: VectorAssembler, vector: VType<T>) {
     const { length, values, valueOffsets } = vector;
     const firstOffset = valueOffsets[0];
@@ -193,6 +198,7 @@ function assembleFlatListVector<T extends Utf8 | Binary>(this: VectorAssembler, 
     return this;
 }
 
+/** @ignore */
 function assembleListVector<T extends List | FixedSizeList>(this: VectorAssembler, vector: VType<T>) {
     const { length, valueOffsets } = vector;
     // If we have valueOffsets (ListVector), push that buffer first
@@ -203,6 +209,7 @@ function assembleListVector<T extends List | FixedSizeList>(this: VectorAssemble
     return this.visit(vector.getChildAt(0)!);
 }
 
+/** @ignore */
 function assembleNestedVector<T extends Struct | Map_ | Union>(this: VectorAssembler, vector: VType<T>) {
     return this.visitMany(vector.type.children.map((_, i) => vector.getChildAt(i)!).filter(Boolean))[0];
 }

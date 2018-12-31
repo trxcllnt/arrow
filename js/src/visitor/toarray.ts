@@ -86,6 +86,7 @@ export interface ToArrayVisitor extends Visitor {
 
 export class ToArrayVisitor extends Visitor {}
 
+/** @ignore */
 function arrayOfVector<T extends DataType>(vector: Vector<T>): T['TArray'] {
 
     const { type, length, stride } = vector;

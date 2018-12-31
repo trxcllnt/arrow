@@ -86,46 +86,60 @@ export interface GetVisitor extends Visitor {
 
 export class GetVisitor extends Visitor {}
 
-const epochDaysToMs = (data: Int32Array, index: number) => 86400000 * data[index];
-const epochMillisecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1]) + (data[index] >>> 0);
-const epochMicrosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000) + ((data[index] >>> 0) / 1000);
-const epochNanosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000000) + ((data[index] >>> 0) / 1000000);
+/** @ignore */const epochDaysToMs = (data: Int32Array, index: number) => 86400000 * data[index];
+/** @ignore */const epochMillisecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1]) + (data[index] >>> 0);
+/** @ignore */const epochMicrosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000) + ((data[index] >>> 0) / 1000);
+/** @ignore */const epochNanosecondsLongToMs = (data: Int32Array, index: number) => 4294967296 * (data[index + 1] / 1000000) + ((data[index] >>> 0) / 1000000);
 
-const epochMillisecondsToDate = (epochMs: number) => new Date(epochMs);
-const epochDaysToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochDaysToMs(data, index));
-// const epochSecondsToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochSecondsToMs(data, index));
-// const epochNanosecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochNanosecondsLongToMs(data, index));
-const epochMillisecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochMillisecondsLongToMs(data, index));
+/** @ignore */const epochMillisecondsToDate = (epochMs: number) => new Date(epochMs);
+/** @ignore */const epochDaysToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochDaysToMs(data, index));
+// /** @ignore */ const epochSecondsToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochSecondsToMs(data, index));
+// /** @ignore */ const epochNanosecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochNanosecondsLongToMs(data, index));
+/** @ignore */const epochMillisecondsLongToDate = (data: Int32Array, index: number) => epochMillisecondsToDate(epochMillisecondsLongToMs(data, index));
 
+/** @ignore */
 const getNull = <T extends Null>(_vector: Vector<T>, _index: number): T['TValue'] => null;
+/** @ignore */
 const getVariableWidthBytes = (values: Uint8Array, valueOffsets: Int32Array, index: number) => {
     const { [index]: x, [index + 1]: y } = valueOffsets;
     return x != null && y != null ? values.subarray(x, y) : null as any;
 };
 
+/** @ignore */
 const getBool = <T extends Bool>({ offset, values }: Vector<T>, index: number): T['TValue'] => {
     const idx = offset + index;
     const byte = values[idx >> 3];
     return (byte & 1 << (idx % 8)) !== 0;
 };
 
+/** @ignore */
 type Numeric1X = Int8 | Int16 | Int32 | Uint8 | Uint16 | Uint32 | Float32 | Float64;
+/** @ignore */
 type Numeric2X = Int64 | Uint64;
 
+/** @ignore */
 const getDateDay         = <T extends DateDay>        ({ values         }: Vector<T>, index: number): T['TValue'] => epochDaysToDate(values, index);
+/** @ignore */
 const getDateMillisecond = <T extends DateMillisecond>({ values         }: Vector<T>, index: number): T['TValue'] => epochMillisecondsLongToDate(values, index * 2);
+/** @ignore */
 const getNumeric         = <T extends Numeric1X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => values[stride * index];
+/** @ignore */
 const getFloat16         = <T extends Float16>        ({ stride, values }: Vector<T>, index: number): T['TValue'] => (values[stride * index] - 32767) / 32767;
+/** @ignore */
 const getNumericX2       = <T extends Numeric2X>      ({ stride, values }: Vector<T>, index: number): T['TValue'] => values.subarray(stride * index, stride * (index + 1));
+/** @ignore */
 const getFixedSizeBinary = <T extends FixedSizeBinary>({ stride, values }: Vector<T>, index: number): T['TValue'] => values.subarray(stride * index, stride * (index + 1));
 
+/** @ignore */
 const getBinary = <T extends Binary>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] => getVariableWidthBytes(values, valueOffsets, index);
+/** @ignore */
 const getUtf8 = <T extends Utf8>({ values, valueOffsets }: Vector<T>, index: number): T['TValue'] => {
     const bytes = getVariableWidthBytes(values, valueOffsets, index);
     return bytes !== null ? decodeUtf8(bytes) : null as any;
 };
 
 /* istanbul ignore next */
+/** @ignore */
 const getInt = <T extends Int>(vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.bitWidth < 64
         ? getNumeric(<any> vector, index)
@@ -133,6 +147,7 @@ const getInt = <T extends Int>(vector: Vector<T>, index: number): T['TValue'] =>
 );
 
 /* istanbul ignore next */
+/** @ignore */
 const getFloat = <T extends Float> (vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.precision !== Precision.HALF
         ? getNumeric(vector as any, index)
@@ -140,17 +155,23 @@ const getFloat = <T extends Float> (vector: Vector<T>, index: number): T['TValue
 );
 
 /* istanbul ignore next */
+/** @ignore */
 const getDate = <T extends Date_> (vector: Vector<T>, index: number): T['TValue'] => (
     vector.type.unit === DateUnit.DAY
         ? getDateDay(vector as any, index)
         : getDateMillisecond(vector as any, index)
 );
 
+/** @ignore */
 const getTimestampSecond      = <T extends TimestampSecond>     ({ values }: Vector<T>, index: number): T['TValue'] => 1000 * epochMillisecondsLongToMs(values, index * 2);
+/** @ignore */
 const getTimestampMillisecond = <T extends TimestampMillisecond>({ values }: Vector<T>, index: number): T['TValue'] => epochMillisecondsLongToMs(values, index * 2);
+/** @ignore */
 const getTimestampMicrosecond = <T extends TimestampMicrosecond>({ values }: Vector<T>, index: number): T['TValue'] => epochMicrosecondsLongToMs(values, index * 2);
+/** @ignore */
 const getTimestampNanosecond  = <T extends TimestampNanosecond> ({ values }: Vector<T>, index: number): T['TValue'] => epochNanosecondsLongToMs(values, index * 2);
 /* istanbul ignore next */
+/** @ignore */
 const getTimestamp            = <T extends Timestamp>(vector: Vector<T>, index: number): T['TValue'] => {
     switch (vector.type.unit) {
         case TimeUnit.SECOND:      return      getTimestampSecond(vector as Vector<TimestampSecond>, index);
@@ -160,11 +181,16 @@ const getTimestamp            = <T extends Timestamp>(vector: Vector<T>, index: 
     }
 };
 
+/** @ignore */
 const getTimeSecond      = <T extends TimeSecond>     ({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
+/** @ignore */
 const getTimeMillisecond = <T extends TimeMillisecond>({ values, stride }: Vector<T>, index: number): T['TValue'] => values[stride * index];
+/** @ignore */
 const getTimeMicrosecond = <T extends TimeMicrosecond>({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
+/** @ignore */
 const getTimeNanosecond  = <T extends TimeNanosecond> ({ values         }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
 /* istanbul ignore next */
+/** @ignore */
 const getTime            = <T extends Time>(vector: Vector<T>, index: number): T['TValue'] => {
     switch (vector.type.unit) {
         case TimeUnit.SECOND:      return      getTimeSecond(vector as Vector<TimeSecond>, index);
@@ -174,13 +200,16 @@ const getTime            = <T extends Time>(vector: Vector<T>, index: number): T
     }
 };
 
+/** @ignore */
 const getDecimal = <T extends Decimal>({ values }: Vector<T>, index: number): T['TValue'] => values.subarray(4 * index, 4 * (index + 1));
 
+/** @ignore */
 const getList = <T extends List>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { valueOffsets, stride } = vector;
     return child.slice(valueOffsets[index * stride], valueOffsets[(index * stride) + 1]) as T['TValue'];
 };
 
+/** @ignore */
 const getNested = <
     S extends { [key: string]: DataType },
     V extends Vector<Map_<S>> | Vector<Struct<S>>
@@ -189,6 +218,7 @@ const getNested = <
 };
 
 /* istanbul ignore next */
+/** @ignore */
 const getUnion = <
     V extends Vector<Union> | Vector<DenseUnion> | Vector<SparseUnion>
 >(vector: V, index: number): V['TValue'] => {
@@ -197,30 +227,36 @@ const getUnion = <
         getSparseUnion(vector as Vector<SparseUnion>, index);
 };
 
+/** @ignore */
 const getDenseUnion = <T extends DenseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
     const child = vector.getChildAt(typeIdToChildIndex[typeIds[index]]);
     return child ? child.get(vector.valueOffsets[index]) : null;
 };
 
+/** @ignore */
 const getSparseUnion = <T extends SparseUnion>(vector: Vector<T>, index: number): T['TValue'] => {
     const { typeIds, type: { typeIdToChildIndex } } = vector;
     const child = vector.getChildAt(typeIdToChildIndex[typeIds[index]]);
     return child ? child.get(index) : null;
 };
 
+/** @ignore */
 const getDictionary = <T extends Dictionary>(vector: Vector<T>, index: number): T['TValue'] => {
     return vector.getValue(vector.getKey(index)!);
 };
 
 /* istanbul ignore next */
+/** @ignore */
 const getInterval = <T extends Interval>(vector: Vector<T>, index: number): T['TValue'] =>
     (vector.type.unit === IntervalUnit.DAY_TIME)
         ? getIntervalDayTime(vector as any, index)
         : getIntervalYearMonth(vector as any, index);
 
+/** @ignore */
 const getIntervalDayTime = <T extends IntervalDayTime>({ values }: Vector<T>, index: number): T['TValue'] => values.subarray(2 * index, 2 * (index + 1));
 
+/** @ignore */
 const getIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>, index: number): T['TValue'] => {
     const interval = values[index];
     const int32s = new Int32Array(2);
@@ -229,6 +265,7 @@ const getIntervalYearMonth = <T extends IntervalYearMonth>({ values }: Vector<T>
     return int32s;
 };
 
+/** @ignore */
 const getFixedSizeList = <T extends FixedSizeList>(vector: Vector<T>, index: number): T['TValue'] => {
     const child = vector.getChildAt(0)!, { stride } = vector;
     return child.slice(index * stride, (index + 1) * stride) as T['TValue'];

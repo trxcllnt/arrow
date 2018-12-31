@@ -21,6 +21,7 @@ import { AsyncByteStream } from '../../io/stream';
 import { RecordBatchWriter } from '../../ipc/writer';
 import { protectArrayBufferFromWhatwgRefImpl } from './hack';
 
+/** @ignore */
 export function recordBatchWriterThroughDOMStream<T extends { [key: string]: DataType } = any>(
     this: typeof RecordBatchWriter,
     writableStrategy?: QueuingStrategy<RecordBatch<T>>,

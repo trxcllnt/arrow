@@ -20,8 +20,11 @@ import { encodeUtf8 } from '../util/utf8';
 import ByteBuffer = flatbuffers.ByteBuffer;
 import { ArrayBufferViewConstructor } from '../interfaces';
 import { isPromise, isIterable, isAsyncIterable, isIteratorResult } from './compat';
+
+/** @ignore */
 const SharedArrayBuf = (typeof SharedArrayBuffer !== 'undefined' ? SharedArrayBuffer : ArrayBuffer);
 
+/** @ignore */
 function collapseContiguousByteRanges(chunks: Uint8Array[]) {
     for (let x, y, i = 0; ++i < chunks.length;) {
         x = chunks[i - 1];
@@ -37,9 +40,7 @@ function collapseContiguousByteRanges(chunks: Uint8Array[]) {
     return chunks;
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export function memcpy<TTarget extends ArrayBufferView, TSource extends ArrayBufferView>(target: TTarget, source: TSource, targetByteOffset = 0, sourceByteLength = source.byteLength) {
     const targetByteLength = target.byteLength;
     const dst = new Uint8Array(target.buffer, target.byteOffset, targetByteLength);
@@ -48,9 +49,7 @@ export function memcpy<TTarget extends ArrayBufferView, TSource extends ArrayBuf
     return target;
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Uint8Array, Uint8Array[]] {
     // collapse chunks that share the same underlying ArrayBuffer and whose byte ranges overlap,
     // to avoid unnecessarily copying the bytes to do this buffer join. This is a common case during
@@ -76,13 +75,12 @@ export function joinUint8Arrays(chunks: Uint8Array[], size?: number | null): [Ui
     return [buffer || new Uint8Array(0), chunks.slice(index)];
 }
 
+/** @ignore */
 export type ArrayBufferViewInput = ArrayBufferView | ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined  |
                     IteratorResult<ArrayBufferView | ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> |
           ReadableStreamReadResult<ArrayBufferView | ArrayBufferLike | ArrayBufferView | Iterable<number> | ArrayLike<number> | ByteBuffer | string | null | undefined> ;
 
-/**
- * @ignore
- */
+/** @ignore */
 export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor: ArrayBufferViewConstructor<T>, input: ArrayBufferViewInput): T {
 
     let value: any = isIteratorResult(input) ? input.value : input;
@@ -107,8 +105,10 @@ export function toArrayBufferView<T extends ArrayBufferView>(ArrayBufferViewCtor
 /** @ignore */ export const toFloat64Array = (input: ArrayBufferViewInput) => toArrayBufferView(Float64Array, input);
 /** @ignore */ export const toUint8ClampedArray = (input: ArrayBufferViewInput) => toArrayBufferView(Uint8ClampedArray, input);
 
+/** @ignore */
 type ArrayBufferViewIteratorInput = Iterable<ArrayBufferViewInput> | ArrayBufferViewInput;
 
+/** @ignore */
 const pump = <T extends Iterator<any> | AsyncIterator<any>>(iterator: T) => { iterator.next(); return iterator; };
 
 /** @ignore */
@@ -140,6 +140,7 @@ export function* toArrayBufferViewIterator<T extends ArrayBufferView>(ArrayCtor:
 /** @ignore */ export const toFloat64ArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Float64Array, input);
 /** @ignore */ export const toUint8ClampedArrayIterator = (input: ArrayBufferViewIteratorInput) => toArrayBufferViewIterator(Uint8ClampedArray, input);
 
+/** @ignore */
 type ArrayBufferViewAsyncIteratorInput = AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput> | PromiseLike<ArrayBufferViewInput> | ArrayBufferViewInput;
 
 /** @ignore */
@@ -187,9 +188,7 @@ export async function* toArrayBufferViewAsyncIterator<T extends ArrayBufferView>
 /** @ignore */ export const toFloat64ArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Float64Array, input);
 /** @ignore */ export const toUint8ClampedArrayAsyncIterator = (input: ArrayBufferViewAsyncIteratorInput) => toArrayBufferViewAsyncIterator(Uint8ClampedArray, input);
 
-/**
- * @ignore
- */
+/** @ignore */
 export function rebaseValueOffsets(offset: number, length: number, valueOffsets: Int32Array) {
     // If we have a non-zero offset, create a new offsets array with the values
     // shifted by the start offset, such that the new start offset is 0

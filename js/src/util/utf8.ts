@@ -21,9 +21,7 @@ import {
     TextEncoder as TextEncoderPolyfill,
 } from 'text-encoding-utf-8';
 
-/**
- * @ignore
- */
+/** @ignore */
 export const decodeUtf8 = ((decoder) => {
     /** @suppress {missingRequire} */
     const NodeBuffer = typeof Buffer !== 'undefined' ? Buffer : null;
@@ -33,9 +31,7 @@ export const decodeUtf8 = ((decoder) => {
     };
 })(new (typeof TextDecoder !== 'undefined' ? TextDecoder : TextDecoderPolyfill)());
 
-/**
- * @ignore
- */
+/** @ignore */
 export const encodeUtf8 = ((encoder) => {
     /** @suppress {missingRequire} */
     const NodeBuffer = typeof Buffer !== 'undefined' ? Buffer : null;

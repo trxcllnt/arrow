@@ -87,6 +87,7 @@ export interface IteratorVisitor extends Visitor {
 
 export class IteratorVisitor extends Visitor {}
 
+/** @ignore */
 function nullableIterator<T extends DataType>(vector: Vector<T>): IterableIterator<T['TValue'] | null> {
     const getFn = getVisitor.getVisitFn(vector);
     return iterateBits<T['TValue'] | null>(
@@ -96,6 +97,7 @@ function nullableIterator<T extends DataType>(vector: Vector<T>): IterableIterat
     );
 }
 
+/** @ignore */
 function vectorIterator<T extends DataType>(vector: Vector<T>): IterableIterator<T['TValue'] | null> {
 
     // If nullable, iterate manually

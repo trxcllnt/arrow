@@ -17,15 +17,17 @@
 
 import streamAdapters from './adapters';
 
+/** @ignore */
 export const ITERATOR_DONE: any = Object.freeze({ done: true, value: void (0) });
 
+/** @ignore */
 export type FileHandle = import('fs').promises.FileHandle;
+/** @ignore */
 export type ArrowJSONLike = { schema: any; batches?: any[]; dictionaries?: any[]; };
+/** @ignore */
 export type ReadableDOMStreamOptions = { type: 'bytes' | undefined, autoAllocateChunkSize?: number, highWaterMark?: number };
 
-/**
- * @ignore
- */
+/** @ignore */
 export class ArrowJSON {
     // @ts-ignore
     constructor(private _json: ArrowJSONLike) {}
@@ -34,9 +36,7 @@ export class ArrowJSON {
     public get dictionaries(): any[] { return (this._json['dictionaries'] || []) as any[]; }
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export interface Readable<T> {
 
     readonly closed: Promise<void>;
@@ -49,9 +49,7 @@ export interface Readable<T> {
     next(size?: number | null): Promise<IteratorResult<T>>;
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export interface Writable<T> {
     readonly closed: Promise<void>;
     close(): void;
@@ -59,15 +57,14 @@ export interface Writable<T> {
     abort(reason?: any): void;
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export interface ReadableWritable<TReadable, TWritable> extends Readable<TReadable>, Writable<TWritable> {
     [Symbol.asyncIterator](): AsyncIterableIterator<TReadable>;
     toReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<TReadable>;
     toReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
 }
 
+/** @ignore */
 export abstract class ReadableInterop<T> {
 
     public abstract toReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
@@ -95,11 +92,10 @@ export abstract class ReadableInterop<T> {
     }
 }
 
+/** @ignore */
 type Resolution<T> = { resolve: (value?: T | PromiseLike<T>) => void; reject: (reason?: any) => void; };
 
-/**
- * @ignore
- */
+/** @ignore */
 export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends ReadableInterop<TReadable>
     implements AsyncIterableIterator<TReadable>, ReadableWritable<TReadable, TWritable> {
 

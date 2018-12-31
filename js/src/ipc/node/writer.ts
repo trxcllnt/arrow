@@ -20,12 +20,14 @@ import { DataType } from '../../type';
 import { AsyncByteStream } from '../../io/stream';
 import { RecordBatchWriter } from '../../ipc/writer';
 
+/** @ignore */
 export function recordBatchWriterThroughNodeStream<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter) {
     return new RecordBatchWriterDuplex(new this<T>());
 }
 
 type CB = (error?: Error | null | undefined) => void;
 
+/** @ignore */
 class RecordBatchWriterDuplex<T extends { [key: string]: DataType } = any> extends Duplex {
     private _pulling: boolean = false;
     private _reader: AsyncByteStream | null;

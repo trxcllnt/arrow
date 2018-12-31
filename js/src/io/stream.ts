@@ -26,12 +26,12 @@ import {
     isReadableDOMStream, isReadableNodeStream
 } from '../util/compat';
 
+/** @ignore */
 export type WritableSink<T> = Writable<T> | WritableStream<T> | NodeJS.WritableStream | null;
+/** @ignore */
 export type ReadableSource<T> = Readable<T> | PromiseLike<T> | AsyncIterable<T> | ReadableStream<T> | NodeJS.ReadableStream | null;
 
-/**
- * @ignore
- */
+/** @ignore */
 export class AsyncByteQueue<T extends ArrayBufferViewInput = Uint8Array> extends AsyncQueue<Uint8Array, T> {
     public write(value: ArrayBufferViewInput | Uint8Array) {
         if ((value = toUint8Array(value)).byteLength > 0) {
@@ -59,9 +59,7 @@ export class AsyncByteQueue<T extends ArrayBufferViewInput = Uint8Array> extends
     }
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export class ByteStream {
     // @ts-ignore
     private source: ByteStreamSource<Uint8Array | null>;
@@ -76,9 +74,7 @@ export class ByteStream {
     public read(size?: number | null) { return this.source.read(size); }
 }
 
-/**
- * @ignore
- */
+/** @ignore */
 export class AsyncByteStream implements Readable<Uint8Array> {
     // @ts-ignore
     private source: AsyncByteStreamSource<Uint8Array>;
@@ -110,14 +106,17 @@ export class AsyncByteStream implements Readable<Uint8Array> {
     public read(size?: number | null) { return this.source.read(size); }
 }
 
+/** @ignore */
 interface ByteStreamSourceIterator<T> extends IterableIterator<T> {
     next(value?: { cmd: 'peek' | 'read', size?: number | null }): IteratorResult<T>;
 }
 
+/** @ignore */
 interface AsyncByteStreamSourceIterator<T> extends AsyncIterableIterator<T> {
     next(value?: { cmd: 'peek' | 'read', size?: number | null }): Promise<IteratorResult<T>>;
 }
 
+/** @ignore */
 class ByteStreamSource<T> {
     constructor(protected source: ByteStreamSourceIterator<T>) {}
     public cancel(reason?: any) { this.return(reason); }
@@ -128,6 +127,7 @@ class ByteStreamSource<T> {
     public return(value?: any) { return Object.create((this.source.return && this.source.return(value)) || ITERATOR_DONE); }
 }
 
+/** @ignore */
 class AsyncByteStreamSource<T> implements Readable<T> {
 
     private _closedPromise: Promise<void>;

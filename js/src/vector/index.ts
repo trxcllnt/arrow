@@ -73,6 +73,7 @@ declare module './base' {
 /** @nocollapse */
 Vector.new = newVector;
 
+/** @ignore */
 function newVector<T extends DataType>(data: Data<T>, ...args: VectorCtorArgs<V<T>>): V<T> {
     return new (getVectorConstructor.getVisitFn(data.type)())(data, ...args) as V<T>;
 }
@@ -138,22 +139,27 @@ BaseVector.prototype[Symbol.iterator] = function baseVectorSymbolIterator<T exte
         });
     });
 
+/** @ignore */
 function partial0<T>(visit: (node: T) => any) {
     return function(this: T) { return visit(this); };
 }
 
+/** @ignore */
 function partial1<T>(visit: (node: T, a: any) => any) {
     return function(this: T, a: any) { return visit(this, a); };
 }
 
+/** @ignore */
 function partial2<T>(visit: (node: T, a: any, b: any) => any) {
     return function(this: T, a: any, b: any) { return visit(this, a, b); };
 }
 
+/** @ignore */
 function wrapNullable1<T extends DataType, V extends Vector<T>, F extends (i: number) => any>(fn: F): (...args: Parameters<F>) => ReturnType<F> {
     return function(this: V, i: number) { return this.isValid(i) ? fn.call(this, i) : null; };
 }
 
+/** @ignore */
 function wrapNullableSet<T extends DataType, V extends BaseVector<T>, F extends (i: number, a: any) => void>(fn: F): (...args: Parameters<F>) => void {
     return function(this: V, i: number, a: any) {
         if (setBool(this.nullBitmap, this.offset + i, a != null)) {
@@ -162,8 +168,8 @@ function wrapNullableSet<T extends DataType, V extends BaseVector<T>, F extends 
     };
 }
 
-// @ts-ignore
-function bindBaseVectorDataAccessors<T extends DataType>(this: BaseVector<T>, data: Data<T>) {
+/** @ignore */
+function bindBaseVectorDataAccessors<T extends DataType>(this: BaseVector<T>) {
     const type = this.type;
     this['get'] = getVisitor.getVisitFn(type).bind(this, <any> this as V<T>);
     this['set'] = setVisitor.getVisitFn(type).bind(this, <any> this as V<T>);

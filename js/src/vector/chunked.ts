@@ -22,8 +22,10 @@ import { DataType } from '../type';
 import { clampRange } from '../util/vector';
 import { Clonable, Sliceable, Applicative } from '../vector';
 
+/** @ignore */
 type SearchContinuation<T extends Chunked> = (column: T, chunkIndex: number, valueIndex: number) => any;
 
+/** @ignore */
 export class Chunked<T extends DataType = any>
     extends Vector<T>
     implements Clonable<Chunked<T>>,
@@ -217,6 +219,7 @@ export class Chunked<T extends DataType = any>
     }
 }
 
+/** @ignore */
 function calculateOffsets<T extends DataType>(vectors: Vector<T>[]) {
     let offsets = new Uint32Array((vectors || []).length + 1);
     let offset = offsets[0] = 0, length = offsets.length;
@@ -226,11 +229,13 @@ function calculateOffsets<T extends DataType>(vectors: Vector<T>[]) {
     return offsets;
 }
 
+/** @ignore */
 const typedSet = (src: TypedArray, dst: TypedArray, offset: number) => {
     dst.set(src, offset);
     return (offset + src.length);
 };
 
+/** @ignore */
 const arraySet = (src: any[], dst: any[], offset: number) => {
     let idx = offset - 1;
     for (let i = -1, n = src.length; ++i < n;) {
@@ -239,6 +244,7 @@ const arraySet = (src: any[], dst: any[], offset: number) => {
     return idx;
 };
 
+/** @ignore */
 interface TypedArray extends ArrayBufferView {
     readonly length: number;
     readonly [n: number]: number;

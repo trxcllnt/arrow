@@ -20,6 +20,7 @@ import { RecordBatch } from '../../recordbatch';
 import { AsyncByteQueue } from '../../io/stream';
 import { RecordBatchReader } from '../../ipc/reader';
 
+/** @ignore */
 export function recordBatchReaderThroughDOMStream<T extends { [key: string]: DataType } = any>() {
 
     const queue = new AsyncByteQueue();

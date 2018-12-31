@@ -81,6 +81,7 @@ export class Field<T extends DataType = DataType> {
     public toString() { return `${this.name}: ${this.type}`; }
 }
 
+/** @ignore */
 function generateDictionaryMap(fields: Field[], dictionaries: Map<number, DataType>, dictionaryFields: Map<number, Field<Dictionary>[]>) {
 
     for (let i = -1, n = fields.length; ++i < n;) {
