@@ -91,13 +91,14 @@
             "name": "Debug bin/arrow2csv",
             "env": { "ARROW_JS_DEBUG": "src", "TS_NODE_CACHE": "false" },
             "runtimeArgs": ["-r", "ts-node/register"],
+            "console": "integratedTerminal",
             "skipFiles": [
                 "<node_internals>/**/*.js",
                 "${workspaceFolder}/node_modules/**/*.js"
             ],
             "args": [
                 "${workspaceFolder}/src/bin/arrow2csv.ts",
-                "-f", "./test/data/json/nested.json"
+                "-f", "./test/data/cpp/stream/simple.arrow"
             ]
         },
         {

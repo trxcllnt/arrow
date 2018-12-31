@@ -62,23 +62,26 @@ process.stdout.once('error', ({ code }) => (code === 'EPIPE') && (state.closed =
 
 async function createRecordBatchReader(createSourceStream: () => NodeJS.ReadableStream) {
 
+    let json = new AsyncByteQueue();
+    let stream = new AsyncByteQueue();
     let source = createSourceStream();
-    let byteQueue = new AsyncByteQueue();
     let reader: RecordBatchReader | null = null;
-    source.on('end', byteQueue.close.bind(byteQueue))
-        .on('data',  byteQueue.write.bind(byteQueue));
+    // tee the input source, just in case it's JSON
+    source.on('end', () => [stream, json].forEach((y) => y.close()))
+        .on('data', (x) => [stream, json].forEach((y) => y.write(x)))
+       .on('error', (e) => [stream, json].forEach((y) => y.abort(e)));
 
     try {
-        reader = await (await RecordBatchReader.from(source)).open();
+        reader = await (await RecordBatchReader.from(stream)).open();
     } catch (e) { reader = null; }
 
     if (!reader || reader.closed) {
         reader = null;
-        await byteQueue.closed;
+        await json.closed;
         if (source instanceof fs.ReadStream) { source.close(); }
+        // If the data in the `json` ByteQueue parses to JSON, then assume it's Arrow JSON from a file or stdin
         try {
-            let json = bignumJSONParse(await byteQueue.toString());
-            reader = await (await RecordBatchReader.from(json)).open();
+            reader = await (await RecordBatchReader.from(bignumJSONParse(await json.toString()))).open();
         } catch (e) { reader = null; }
     }
 
