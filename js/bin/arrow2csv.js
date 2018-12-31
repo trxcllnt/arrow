@@ -17,8 +17,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
+const Path = require(`path`);
+const here = Path.resolve(__dirname, '../');
+const tsnode = require.resolve(`ts-node/register`);
+const arrow2csv = Path.join(here, `src/bin/arrow2csv.ts`);
+
 require('child_process').spawn(`node`, [
-    `-r`, `ts-node/register`,
-    require(`path`).resolve(__dirname, `../src/bin/arrow2csv.ts`),
-    ...process.argv.slice(2)
-], { env: process.env, stdio: `inherit` });
+    `-r`, tsnode, arrow2csv, ...process.argv.slice(2)
+], { cwd: here, env: process.env, stdio: `inherit` });
