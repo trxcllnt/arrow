@@ -21,9 +21,12 @@
     "create:testdata": "gulp create:testdata",
     "test:coverage": "gulp test -t src --coverage",
     "doc": "shx rm -rf ./doc && typedoc --tsconfig tsconfig.json --target ES5 --module commonjs --mode modules --ignoreCompilerErrors --out doc src",
-    "lint": "run-p lint:*",
+    "lint": "run-p lint:src lint:test",
+    "lint:ci": "run-p lint:src:ci lint:test:ci",
     "lint:src": "tslint --fix --project -p tsconfig.json -c tslint.json \"src/**/*.ts\"",
     "lint:test": "tslint --fix --project -p test/tsconfig.json -c tslint.json \"test/**/*.ts\"",
+    "lint:src:ci": "tslint --project -p tsconfig.json -c tslint.json \"src/**/*.ts\"",
+    "lint:test:ci": "tslint --project -p test/tsconfig.json -c tslint.json \"test/**/*.ts\"",
     "prepublishOnly": "echo \"Error: do 'npm run release' instead of 'npm publish'\" && exit 1",
     "version": "npm install && npm run clean:all"
   },
