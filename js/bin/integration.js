@@ -30,7 +30,7 @@ const {
     Table,
     RecordBatchReader,
     util: { createElementComparator }
-} = require('../targets/es5/umd/Arrow');
+} = require('../targets/apache-arrow/Arrow.es5.min');
 
 const exists = async (p) => {
     try {
