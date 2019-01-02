@@ -18,6 +18,9 @@
 module.exports = {
     ...require('./jest.config'),
     "reporters": undefined,
+    "coverageReporters": [
+        "lcov", "json"
+    ],
     "globals": {
         "ts-jest": {
             "diagnostics": false,
