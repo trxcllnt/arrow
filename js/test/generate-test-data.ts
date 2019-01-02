@@ -521,9 +521,6 @@ const randomString = ((opts) =>
 
 const memoize = (fn: () => any) => () => ((x?: any) => x || (x = fn()))();
 
-// const randomString = ((opts) =>
-//     (length: number) => encodeUtf8(randomatic('?', length, opts))
-// )({ chars: `abcdefghijklmnopqrstuvwxyz0123456789_` });
 const encodeUtf8 = ((encoder) =>
     encoder.encode.bind(encoder) as (input?: string, options?: { stream?: boolean }) => Uint8Array
 )(new TextEncoder('utf-8'));
