@@ -60,14 +60,16 @@ export class AsyncByteQueue<T extends ArrayBufferViewInput = Uint8Array> extends
 }
 
 /** @ignore */
-export class ByteStream {
+export class ByteStream implements IterableIterator<Uint8Array> {
     // @ts-ignore
-    private source: ByteStreamSource<Uint8Array | null>;
+    private source: ByteStreamSource<Uint8Array>;
     constructor(source?: Iterable<ArrayBufferViewInput> | ArrayBufferViewInput) {
         if (source) {
             this.source = new ByteStreamSource(streamAdapters.fromIterable(source));
         }
     }
+    [Symbol.iterator]() { return this; }
+    public next(value?: any) { return this.source.next(value); }
     public throw(value?: any) { return this.source.throw(value); }
     public return(value?: any) { return this.source.return(value); }
     public peek(size?: number | null) { return this.source.peek(size); }
@@ -75,7 +77,7 @@ export class ByteStream {
 }
 
 /** @ignore */
-export class AsyncByteStream implements Readable<Uint8Array> {
+export class AsyncByteStream implements Readable<Uint8Array>, AsyncIterableIterator<Uint8Array> {
     // @ts-ignore
     private source: AsyncByteStreamSource<Uint8Array>;
     constructor(source?: PromiseLike<ArrayBufferViewInput> | Response | ReadableStream<ArrayBufferViewInput> | NodeJS.ReadableStream | AsyncIterable<ArrayBufferViewInput> | Iterable<ArrayBufferViewInput>) {
@@ -97,6 +99,7 @@ export class AsyncByteStream implements Readable<Uint8Array> {
             this.source = new AsyncByteStreamSource(streamAdapters.fromReadableDOMStream(source));
         }
     }
+    [Symbol.asyncIterator]() { return this; }
     public next(value?: any) { return this.source.next(value); }
     public throw(value?: any) { return this.source.throw(value); }
     public return(value?: any) { return this.source.return(value); }
