@@ -378,16 +378,14 @@ async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIter
             for (const [evt, fn] of events) {
                 stream['off'](evt, fn);
             }
-            const [evt, fn, closed] = onEvent(stream, 'close');
-            const destroyed = new Promise((resolve, reject) => {
-                const destroy = (stream as any)['destroy'] || ((e: T, cb: any) => cb(e));
-                destroy.call(stream, err, (e: T) => e != null ? reject(e) : resolve());
-            });
             try {
-                await Promise.race([closed, destroyed]);
+                // Some stream implementations don't call the destroy callback,
+                // because it's really a node-internal API. Just calling `destroy`
+                // here should be enough to conform to the ReadableStream contract
+                const destroy = (stream as any)['destroy'];
+                destroy && destroy.call(stream, err);
                 err = undefined;
             } catch (e) { err = e || err; } finally {
-                stream['off'](evt, fn);
                 err != null ? reject(err) : resolve();
             }
         });
