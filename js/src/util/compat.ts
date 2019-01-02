@@ -56,6 +56,6 @@ export interface Observable<T> {
 /** @ignore */ export const isFSReadStream       =          (x: any): x is FSReadStream          => isReadableNodeStream(x) && hasProps(x, ['bytesRead', 'number']);
 /** @ignore */ export const isFetchResponse      =          (x: any): x is Response              => hasProps(x, ['body'], ['bodyUsed', 'boolean'], ['ok', 'boolean']);
 /** @ignore */ export const isWritableDOMStream  = <T = any>(x: any): x is WritableStream<T>     => !(x instanceof ReadableInterop) && hasFuncs(x, 'abort', 'getWriter');
-/** @ignore */ export const isWritableNodeStream =          (x: any): x is NodeJS.WritableStream => !(x instanceof ReadableInterop) && hasFuncs(x, 'write', 'cork', 'uncork', 'end');
 /** @ignore */ export const isReadableDOMStream  = <T = any>(x: any): x is ReadableStream<T>     => !(x instanceof ReadableInterop) && hasFuncs(x, 'tee', 'cancel', 'pipeTo', 'getReader');
-/** @ignore */ export const isReadableNodeStream =          (x: any): x is NodeJS.ReadableStream => !(x instanceof ReadableInterop) && hasFuncs(x, 'read', 'pipe', 'unpipe', 'pause', 'resume', 'wrap');
+/** @ignore */ export const isWritableNodeStream =          (x: any): x is NodeJS.WritableStream => !(x instanceof ReadableInterop) && hasFuncs(x, 'write', 'end') && hasProps(x, ['writable', 'boolean']);
+/** @ignore */ export const isReadableNodeStream =          (x: any): x is NodeJS.ReadableStream => !(x instanceof ReadableInterop) && hasFuncs(x, 'read', 'pipe') && hasProps(x, ['readable', 'boolean']);
