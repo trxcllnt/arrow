@@ -40,22 +40,102 @@ export interface Observable<T> {
     subscribe: (observer: Observer<T>) => Subscription;
 }
 
+/** @ignore */ const isNumber = (x: any) => typeof x === 'number';
+/** @ignore */ const isBoolean = (x: any) => typeof x === 'boolean';
+/** @ignore */ const isFunction = (x: any) => typeof x === 'function';
 /** @ignore */ const isObject = (x: any) => x != null && Object(x) === x;
-/** @ignore */ const hasFuncs = (x: any, ...fn: PropertyKey[]) => hasProps(x, ...fn.map((f) => [f, 'function'] as [PropertyKey, string]));
-/** @ignore */ const hasProps = (x: any, ...ks: [PropertyKey, string?][]) => isObject(x) && ks.every(([k, t]) => t ? (x[k] != null && typeof x[k] === t) : (k in x));
 
-/** @ignore */ export const isPromise            = <T = any>(x: any): x is PromiseLike<T>        => hasFuncs(x, 'then');
-/** @ignore */ export const isObservable         = <T = any>(x: any): x is Observable<T>         => hasFuncs(x, 'subscribe');
-/** @ignore */ export const isIterable           = <T = any>(x: any): x is Iterable<T>           => hasFuncs(x, Symbol.iterator);
-/** @ignore */ export const isAsyncIterable      = <T = any>(x: any): x is AsyncIterable<T>      => hasFuncs(x, Symbol.asyncIterator);
-/** @ignore */ export const isArrowJSON          =          (x: any): x is ArrowJSONLike         => hasProps(x, ['schema', 'object']);
-/** @ignore */ export const isArrayLike          = <T = any>(x: any): x is ArrayLike<T>          => hasProps(x, ['length', 'number']);
-/** @ignore */ export const isIteratorResult     = <T = any>(x: any): x is IteratorResult<T>     => hasProps(x, ['done'], ['value']);
-/** @ignore */ export const isUnderlyingSink     = <T = any>(x: any): x is UnderlyingSink<T>     => hasFuncs(x, 'abort', 'close', 'start', 'write');
-/** @ignore */ export const isFileHandle         =          (x: any): x is FileHandle            => hasFuncs(x, 'stat') && hasProps(x, ['fd', 'number']);
-/** @ignore */ export const isFSReadStream       =          (x: any): x is FSReadStream          => isReadableNodeStream(x) && hasProps(x, ['bytesRead', 'number']);
-/** @ignore */ export const isFetchResponse      =          (x: any): x is Response              => hasProps(x, ['body'], ['bodyUsed', 'boolean'], ['ok', 'boolean']);
-/** @ignore */ export const isWritableDOMStream  = <T = any>(x: any): x is WritableStream<T>     => !(x instanceof ReadableInterop) && hasFuncs(x, 'abort', 'getWriter');
-/** @ignore */ export const isReadableDOMStream  = <T = any>(x: any): x is ReadableStream<T>     => !(x instanceof ReadableInterop) && hasFuncs(x, 'tee', 'cancel', 'pipeTo', 'getReader');
-/** @ignore */ export const isWritableNodeStream =          (x: any): x is NodeJS.WritableStream => !(x instanceof ReadableInterop) && hasFuncs(x, 'write', 'end') && hasProps(x, ['writable', 'boolean']);
-/** @ignore */ export const isReadableNodeStream =          (x: any): x is NodeJS.ReadableStream => !(x instanceof ReadableInterop) && hasFuncs(x, 'read', 'pipe') && hasProps(x, ['readable', 'boolean']);
+/** @ignore */
+export const isPromise = <T = any>(x: any): x is PromiseLike<T> => {
+    return isObject(x) && isFunction(x.then);
+};
+
+/** @ignore */
+export const isObservable = <T = any>(x: any): x is Observable<T> => {
+    return isObject(x) && isFunction(x.subscribe);
+};
+
+/** @ignore */
+export const isIterable = <T = any>(x: any): x is Iterable<T> => {
+    return isObject(x) && isFunction(x[Symbol.iterator]);
+};
+
+/** @ignore */
+export const isAsyncIterable = <T = any>(x: any): x is AsyncIterable<T> => {
+    return isObject(x) && isFunction(x[Symbol.asyncIterator]);
+};
+
+/** @ignore */
+export const isArrowJSON = (x: any): x is ArrowJSONLike  => {
+    return isObject(x) && isObject(x['schema']);
+};
+
+/** @ignore */
+export const isArrayLike = <T = any>(x: any): x is ArrayLike<T> => {
+    return isObject(x) && isNumber(x['length']);
+};
+
+/** @ignore */
+export const isIteratorResult = <T = any>(x: any): x is IteratorResult<T> => {
+    return isObject(x) && ('done' in x) && ('value' in x);
+};
+
+/** @ignore */
+export const isUnderlyingSink = <T = any>(x: any): x is UnderlyingSink<T> => {
+    return isObject(x) &&
+        isFunction(x['abort']) &&
+        isFunction(x['close']) &&
+        isFunction(x['start']) &&
+        isFunction(x['write']);
+};
+
+/** @ignore */
+export const isFileHandle = (x: any): x is FileHandle => {
+    return isObject(x) && isFunction(x['stat']) && isNumber(x['fd']);
+};
+
+/** @ignore */
+export const isFSReadStream = (x: any): x is FSReadStream => {
+    return isReadableNodeStream(x) && isNumber((<any> x)['bytesRead']);
+};
+
+/** @ignore */
+export const isFetchResponse = (x: any): x is Response => {
+    return isObject(x) && isReadableDOMStream(x['body']);
+};
+
+/** @ignore */
+export const isWritableDOMStream = <T = any>(x: any): x is WritableStream<T> => {
+    return isObject(x) &&
+        isFunction(x['abort']) &&
+        isFunction(x['getWriter']) &&
+        !(x instanceof ReadableInterop);
+};
+
+/** @ignore */
+export const isReadableDOMStream = <T = any>(x: any): x is ReadableStream<T> => {
+    return isObject(x) &&
+        isFunction(x['tee']) &&
+        isFunction(x['cancel']) &&
+        isFunction(x['pipeTo']) &&
+        isFunction(x['getReader']) &&
+        !(x instanceof ReadableInterop);
+};
+
+/** @ignore */
+export const isWritableNodeStream = (x: any): x is NodeJS.WritableStream => {
+    return isObject(x) &&
+        isFunction(x['end']) &&
+        isFunction(x['write']) &&
+        isBoolean(x['writable']) &&
+        !(x instanceof ReadableInterop);
+};
+
+/** @ignore */
+export const isReadableNodeStream = (x: any): x is NodeJS.ReadableStream => {
+    return isObject(x) &&
+        isFunction(x['read']) &&
+        isFunction(x['pipe']) &&
+        isBoolean(x['readable']) &&
+        !(x instanceof ReadableInterop);
+};
