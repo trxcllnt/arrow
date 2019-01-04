@@ -60,35 +60,35 @@ export interface Writable<T> {
 /** @ignore */
 export interface ReadableWritable<TReadable, TWritable> extends Readable<TReadable>, Writable<TWritable> {
     [Symbol.asyncIterator](): AsyncIterableIterator<TReadable>;
-    toReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<TReadable>;
-    toReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
+    toDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<TReadable>;
+    toNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
 }
 
 /** @ignore */
 export abstract class ReadableInterop<T> {
 
-    public abstract toReadableDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
-    public abstract toReadableNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
+    public abstract toDOMStream(options?: ReadableDOMStreamOptions): ReadableStream<T>;
+    public abstract toNodeStream(options?: import('stream').ReadableOptions): import('stream').Readable;
 
     public tee(): [ReadableStream<T>, ReadableStream<T>] {
-        return this._getReadableDOMStream().tee();
+        return this._getDOMStream().tee();
     }
     public pipe<R extends NodeJS.WritableStream>(writable: R, options?: { end?: boolean; }) {
-        return this._getReadableNodeStream().pipe(writable, options);
+        return this._getNodeStream().pipe(writable, options);
     }
-    public pipeTo(writable: WritableStream<T>, options?: PipeOptions) { return this._getReadableDOMStream().pipeTo(writable, options); }
+    public pipeTo(writable: WritableStream<T>, options?: PipeOptions) { return this._getDOMStream().pipeTo(writable, options); }
     public pipeThrough<R extends ReadableStream<any>>(duplex: { writable: WritableStream<T>, readable: R }, options?: PipeOptions) {
-        return this._getReadableDOMStream().pipeThrough(duplex, options);
+        return this._getDOMStream().pipeThrough(duplex, options);
     }
 
-    private _readableDOMStream?: ReadableStream<T>;
-    private _getReadableDOMStream() {
-        return this._readableDOMStream || (this._readableDOMStream = this.toReadableDOMStream());
+    private _DOMStream?: ReadableStream<T>;
+    private _getDOMStream() {
+        return this._DOMStream || (this._DOMStream = this.toDOMStream());
     }
 
-    private _readableNodeStream?: import('stream').Readable;
-    private _getReadableNodeStream() {
-        return this._readableNodeStream || (this._readableNodeStream = this.toReadableNodeStream());
+    private _nodeStream?: import('stream').Readable;
+    private _getNodeStream() {
+        return this._nodeStream || (this._nodeStream = this.toNodeStream());
     }
 }
 
@@ -138,15 +138,15 @@ export class AsyncQueue<TReadable = Uint8Array, TWritable = TReadable> extends R
     }
 
     public [Symbol.asyncIterator]() { return this; }
-    public toReadableDOMStream(options?: ReadableDOMStreamOptions) {
-        return streamAdapters.toReadableDOMStream(
+    public toDOMStream(options?: ReadableDOMStreamOptions) {
+        return streamAdapters.toDOMStream(
             (this._closedPromiseResolve || this._error)
                 ? (this as AsyncIterable<TReadable>)
                 : (this._values as any) as Iterable<TReadable>,
             options);
     }
-    public toReadableNodeStream(options?: import('stream').ReadableOptions) {
-        return streamAdapters.toReadableNodeStream(
+    public toNodeStream(options?: import('stream').ReadableOptions) {
+        return streamAdapters.toNodeStream(
             (this._closedPromiseResolve || this._error)
                 ? (this as AsyncIterable<TReadable>)
                 : (this._values as any) as Iterable<TReadable>,

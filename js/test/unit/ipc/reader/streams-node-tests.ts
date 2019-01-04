@@ -66,7 +66,7 @@ import { validateRecordBatchAsyncIterator } from '../validate';
             }
         });
 
-        describe(`toReadableNodeStream (${name})`, () => {
+        describe(`toNodeStream (${name})`, () => {
 
             describe(`RecordBatchJSONReader`, () => {
                 test('Uint8Array', json.buffer((source) => validate(bignumJSONParse(`${Buffer.from(source)}`))));
@@ -108,7 +108,7 @@ import { validateRecordBatchAsyncIterator } from '../validate';
 
             async function validate(source: any) {
                 const reader: RecordBatchReader = await RecordBatchReader.from(source);
-                await validateRecordBatchAsyncIterator(3, reader.toReadableNodeStream()[Symbol.asyncIterator]());
+                await validateRecordBatchAsyncIterator(3, reader.toNodeStream()[Symbol.asyncIterator]());
             }
         });
     }
@@ -120,7 +120,7 @@ import { validateRecordBatchAsyncIterator } from '../validate';
         const tables = [...generateRandomTables([10, 20, 30])];
 
         const stream = concatStream(tables.map((table) =>
-            () => RecordBatchStreamWriter.writeAll(table).toReadableNodeStream()
+            () => RecordBatchStreamWriter.writeAll(table).toNodeStream()
         )) as NodeJS.ReadableStream;
 
         let index = -1;

@@ -18,14 +18,13 @@
 import { toUint8Array } from '../../util/buffer';
 import { ReadableDOMStreamOptions } from '../../io/interfaces';
 import { isIterable, isAsyncIterable } from '../../util/compat';
-import { protectArrayBufferFromWhatwgRefImpl } from './hack';
 
 /** @ignore */
-export function toReadableDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableDOMStreamOptions): ReadableStream<T> {
+export function toDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableDOMStreamOptions): ReadableStream<T> {
     if (isAsyncIterable<T>(source)) { return asyncIterableAsReadableDOMStream(source, options); }
     if (isIterable<T>(source)) { return iterableAsReadableDOMStream(source, options); }
     /* istanbul ignore next */
-    throw new Error(`toReadableDOMStream() must be called with an Iterable or AsyncIterable`);
+    throw new Error(`toDOMStream() must be called with an Iterable or AsyncIterable`);
 }
 
 /** @ignore */
@@ -49,7 +48,7 @@ function iterableAsReadableDOMStream<T>(source: Iterable<T>, options?: ReadableD
         while (!(r = it.next(bm ? size : null)).done) {
             if (ArrayBuffer.isView(r.value) && (buf = toUint8Array(r.value))) {
                 size != null && bm && (size = size - buf.byteLength + 1);
-                r.value = <any> protectArrayBufferFromWhatwgRefImpl(buf);
+                r.value = <any> buf;
             }
             controller.enqueue(r.value);
             if (size != null && --size <= 0) { return; }
@@ -79,7 +78,7 @@ function asyncIterableAsReadableDOMStream<T>(source: AsyncIterable<T>, options?:
         while (!(r = await it.next(bm ? size : null)).done) {
             if (ArrayBuffer.isView(r.value) && (buf = toUint8Array(r.value))) {
                 size != null && bm && (size = size - buf.byteLength + 1);
-                r.value = <any> protectArrayBufferFromWhatwgRefImpl(buf);
+                r.value = <any> buf;
             }
             controller.enqueue(r.value);
             if (size != null && --size <= 0) { return; }

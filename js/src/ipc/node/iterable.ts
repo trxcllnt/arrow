@@ -21,11 +21,11 @@ import { isIterable, isAsyncIterable } from '../../util/compat';
 type ReadableOptions = import('stream').ReadableOptions;
 
 /** @ignore */
-export function toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableOptions): Readable {
+export function toNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableOptions): Readable {
     if (isAsyncIterable<T>(source)) { return new AsyncIterableReadable(source[Symbol.asyncIterator](), options); }
     if (isIterable<T>(source)) { return new IterableReadable(source[Symbol.iterator](), options); }
     /* istanbul ignore next */
-    throw new Error(`toReadableNodeStream() must be called with an Iterable or AsyncIterable`);
+    throw new Error(`toNodeStream() must be called with an Iterable or AsyncIterable`);
 }
 
 /** @ignore */

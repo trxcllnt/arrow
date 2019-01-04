@@ -18,11 +18,11 @@
 import streamAdapters from './io/adapters';
 import { RecordBatchReader } from './ipc/reader';
 import { RecordBatchWriter } from './ipc/writer';
-import { toReadableDOMStream } from './ipc/whatwg/iterable';
+import { toDOMStream } from './ipc/whatwg/iterable';
 import { recordBatchReaderThroughDOMStream } from './ipc/whatwg/reader';
 import { recordBatchWriterThroughDOMStream } from './ipc/whatwg/writer';
 
-streamAdapters.toReadableDOMStream = toReadableDOMStream;
+streamAdapters.toDOMStream = toDOMStream;
 RecordBatchReader['throughDOM'] = recordBatchReaderThroughDOMStream;
 RecordBatchWriter['throughDOM'] = recordBatchWriterThroughDOMStream;
 

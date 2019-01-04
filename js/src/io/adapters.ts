@@ -33,19 +33,19 @@ export default {
     fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncIterable<T> | PromiseLike<T>): AsyncIterableIterator<Uint8Array> {
         return pump(fromAsyncIterable<T>(source));
     },
-    fromReadableDOMStream<T extends ArrayBufferViewInput>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
-        return pump(fromReadableDOMStream<T>(source));
+    fromDOMStream<T extends ArrayBufferViewInput>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
+        return pump(fromDOMStream<T>(source));
     },
-    fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
-        return pump(fromReadableNodeStream(stream));
-    },
-    // @ts-ignore
-    toReadableDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableDOMStreamOptions): ReadableStream<T> {
-        throw new Error(`"toReadableDOMStream" not available in this environment`);
+    fromNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
+        return pump(fromNodeStream(stream));
     },
     // @ts-ignore
-    toReadableNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: import('stream').ReadableOptions): import('stream').Readable {
-        throw new Error(`"toReadableNodeStream" not available in this environment`);
+    toDOMStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: ReadableDOMStreamOptions): ReadableStream<T> {
+        throw new Error(`"toDOMStream" not available in this environment`);
+    },
+    // @ts-ignore
+    toNodeStream<T>(source: Iterable<T> | AsyncIterable<T>, options?: import('stream').ReadableOptions): import('stream').Readable {
+        throw new Error(`"toNodeStream" not available in this environment`);
     },
 };
 
@@ -149,7 +149,7 @@ async function* fromAsyncIterable<T extends ArrayBufferViewInput>(source: AsyncI
 // add support for ArrayBuffer.transfer() or ArrayBuffer.prototype.realloc():
 // https://github.com/domenic/proposal-arraybuffer-transfer
 /** @ignore */
-async function* fromReadableDOMStream<T extends ArrayBufferViewInput>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
+async function* fromDOMStream<T extends ArrayBufferViewInput>(source: ReadableStream<T>): AsyncIterableIterator<Uint8Array> {
 
     let done = false, threw = false;
     let buffers: Uint8Array[] = [], buffer: Uint8Array;
@@ -304,7 +304,7 @@ const onEvent = <T extends string>(stream: NodeJS.ReadableStream, event: T) => {
 };
 
 /** @ignore */
-async function* fromReadableNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
+async function* fromNodeStream(stream: NodeJS.ReadableStream): AsyncIterableIterator<Uint8Array> {
 
     let events: Event[] = [];
     let event: EventName = 'error';

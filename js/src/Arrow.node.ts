@@ -18,11 +18,11 @@
 import streamAdapters from './io/adapters';
 import { RecordBatchReader } from './ipc/reader';
 import { RecordBatchWriter } from './ipc/writer';
-import { toReadableNodeStream } from './ipc/node/iterable';
+import { toNodeStream } from './ipc/node/iterable';
 import { recordBatchReaderThroughNodeStream } from './ipc/node/reader';
 import { recordBatchWriterThroughNodeStream } from './ipc/node/writer';
 
-streamAdapters.toReadableNodeStream = toReadableNodeStream;
+streamAdapters.toNodeStream = toNodeStream;
 RecordBatchReader['throughNode'] = recordBatchReaderThroughNodeStream;
 RecordBatchWriter['throughNode'] = recordBatchWriterThroughNodeStream;
 

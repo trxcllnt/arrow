@@ -80,8 +80,8 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any>
 
     public get closed() { return this._sink.closed; }
     public [Symbol.asyncIterator]() { return this._sink[Symbol.asyncIterator](); }
-    public toReadableDOMStream(options?: ReadableDOMStreamOptions) { return this._sink.toReadableDOMStream(options); }
-    public toReadableNodeStream(options?: import('stream').ReadableOptions) { return this._sink.toReadableNodeStream(options); }
+    public toDOMStream(options?: ReadableDOMStreamOptions) { return this._sink.toDOMStream(options); }
+    public toNodeStream(options?: import('stream').ReadableOptions) { return this._sink.toNodeStream(options); }
 
     public close() { return this.reset()._sink.close(); }
     public abort(reason?: any) { return this.reset()._sink.abort(reason); }
@@ -92,9 +92,9 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any>
         } else {
             this._sink = new AsyncByteQueue();
             if (sink && isWritableDOMStream(sink)) {
-                this.toReadableDOMStream().pipeTo(sink);
+                this.toDOMStream().pipeTo(sink);
             } else if (sink && isWritableNodeStream(sink)) {
-                this.toReadableNodeStream().pipe(sink);
+                this.toNodeStream().pipe(sink);
             }
         }
 

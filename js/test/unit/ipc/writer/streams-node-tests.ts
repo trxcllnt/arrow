@@ -96,7 +96,7 @@ import {
             }
         });
 
-        describe(`toReadableNodeStream (${name})`, () => {
+        describe(`toNodeStream (${name})`, () => {
 
             const wrapArgInPromise = (fn: (p: Promise<any>) => any) => (x: any) => fn(Promise.resolve(x));
 
@@ -110,7 +110,7 @@ import {
                 async function validate(source: { schema: any } | Promise<{ schema: any }>) {
                     const reader = await RecordBatchReader.from(<any> source);
                     const writer = await RecordBatchJSONWriter.writeAll(reader);
-                    const buffer = await concatBuffersAsync(writer.toReadableNodeStream());
+                    const buffer = await concatBuffersAsync(writer.toNodeStream());
                     validateRecordBatchReader('json', 3, RecordBatchReader.from(toJSON(buffer)));
                 }
             });
@@ -137,7 +137,7 @@ import {
                     async function validate(source: any) {
                         const reader = await RecordBatchReader.from(source);
                         const writer = await RecordBatchFileWriter.writeAll(reader);
-                        const stream = await RecordBatchReader.from(writer.toReadableNodeStream());
+                        const stream = await RecordBatchReader.from(writer.toNodeStream());
                         await validateAsyncRecordBatchReader('file', 3, stream);
                     }
                 });
@@ -162,7 +162,7 @@ import {
                     async function validate(source: any) {
                         const writer = new RecordBatchFileWriter();
                         /* no await */ writer.writeAll(await RecordBatchReader.from(source));
-                        const reader = await RecordBatchReader.from(writer.toReadableNodeStream());
+                        const reader = await RecordBatchReader.from(writer.toNodeStream());
                         await validateAsyncRecordBatchReader('file', 3, reader);
                     }
                 });
@@ -190,7 +190,7 @@ import {
                     async function validate(source: any) {
                         const reader = await RecordBatchReader.from(source);
                         const writer = await RecordBatchStreamWriter.writeAll(reader);
-                        const stream = await RecordBatchReader.from(writer.toReadableNodeStream());
+                        const stream = await RecordBatchReader.from(writer.toNodeStream());
                         await validateAsyncRecordBatchReader('stream', 3, stream);
                     }
                 });
@@ -215,7 +215,7 @@ import {
                     async function validate(source: any) {
                         const writer = new RecordBatchStreamWriter();
                         /* no await */ writer.writeAll(await RecordBatchReader.from(source));
-                        const reader = await RecordBatchReader.from(writer.toReadableNodeStream());
+                        const reader = await RecordBatchReader.from(writer.toNodeStream());
                         await validateAsyncRecordBatchReader('stream', 3, reader);
                     }
                 });

@@ -61,14 +61,14 @@ export abstract class RecordBatchReader<T extends { [key: string]: DataType } = 
     public abstract [Symbol.iterator](): IterableIterator<RecordBatch<T>>;
     public abstract [Symbol.asyncIterator](): AsyncIterableIterator<RecordBatch<T>>;
 
-    public toReadableDOMStream() {
-        return streamAdapters.toReadableDOMStream<RecordBatch<T>>(
+    public toDOMStream() {
+        return streamAdapters.toDOMStream<RecordBatch<T>>(
             (this.isSync()
                 ? { [Symbol.iterator]: () => this } as Iterable<RecordBatch<T>>
                 : { [Symbol.asyncIterator]: () => this } as AsyncIterable<RecordBatch<T>>));
     }
-    public toReadableNodeStream() {
-        return streamAdapters.toReadableNodeStream<RecordBatch<T>>(
+    public toNodeStream() {
+        return streamAdapters.toNodeStream<RecordBatch<T>>(
             (this.isSync()
                 ? { [Symbol.iterator]: () => this } as Iterable<RecordBatch<T>>
                 : { [Symbol.asyncIterator]: () => this } as AsyncIterable<RecordBatch<T>>),

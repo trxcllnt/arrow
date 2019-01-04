@@ -19,7 +19,6 @@ import { DataType } from '../../type';
 import { RecordBatch } from '../../recordbatch';
 import { AsyncByteStream } from '../../io/stream';
 import { RecordBatchWriter } from '../../ipc/writer';
-import { protectArrayBufferFromWhatwgRefImpl } from './hack';
 
 /** @ignore */
 export function recordBatchWriterThroughDOMStream<T extends { [key: string]: DataType } = any>(
@@ -43,7 +42,7 @@ export function recordBatchWriterThroughDOMStream<T extends { [key: string]: Dat
         let buf: Uint8Array | null = null;
         let size = controller.desiredSize;
         while (buf = await reader.read(size || null)) {
-            controller.enqueue(protectArrayBufferFromWhatwgRefImpl(buf));
+            controller.enqueue(buf);
             if (size != null && (size -= buf.byteLength) <= 0) { return; }
         }
         controller.close();

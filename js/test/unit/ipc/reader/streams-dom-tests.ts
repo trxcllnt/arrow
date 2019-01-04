@@ -62,7 +62,7 @@ import { ArrowIOTestHelper, readableDOMStreamToAsyncIterator } from '../helpers'
             }
         });
 
-        describe(`toReadableDOMStream (${name})`, () => {
+        describe(`toDOMStream (${name})`, () => {
 
             describe(`RecordBatchJSONReader`, () => {
                 test('Uint8Array', json.buffer((source) => validate(bignumJSONParse(`${Buffer.from(source)}`))));
@@ -104,7 +104,7 @@ import { ArrowIOTestHelper, readableDOMStreamToAsyncIterator } from '../helpers'
 
             async function validate(source: any) {
                 const reader: RecordBatchReader = await RecordBatchReader.from(source);
-                const iterator = readableDOMStreamToAsyncIterator(reader.toReadableDOMStream());
+                const iterator = readableDOMStreamToAsyncIterator(reader.toDOMStream());
                 await validateRecordBatchAsyncIterator(3, iterator);
             }
         });
@@ -117,7 +117,7 @@ import { ArrowIOTestHelper, readableDOMStreamToAsyncIterator } from '../helpers'
         const tables = [...generateRandomTables([10, 20, 30])];
 
         const stream = concatStream(tables.map((table, i) =>
-            RecordBatchStreamWriter.writeAll(table).toReadableDOMStream({
+            RecordBatchStreamWriter.writeAll(table).toDOMStream({
                 // Alternate between bytes mode and regular mode because code coverage
                 type: i % 2 === 0 ? 'bytes' : undefined
             })
