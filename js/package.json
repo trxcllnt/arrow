@@ -83,7 +83,7 @@
     "gulp-rename": "1.4.0",
     "gulp-sourcemaps": "2.6.4",
     "gulp-typescript": "5.0.0",
-    "ix": "2.3.5",
+    "ix": "2.4.3",
     "jest": "23.6.0",
     "jest-environment-node-debug": "2.0.0",
     "jest-silent-reporter": "0.1.1",
