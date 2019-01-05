@@ -134,7 +134,7 @@ export class RecordBatchWriter<T extends { [key: string]: DataType } = any> exte
                 this._started = true;
                 this._schema = schema;
                 this._writeSchema(schema);
-            } 
+            }
         }
 
         return this;

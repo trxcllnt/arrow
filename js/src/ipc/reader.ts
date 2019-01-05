@@ -75,12 +75,12 @@ export class RecordBatchReader<T extends { [key: string]: DataType } = any> exte
     public get numDictionaries() { return this._impl.numDictionaries; }
     public get numRecordBatches() { return this._impl.numRecordBatches; }
     public get footer() { return this._impl.isFile() ? this._impl.footer : null; }
-    
+
     public isSync(): this is RecordBatchReaders<T> { return this._impl.isSync(); }
     public isAsync(): this is AsyncRecordBatchReaders<T> { return this._impl.isAsync(); }
     public isFile(): this is RecordBatchFileReaders<T> { return this._impl.isFile(); }
     public isStream(): this is RecordBatchStreamReaders<T> { return this._impl.isStream(); }
-    
+
     public next() {
         return this._impl.next();
     }
@@ -183,12 +183,12 @@ export class RecordBatchReader<T extends { [key: string]: DataType } = any> exte
 //
 // Since TS is a structural type system, we define the following subclass stubs
 // so that concrete types exist to associate with with the interfaces below.
-// 
+//
 // The implementation for each RecordBatchReader is hidden away in the set of
 // `RecordBatchReaderImpl` classes in the second half of this file. This allows
 // us to export a single RecordBatchReader class, and swap out the impl based
 // on the io primitives or underlying arrow (JSON, file, or stream) at runtime.
-// 
+//
 // Async/await makes our job a bit harder, since it forces everything to be
 // either fully sync or fully async. This is why the logic for the reader impls
 // has been duplicated into both sync and async variants. Since the RBR
@@ -198,7 +198,7 @@ export class RecordBatchReader<T extends { [key: string]: DataType } = any> exte
 // different about their logic, aside from the async handling. This is also why
 // this code looks highly structured, as it should be nearly identical and easy
 // to follow.
-// 
+//
 
 /** @ignore */
 export class RecordBatchStreamReader<T extends { [key: string]: DataType } = any> extends RecordBatchReader<T> {
@@ -221,7 +221,7 @@ export class AsyncRecordBatchFileReader<T extends { [key: string]: DataType } = 
     constructor(protected _impl: AsyncRecordBatchFileReaderImpl<T>) { super (_impl); }
 }
 
-// 
+//
 // Now override the return types for each sync/async RecordBatchReader variant
 //
 
@@ -670,11 +670,11 @@ class RecordBatchJSONReaderImpl<T extends { [key: string]: DataType } = any> ext
     }
 }
 
-// 
+//
 // Define some helper functions and static implementations down here. There's
 // a bit of branching in the static methods that can lead to the same routines
 // being executed, so we've broken those out here for readability.
-// 
+//
 
 /** @ignore */
 function shouldAutoDestroy(self: { autoDestroy: boolean }, options?: OpenOptions) {
