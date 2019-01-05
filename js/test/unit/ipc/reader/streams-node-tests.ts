@@ -113,7 +113,7 @@ import { validateRecordBatchAsyncIterator } from '../validate';
         });
     }
 
-    it('should not close the underlying NodeJS ReadableStream when reading multiple tables', async () => {
+    it('should not close the underlying NodeJS ReadableStream when reading multiple tables to completion', async () => {
 
         expect.hasAssertions();
 
@@ -123,17 +123,66 @@ import { validateRecordBatchAsyncIterator } from '../validate';
             () => RecordBatchStreamWriter.writeAll(table).toNodeStream()
         )) as NodeJS.ReadableStream;
 
-        let index = -1;
+        let tableIndex = -1;
         let reader = await RecordBatchReader.from(stream);
 
-        try {
-            while (!(await reader.reset().open(false)).closed) {
-                const sourceTable = tables[++index];
-                const streamTable = await Table.from(reader);
-                expect(streamTable).toEqualTable(sourceTable);
-            }
-        } finally { reader.cancel(); }
+        validateStreamState(reader, stream, false);
 
-        expect(index).toBe(tables.length - 1);
+        for await (reader of RecordBatchReader.readAll(reader)) {
+
+            validateStreamState(reader, stream, false);
+
+            const sourceTable = tables[++tableIndex];
+            const streamTable = await Table.from(reader);
+            expect(streamTable).toEqualTable(sourceTable);
+        }
+
+        validateStreamState(reader, stream, true);
+        expect(tableIndex).toBe(tables.length - 1);
+    });
+
+    it('should close the underlying NodeJS ReadableStream when reading multiple tables and we break early', async () => {
+
+        expect.hasAssertions();
+
+        const tables = [...generateRandomTables([10, 20, 30])];
+
+        const stream = concatStream(tables.map((table) =>
+            () => RecordBatchStreamWriter.writeAll(table).toNodeStream()
+        )) as NodeJS.ReadableStream;
+
+        let tableIndex = -1;
+        let reader = await RecordBatchReader.from(stream);
+
+        validateStreamState(reader, stream, false);
+
+        for await (reader of RecordBatchReader.readAll(reader)) {
+
+            validateStreamState(reader, stream, false);
+
+            let batchIndex = -1;
+            const sourceTable = tables[++tableIndex];
+            const breakEarly = tableIndex === (tables.length / 2 | 0);
+
+            for await (const streamBatch of reader) {
+                expect(streamBatch).toEqualRecordBatch(sourceTable.chunks[++batchIndex]);
+                if (breakEarly && batchIndex === 1) { break; }
+            }
+            if (breakEarly) {
+                // the reader should stay open until we break from the outermost loop
+                validateStreamState(reader, stream, false);
+                break;
+            }
+        }
+
+        validateStreamState(reader, stream, true, true);
+        expect(tableIndex).toBe(tables.length / 2 | 0);
     });
 })();
+
+function validateStreamState(reader: RecordBatchReader, stream: NodeJS.ReadableStream, closed: boolean, readable = !closed) {
+    expect(reader.closed).toBe(closed);
+    expect(stream.readable).toBe(readable);
+    expect((stream as any).destroyed).toBe(closed);
+    expect((stream as any).readableFlowing).toBe(false);
+}

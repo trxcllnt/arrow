@@ -17,16 +17,17 @@
 
 import { FileHandle } from './interfaces';
 import { ByteStream, AsyncByteStream } from './stream';
+import { ArrayBufferViewInput, toUint8Array } from '../util/buffer';
 
 /** @ignore */
 export class RandomAccessFile extends ByteStream {
     public size: number;
     public position: number = 0;
     protected buffer: Uint8Array | null;
-    constructor(buffer: Uint8Array, byteLength = buffer.byteLength) {
+    constructor(buffer: ArrayBufferViewInput, byteLength?: number) {
         super();
-        this.buffer = buffer;
-        this.size = byteLength;
+        this.buffer = toUint8Array(buffer);
+        this.size = typeof byteLength === 'undefined' ? this.buffer.byteLength : byteLength;
     }
     public readInt32(position: number) {
         const { buffer, byteOffset } = this.readAt(position, 4);
@@ -61,16 +62,16 @@ export class AsyncRandomAccessFile extends AsyncByteStream {
     // @ts-ignore
     public size: number;
     public position: number = 0;
-    protected file: FileHandle | null;
-    protected _pendingSize?: Promise<void>;
+    public _pending?: Promise<void>;
+    protected _handle: FileHandle | null;
     constructor(file: FileHandle, byteLength?: number) {
         super();
-        this.file = file;
+        this._handle = file;
         if (typeof byteLength === 'number') {
             this.size = byteLength;
         } else {
-            this._pendingSize = (async () => {
-                delete this._pendingSize;
+            this._pending = (async () => {
+                delete this._pending;
                 this.size = (await file.stat()).size;
             })();
         }
@@ -80,13 +81,13 @@ export class AsyncRandomAccessFile extends AsyncByteStream {
         return new DataView(buffer, byteOffset).getInt32(0, true);
     }
     public async seek(position: number) {
-        this._pendingSize && await this._pendingSize;
+        this._pending && await this._pending;
         this.position = Math.min(position, this.size);
         return position < this.size;
     }
     public async read(nBytes?: number | null) {
-        this._pendingSize && await this._pendingSize;
-        const { file, size, position } = this;
+        this._pending && await this._pending;
+        const { _handle: file, size, position } = this;
         if (file && position < size) {
             if (typeof nBytes !== 'number') { nBytes = Infinity; }
             let pos = position, offset = 0, bytesRead = 0;
@@ -100,8 +101,8 @@ export class AsyncRandomAccessFile extends AsyncByteStream {
         return null;
     }
     public async readAt(position: number, nBytes: number) {
-        this._pendingSize && await this._pendingSize;
-        const { file, size } = this;
+        this._pending && await this._pending;
+        const { _handle: file, size } = this;
         if (file && (position + nBytes) < size) {
             const end = Math.min(size, position + nBytes);
             const buffer = new Uint8Array(end - position);
@@ -109,7 +110,7 @@ export class AsyncRandomAccessFile extends AsyncByteStream {
         }
         return new Uint8Array(nBytes);
     }
-    public async close() { const f = this.file; this.file = null; f && await f.close(); }
+    public async close() { const f = this._handle; this._handle = null; f && await f.close(); }
     public async throw(value?: any) { await this.close(); return { done: true, value }; }
     public async return(value?: any) { await this.close(); return { done: true, value }; }
 }

@@ -43,7 +43,8 @@ export interface Observable<T> {
 /** @ignore */ const isNumber = (x: any) => typeof x === 'number';
 /** @ignore */ const isBoolean = (x: any) => typeof x === 'boolean';
 /** @ignore */ const isFunction = (x: any) => typeof x === 'function';
-/** @ignore */ const isObject = (x: any) => x != null && Object(x) === x;
+/** @ignore */
+export const isObject = (x: any): x is Object => x != null && Object(x) === x;
 
 /** @ignore */
 export const isPromise = <T = any>(x: any): x is PromiseLike<T> => {

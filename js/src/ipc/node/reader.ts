@@ -15,15 +15,15 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Duplex } from 'stream';
+import { Duplex, DuplexOptions } from 'stream';
 import { DataType } from '../../type';
 import { RecordBatch } from '../../recordbatch';
 import { AsyncByteQueue } from '../../io/stream';
 import { RecordBatchReader } from '../../ipc/reader';
 
 /** @ignore */
-export function recordBatchReaderThroughNodeStream<T extends { [key: string]: DataType } = any>() {
-    return new RecordBatchReaderDuplex<T>();
+export function recordBatchReaderThroughNodeStream<T extends { [key: string]: DataType } = any>(options?: DuplexOptions & { autoDestroy: boolean }) {
+    return new RecordBatchReaderDuplex<T>(options);
 }
 
 type CB = (error?: Error | null | undefined) => void;
@@ -31,12 +31,15 @@ type CB = (error?: Error | null | undefined) => void;
 /** @ignore */
 class RecordBatchReaderDuplex<T extends { [key: string]: DataType } = any> extends Duplex {
     private _pulling: boolean = false;
+    private _autoDestroy: boolean = true;
     private _reader: RecordBatchReader | null;
     private _asyncQueue: AsyncByteQueue | null;
-    constructor() {
-        super({ allowHalfOpen: false, readableObjectMode: true, writableObjectMode: false });
+    constructor(options?: DuplexOptions & { autoDestroy: boolean }) {
+        super({ allowHalfOpen: false, ...options, readableObjectMode: true, writableObjectMode: false });
         this._reader = null;
+        this._pulling = false;
         this._asyncQueue = new AsyncByteQueue();
+        this._autoDestroy = options && (typeof options.autoDestroy === 'boolean') ? options.autoDestroy : true;
     }
     _final(cb?: CB) {
         const aq = this._asyncQueue;
@@ -66,14 +69,15 @@ class RecordBatchReaderDuplex<T extends { [key: string]: DataType } = any> exten
         cb(this._asyncQueue = this._reader = null);
     }
     async _open(source: AsyncByteQueue) {
-        return await (await RecordBatchReader.from(source)).open();
+        return await (await RecordBatchReader.from(source)).open({ autoDestroy: this._autoDestroy });
     }
     async _pull(size: number, reader: RecordBatchReader<T>) {
         let r: IteratorResult<RecordBatch<T>> | null = null;
         while (this.readable && !(r = await reader.next()).done) {
             if (!this.push(r.value) || (size != null && --size <= 0)) { break; }
         }
-        if ((r && r.done || !this.readable) && (this.push(null) || true)) {
+        if ((r && r.done || !this.readable)) {
+            this.push(null);
             await reader.cancel();
         }
         return !this.readable;

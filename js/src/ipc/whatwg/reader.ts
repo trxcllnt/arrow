@@ -21,7 +21,7 @@ import { AsyncByteQueue } from '../../io/stream';
 import { RecordBatchReader } from '../../ipc/reader';
 
 /** @ignore */
-export function recordBatchReaderThroughDOMStream<T extends { [key: string]: DataType } = any>() {
+export function recordBatchReaderThroughDOMStream<T extends { [key: string]: DataType } = any>(writableStrategy?: ByteLengthQueuingStrategy, readableStrategy?: { autoDestroy: boolean }) {
 
     const queue = new AsyncByteQueue();
     let reader: RecordBatchReader<T> | null = null;
@@ -32,10 +32,10 @@ export function recordBatchReaderThroughDOMStream<T extends { [key: string]: Dat
         async pull(controller) { reader ? await next(controller, reader) : controller.close(); }
     });
 
-    return { writable: new WritableStream(queue), readable };
+    return { writable: new WritableStream(queue, { 'highWaterMark': 2 ** 14, ...writableStrategy }), readable };
 
     async function open() {
-        return await (await RecordBatchReader.from(queue)).open();
+        return await (await RecordBatchReader.from(queue)).open(readableStrategy);
     }
 
     async function next(controller: ReadableStreamDefaultController<RecordBatch<T>>, reader: RecordBatchReader<T>) {
