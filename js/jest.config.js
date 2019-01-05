@@ -48,7 +48,6 @@ module.exports = {
       "^.+\\.tsx?$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "/(es2015|esnext)/umd/",
       "/node_modules/(?!web-stream-tools).+\\.js$"
     ],
     "testRegex": "(.*(-|\\.)(test|spec)s?)\\.(ts|tsx|js)$",
