@@ -191,8 +191,8 @@ async function* fromDOMStream<T extends ArrayBufferViewInput>(source: ReadableSt
     } catch (e) {
         (threw = true) && (await it['cancel'](e));
     } finally {
-        source['locked'] && it.releaseLock();
-        (threw === false) && (await it['cancel']());
+        (threw === false) ? (await it['cancel']())
+            : source['locked'] && it.releaseLock();
     }
 }
 
@@ -224,12 +224,9 @@ class AdaptiveByteReader<T extends ArrayBufferViewInput> {
     }
 
     async cancel(reason?: any): Promise<void> {
-        const { reader } = this;
-        this.reader = null;
-        this.releaseLock();
-        if (reader) {
-            await reader['cancel'](reason);
-        }
+        const { reader, source } = this;
+        reader && (await reader['cancel'](reason));
+        source && (source['locked'] && this.releaseLock());
     }
 
     async read(size?: number): Promise<ReadableStreamReadResult<Uint8Array>> {
