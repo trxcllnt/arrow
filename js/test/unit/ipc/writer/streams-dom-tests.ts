@@ -20,7 +20,10 @@ import {
     // generateDictionaryTables
 } from '../../../data/tables';
 
+import { AsyncIterable } from 'ix';
+
 import {
+    Table,
     RecordBatchReader,
     RecordBatchWriter,
     RecordBatchFileWriter,
@@ -29,6 +32,7 @@ import {
 } from '../../../Arrow';
 
 import {
+    nodeToDOMStream,
     ArrowIOTestHelper,
     concatBuffersAsync,
     readableDOMStreamToAsyncIterator
@@ -47,6 +51,9 @@ import {
     }
 
     /* tslint:disable */
+    const { PassThrough } = require('stream');
+
+    /* tslint:disable */
     const { parse: bignumJSONParse } = require('json-bignum');
 
     for (const table of generateRandomTables([10, 20, 30])) {
@@ -56,7 +63,7 @@ import {
         const stream = ArrowIOTestHelper.stream(table);
         const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
 
-        describe(`RecordBatchReader.throughDOM (${name})`, () => {
+        describe(`RecordBatchWriter.throughDOM (${name})`, () => {
 
             describe('file', () => {
                 describe(`convert`, () => {
@@ -223,4 +230,54 @@ import {
             });
         });
     }
+
+    describe(`RecordBatchStreamWriter.throughDOM`, () => {
+
+        const psOpts = { objectMode: true };
+        const opts = { autoDestroy: false };
+        const sleep = (n: number) => new Promise((r) => setTimeout(r, n));
+
+        it(`should write a stream of tables to the same output stream`, async () => {
+
+            const tables = [] as Table[];
+            const stream = (AsyncIterable.from(generateRandomTables([10, 20, 30]))
+                // insert some asynchrony
+                .tap({ async next(table) { tables.push(table); await sleep(1); } })
+                // have to bail out to `any` until Ix supports DOM streams
+                .pipe((xs: any) => <any> nodeToDOMStream(xs.pipe(new PassThrough(psOpts)))) as any)
+                .pipeThrough(RecordBatchStreamWriter.throughDOM(opts)) as ReadableStream<Uint8Array>;
+
+            for await (const reader of RecordBatchReader.readAll(stream)) {
+                const sourceTable = tables.shift()!;
+                const streamTable = await Table.from(reader);
+                expect(streamTable).toEqualTable(sourceTable);
+            }
+
+            expect(tables.length).toBe(0);
+            expect(stream.locked).toBe(false);
+        });
+
+        it(`should write a stream of record batches to the same output stream`, async () => {
+
+            const tables = [] as Table[];
+            const stream = (AsyncIterable.from(generateRandomTables([10, 20, 30]))
+                // insert some asynchrony
+                .tap({ async next(table) { tables.push(table); await sleep(1); } })
+                // flatMap from Table -> RecordBatches[]
+                .flatMap((table) => AsyncIterable.as(table.chunks))
+                // have to bail out to `any` until Ix supports DOM streams
+                .pipe((xs: any) => <any> nodeToDOMStream(xs.pipe(new PassThrough(psOpts)))) as any)
+                .pipeThrough(RecordBatchStreamWriter.throughDOM(opts)) as ReadableStream<Uint8Array>;
+    
+            for await (const reader of RecordBatchReader.readAll(stream)) {
+                const sourceTable = tables.shift()!;
+                const streamTable = await Table.from(reader);
+                expect(streamTable).toEqualTable(sourceTable);
+            }
+
+            expect(tables.length).toBe(0);
+            expect(stream.locked).toBe(false);
+        });
+    });
+
 })();

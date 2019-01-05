@@ -180,9 +180,9 @@ export async function* readableDOMStreamToAsyncIterator<T>(stream: ReadableStrea
     }
 }
 
-export function nodeToDOMStream(stream: NodeJS.ReadableStream, opts: any = {}) {
-    stream = new Readable().wrap(stream);
-    return new ReadableStream({
+export function nodeToDOMStream<T = any>(stream: NodeJS.ReadableStream, opts: any = {}) {
+    stream = new Readable((stream as any)._readableState).wrap(stream);
+    return new ReadableStream<T>({
         ...opts,
         start(controller) {
             stream.pause();

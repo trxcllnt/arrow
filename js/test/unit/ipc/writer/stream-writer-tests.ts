@@ -21,15 +21,40 @@ import {
 } from '../../../data/tables';
 
 import { validateRecordBatchIterator } from '../validate';
-import { Table, RecordBatchStreamWriter } from '../../../Arrow';
+import { Table, RecordBatchReader, RecordBatchStreamWriter } from '../../../Arrow';
 
 describe('RecordBatchStreamWriter', () => {
+
     for (const table of generateRandomTables([10, 20, 30])) {
         testStreamWriter(table, `[${table.schema.fields.join(', ')}]`);
     }
+
     for (const table of generateDictionaryTables([10, 20, 30])) {
         testStreamWriter(table, `${table.schema.fields[0]}`);
     }
+
+    test(`should write multiple tables to the same output stream`, async () => {
+        const tables = [] as Table[];
+        const writer = new RecordBatchStreamWriter({ autoDestroy: false });
+        const validate = (async () => {
+            for await (const reader of RecordBatchReader.readAll(writer)) {
+                const sourceTable = tables.shift()!;
+                const streamTable = await Table.from(reader);
+                expect(streamTable).toEqualTable(sourceTable);
+            }
+        })();
+        for (const table of generateRandomTables([10, 20, 30])) {
+            tables.push(table);
+            await writer.writeAll((async function*() {
+                for (const chunk of table.chunks) {
+                    yield chunk; // insert some asynchrony
+                    await new Promise((r) => setTimeout(r, 1));
+                }
+            }()));
+        }
+        writer.close();
+        await validate;
+    });
 });
 
 function testStreamWriter(table: Table, name: string) {

@@ -20,7 +20,10 @@ import {
     // generateDictionaryTables
 } from '../../../data/tables';
 
+import { AsyncIterable } from 'ix';
+
 import {
+    Table,
     RecordBatchReader,
     RecordBatchWriter,
     RecordBatchFileWriter,
@@ -55,7 +58,7 @@ import {
         const stream = ArrowIOTestHelper.stream(table);
         const name = `[\n ${table.schema.fields.join(',\n ')}\n]`;
 
-        describe(`RecordBatchReader.throughNode (${name})`, () => {
+        describe(`RecordBatchWriter.throughNode (${name})`, () => {
 
             describe('file', () => {
                 describe(`convert`, () => {
@@ -222,4 +225,53 @@ import {
             });
         });
     }
+
+    describe(`RecordBatchStreamWriter.throughNode`, () => {
+
+        const sleep = (n: number) => new Promise((r) => setTimeout(r, n));
+
+        it(`should write a stream of tables to the same output stream`, async () => {
+
+            const tables = [] as Table[];
+            const writer = RecordBatchStreamWriter.throughNode({ autoDestroy: false });
+            const stream = AsyncIterable
+                .from(generateRandomTables([10, 20, 30]))
+                // insert some asynchrony
+                .tap({ async next(table) { tables.push(table); await sleep(1); } })
+                .pipe(writer);
+                
+            for await (const reader of RecordBatchReader.readAll(stream)) {
+                const sourceTable = tables.shift()!;
+                const streamTable = await Table.from(reader);
+                expect(streamTable).toEqualTable(sourceTable);
+            }
+
+            expect(tables.length).toBe(0);
+            expect(writer.readable).toBe(false);
+            expect((writer as any).destroyed).toBe(true);
+        });
+
+        it(`should write a stream of record batches to the same output stream`, async () => {
+
+            const tables = [] as Table[];
+            const writer = RecordBatchStreamWriter.throughNode({ autoDestroy: false });
+            const stream = AsyncIterable
+                .from(generateRandomTables([10, 20, 30]))
+                // insert some asynchrony
+                .tap({ async next(table) { tables.push(table); await sleep(1); } })
+                .flatMap((table) => AsyncIterable.as(table.chunks))
+                .pipe(writer);
+                
+            for await (const reader of RecordBatchReader.readAll(stream)) {
+                const sourceTable = tables.shift()!;
+                const streamTable = await Table.from(reader);
+                expect(streamTable).toEqualTable(sourceTable);
+            }
+
+            expect(tables.length).toBe(0);
+            expect(writer.readable).toBe(false);
+            expect((writer as any).destroyed).toBe(true);
+        });
+
+    });
 })();

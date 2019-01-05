@@ -23,18 +23,18 @@ import { RecordBatchWriter } from '../../ipc/writer';
 /** @ignore */
 export function recordBatchWriterThroughDOMStream<T extends { [key: string]: DataType } = any>(
     this: typeof RecordBatchWriter,
-    writableStrategy?: QueuingStrategy<RecordBatch<T>>,
+    writableStrategy?: QueuingStrategy<RecordBatch<T>> & { autoDestroy: boolean },
     readableStrategy?: { highWaterMark?: number, size?: any }
 ) {
 
-    const writer = new this<T>();
+    const writer = new this<T>(writableStrategy);
     const reader = new AsyncByteStream(writer);
     const readable = new ReadableStream({
         type: 'bytes',
         async cancel() { await reader.cancel(); },
         async pull(controller) { await next(controller); },
         async start(controller) { await next(controller); },
-    }, readableStrategy);
+    }, { 'highWaterMark': 2 ** 14, ...readableStrategy });
 
     return { writable: new WritableStream(writer, writableStrategy), readable };
 

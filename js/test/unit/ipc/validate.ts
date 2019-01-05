@@ -31,7 +31,7 @@ export function validateRecordBatchReader<T extends RecordBatchFileReader | Reco
     expect(type === 'file' ? reader.isFile() : reader.isStream()).toBe(true);
     expect(reader.schema).toBeInstanceOf(Schema);
     validateRecordBatchIterator(numBatches, reader[Symbol.iterator]());
-    expect(reader.closed).toBe(reader.autoClose);
+    expect(reader.closed).toBe(reader.autoDestroy);
     return reader;
 }
 
@@ -41,7 +41,7 @@ export async function validateAsyncRecordBatchReader<T extends RecordBatchReader
     expect(reader.schema).toBeInstanceOf(Schema);
     expect(type === 'file' ? reader.isFile() : reader.isStream()).toBe(true);
     await validateRecordBatchAsyncIterator(numBatches, reader[Symbol.asyncIterator]());
-    expect(reader.closed).toBe(reader.autoClose);
+    expect(reader.closed).toBe(reader.autoDestroy);
     return reader;
 }
 

@@ -15,14 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { Duplex } from 'stream';
+import { Duplex, DuplexOptions } from 'stream';
 import { DataType } from '../../type';
 import { AsyncByteStream } from '../../io/stream';
 import { RecordBatchWriter } from '../../ipc/writer';
 
 /** @ignore */
-export function recordBatchWriterThroughNodeStream<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter) {
-    return new RecordBatchWriterDuplex(new this<T>());
+export function recordBatchWriterThroughNodeStream<T extends { [key: string]: DataType } = any>(this: typeof RecordBatchWriter, options?: DuplexOptions & { autoDestroy: boolean }) {
+    return new RecordBatchWriterDuplex(new this<T>(options));
 }
 
 type CB = (error?: Error | null | undefined) => void;
@@ -32,8 +32,8 @@ class RecordBatchWriterDuplex<T extends { [key: string]: DataType } = any> exten
     private _pulling: boolean = false;
     private _reader: AsyncByteStream | null;
     private _writer: RecordBatchWriter | null;
-    constructor(writer: RecordBatchWriter<T>) {
-        super({ allowHalfOpen: false, writableObjectMode: true, readableObjectMode: false });
+    constructor(writer: RecordBatchWriter<T>, options?: DuplexOptions) {
+        super({ allowHalfOpen: false, ...options, writableObjectMode: true, readableObjectMode: false });
         this._writer = writer;
         this._reader = new AsyncByteStream(writer);
     }
@@ -67,7 +67,8 @@ class RecordBatchWriterDuplex<T extends { [key: string]: DataType } = any> exten
             }
             if (!this.push(r.value) || size <= 0) { break; }
         }
-        if ((r && r.done || !this.readable) && (this.push(null) || true)) {
+        if ((r && r.done || !this.readable)) {
+            this.push(null);
             await reader.cancel();
         }
         return !this.readable;
