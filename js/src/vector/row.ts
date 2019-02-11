@@ -24,7 +24,7 @@ import { StructVector } from '../vector/struct';
 /** @ignore */ export const kLength = Symbol.for('length');
 /** @ignore */ export const kParent = Symbol.for('parent');
 /** @ignore */ export const kRowIndex = Symbol.for('rowIndex');
-/** @ignore */ const columnDescriptor = { enumerable: true, configurable: false, get: () => {} };
+/** @ignore */ const columnDescriptor = { enumerable: true, configurable: false, get: null as any };
 /** @ignore */ const rowLengthDescriptor = { writable: false, enumerable: false, configurable: true, value: null as any };
 /** @ignore */ const rowParentDescriptor = { writable: false, enumerable: false, configurable: false, value: null as any };
 
@@ -55,17 +55,18 @@ export class Row<T extends { [key: string]: DataType }> implements Iterable<T[ke
         Object.defineProperty(this, kParent, rowParentDescriptor);
         Object.defineProperty(this, kLength, rowLengthDescriptor);
         fields.forEach((field, columnIndex) => {
-            columnDescriptor.get = this._bindGetter(columnIndex);
-            // set configurable to true to ensure Object.defineProperty
-            // doesn't throw in the case of duplicate column names
             if (!this.hasOwnProperty(field.name)) {
                 columnDescriptor.enumerable = fieldsAreEnumerable;
+                columnDescriptor.get || (columnDescriptor.get = this._bindGetter(columnIndex));
                 Object.defineProperty(this, field.name, columnDescriptor);
             }
-            columnDescriptor.enumerable = !fieldsAreEnumerable;
-            Object.defineProperty(this, columnIndex, columnDescriptor);
+            if (!this.hasOwnProperty(columnIndex)) {
+                columnDescriptor.enumerable = !fieldsAreEnumerable;
+                columnDescriptor.get || (columnDescriptor.get = this._bindGetter(columnIndex));
+                Object.defineProperty(this, columnIndex, columnDescriptor);
+            }
+            columnDescriptor.get = null as any;
         });
-        columnDescriptor.get = null as any;
         rowParentDescriptor.value = null as any;
         rowLengthDescriptor.value = null as any;
     }
