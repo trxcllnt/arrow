@@ -36,7 +36,7 @@ describe('Table#serialize()', () => {
 
     test(`doesn't swap the order of buffers that share the same underlying ArrayBuffer but are in a different order`, () => {
         const values = new Int32Array([0, 1, 2, 3, 4, 5, 6, 7]);
-        const expected = values.slice()
+        const expected = values.slice();
         const x = Int32Vector.from(values.subarray(4, 8)); // back
         const y = Int32Vector.from(values.subarray(0, 4)); // front
         const source = Table.new([x, y], ['x', 'y']);
