@@ -108,32 +108,35 @@ export interface BN<T extends BigNumArray> extends TypedArrayLike<T> {
 }
 
 /** @ignore */
-function bignumToNumber<T extends BN<BigNumArray>>({ buffer, byteOffset, length }: T) {
-    let int64 = 0;
-    let words = new Uint32Array(buffer, byteOffset, length);
-    for (let i = 0, n = words.length; i < n;) {
-        int64 += words[i++] + (words[i++] * (i ** 32));
+function bignumToNumber<T extends BN<BigNumArray>>({ buffer, byteOffset, length, signed }: T) {
+    let words = new Int32Array(buffer, byteOffset, length);
+    let number = 0, i = 0, n = words.length, hi, lo;
+    while (i < n) {
+        lo = words[i++];
+        hi = words[i++];
+        number += signed ? (lo >>> 0) + (hi         * (i ** 32))
+                         : (lo >>> 0) + ((hi >>> 0) * (i ** 32));
     }
-    return int64;
+    return number;
 }
 
 /** @ignore */
-let bignumToString: { <T extends BN<BigNumArray>>(a: T): string; };
+export let bignumToString: { <T extends BN<BigNumArray>>(a: T): string; };
 /** @ignore */
-let bignumToBigInt: { <T extends BN<BigNumArray>>(a: T): bigint; };
+export let bignumToBigInt: { <T extends BN<BigNumArray>>(a: T): bigint; };
 
 if (!BigIntAvailable) {
     bignumToString = decimalToString;
     bignumToBigInt = <any> bignumToString;
 } else {
-    bignumToBigInt = (<T extends BN<BigNumArray>>(a: T) => a.length === 2 ? new a.BigIntArray(a.buffer, a.byteOffset, 1)[0] : <any>decimalToString(a));
-    bignumToString = (<T extends BN<BigNumArray>>(a: T) => a.length === 2 ? `${new a.BigIntArray(a.buffer, a.byteOffset, 1)[0]}` : decimalToString(a));
+    bignumToBigInt = (<T extends BN<BigNumArray>>(a: T) => a.byteLength === 8 ? new a.BigIntArray(a.buffer, a.byteOffset, 1)[0] : <any>decimalToString(a));
+    bignumToString = (<T extends BN<BigNumArray>>(a: T) => a.byteLength === 8 ? `${new a.BigIntArray(a.buffer, a.byteOffset, 1)[0]}` : decimalToString(a));
 }
 
 function decimalToString<T extends BN<BigNumArray>>(a: T) {
     let digits = '';
     let base64 = new Uint32Array(2);
-    let base32 = new Uint16Array(a.buffer, a.byteOffset, a.length * 2);
+    let base32 = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
     let checks = new Uint32Array((base32 = new Uint16Array(base32).reverse()).buffer);
     let i = -1, n = base32.length - 1;
     do {

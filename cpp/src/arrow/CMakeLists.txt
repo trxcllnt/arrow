@@ -158,6 +158,7 @@ if(ARROW_COMPUTE)
       compute/kernels/hash.cc
       compute/kernels/mean.cc
       compute/kernels/sum.cc
+      compute/kernels/take.cc
       compute/kernels/util-internal.cc
       compute/operations/cast.cc
       compute/operations/literal.cc)
@@ -274,6 +275,7 @@ if(ARROW_BUILD_TESTS OR ARROW_BUILD_BENCHMARKS)
   # that depend on gtest
   add_arrow_lib(arrow_testing
                 SOURCES
+                ipc/test-common.cc
                 testing/gtest_util.cc
                 testing/random.cc
                 OUTPUTS
@@ -320,7 +322,8 @@ if(WIN32)
                  array-test.cc
                  array-binary-test.cc
                  array-list-test.cc
-                 array-struct-test.cc)
+                 array-struct-test.cc
+                 array-union-test.cc)
 else()
   add_arrow_test(array-test
                  SOURCES
@@ -328,7 +331,8 @@ else()
                  array-binary-test.cc
                  array-dict-test.cc
                  array-list-test.cc
-                 array-struct-test.cc)
+                 array-struct-test.cc
+                 array-union-test.cc)
 endif()
 
 add_arrow_test(buffer-test)
