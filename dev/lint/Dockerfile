@@ -25,7 +25,7 @@ RUN apt-get update && \
       clang-tidy-7 \
       clang-tools-7
 
-RUN conda install flake8 && \
+RUN conda install -y flake8 && \
     conda clean --all -y
 
 ENV PATH=/opt/iwyu/bin:$PATH

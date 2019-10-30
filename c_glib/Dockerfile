@@ -30,7 +30,7 @@ RUN apt-get update -y -q && \
     && rm -rf /var/lib/apt/lists/*
 
 COPY c_glib/Gemfile /arrow/c_glib/
-RUN conda install meson=0.50.1 && \
+RUN conda install -y meson=0.50.1 && \
     conda clean --all && \
     gem install bundler && \
     bundle install --gemfile arrow/c_glib/Gemfile

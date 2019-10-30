@@ -20,7 +20,7 @@ FROM arrowdev/arrow-cpp:latest
 # install R specific packages
 ARG R_VERSION=3.6.1
 COPY ci/conda_env_r.yml /arrow/ci/
-RUN conda install -q \
+RUN conda install -y -q \
         --file arrow/ci/conda_env_r.yml \
         r-base=$R_VERSION \
         nomkl && \

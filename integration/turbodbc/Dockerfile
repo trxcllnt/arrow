@@ -27,7 +27,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     && rm -rf /var/lib/apt/lists/*
 
 # install turbodbc dependencies from conda-forge
-RUN conda install -c conda-forge pybind11 pytest pytest-cov mock unixodbc && \
+RUN conda install -y -c conda-forge pybind11 pytest pytest-cov mock unixodbc && \
     conda clean --all
 
 ENV TURBODBC_TEST_CONFIGURATION_FILES "query_fixtures_postgresql.json"

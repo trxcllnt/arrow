@@ -48,7 +48,7 @@ ADD ci/docker_install_conda.sh \
     ci/conda_env_python.yml \
     /arrow/ci/
 RUN arrow/ci/docker_install_conda.sh && \
-    conda install -c conda-forge \
+    conda install -y -c conda-forge \
         --file arrow/ci/conda_env_cpp.yml \
         --file arrow/ci/conda_env_python.yml \
         numpydoc \

@@ -18,7 +18,7 @@
 FROM arrowdev/arrow-python-3.6:latest
 
 COPY ci/conda_env_sphinx.yml /arrow/ci/
-RUN conda install --file arrow/ci/conda_env_sphinx.yml && \
+RUN conda install -y --file arrow/ci/conda_env_sphinx.yml && \
     conda clean --all
 
 CMD ["/bin/bash", "-c", "arrow/ci/docker_build_cpp.sh && arrow/ci/docker_build_python.sh && arrow/ci/docker_build_sphinx.sh"]

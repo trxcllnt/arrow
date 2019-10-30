@@ -20,7 +20,7 @@ FROM arrowdev/arrow-cpp:latest
 # install python specific packages
 ARG PYTHON_VERSION=3.6
 COPY ci/conda_env_python.yml /arrow/ci/
-RUN conda install -q \
+RUN conda install -y -q \
         --file arrow/ci/conda_env_python.yml \
         python=$PYTHON_VERSION \
         nomkl && \
