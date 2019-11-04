@@ -114,4 +114,4 @@ ENV ARROW_DEPENDENCY_SOURCE=SYSTEM \
 ENV CC=clang-${LLVM_VERSION} \
     CXX=clang++-${LLVM_VERSION}
 
-CMD ["arrow/ci/docker_build_and_test_cpp.sh"]
+CMD ["/arrow/ci/docker_build_and_test_cpp.sh"]

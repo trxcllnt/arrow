@@ -74,4 +74,4 @@ ENV CC=gcc \
 -DORC_SOURCE=BUNDLED \
 -DProtobuf_SOURCE=BUNDLED"
 
-CMD ["arrow/ci/docker_build_and_test_cpp.sh"]
+CMD ["/arrow/ci/docker_build_and_test_cpp.sh"]

@@ -25,4 +25,4 @@ RUN apt-get update && \
       clang-tidy-7 \
       clang-tools-7
 
-CMD ["arrow/ci/docker_build_and_fuzzit.sh"]
+CMD ["/arrow/ci/docker_build_and_fuzzit.sh"]

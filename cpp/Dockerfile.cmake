@@ -65,4 +65,4 @@ ENV CC=gcc \
     PARQUET_HOME=$CONDA_PREFIX
 
 # build and test
-CMD ["arrow/ci/docker_build_and_test_cpp.sh"]
+CMD ["/arrow/ci/docker_build_and_test_cpp.sh"]

@@ -49,4 +49,4 @@ ENV PATH $PATH:$GOROOT/bin
 RUN mkdir $NVM_DIR && \
     curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.0/install.sh | bash
 
-CMD ["arrow/ci/docker_integration.sh"]
+CMD ["/arrow/ci/docker_integration.sh"]

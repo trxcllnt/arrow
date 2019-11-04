@@ -30,4 +30,4 @@ ENV ARROW_PYTHON=ON \
     ARROW_BUILD_TESTS=OFF
 
 # build and test
-CMD ["arrow/ci/docker_build_and_test_python.sh"]
+CMD ["/arrow/ci/docker_build_and_test_python.sh"]
