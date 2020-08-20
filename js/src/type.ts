@@ -17,11 +17,13 @@
 
 /* tslint:disable:class-name */
 
+import { Data } from './data';
 import { Field } from './schema';
+import { Vector } from './vector';
 import { flatbuffers } from 'flatbuffers';
-import { TypedArrayConstructor } from './interfaces';
-import { VectorType as V, TypeToDataType } from './interfaces';
+import { MapRow, StructRow } from './row';
 import { instance as comparer } from './visitor/typecomparator';
+import { TypeToDataType, TypedArrayConstructor } from './interfaces';
 
 import Long = flatbuffers.Long;
 import {
@@ -54,6 +56,7 @@ export interface DataType<TType extends Type = Type, TChildren extends { [key: s
     readonly TType: TType;
     readonly TArray: any;
     readonly TValue: any;
+    readonly TChildren: TChildren;
     readonly ArrayType: any;
     readonly children: Field<TChildren[keyof TChildren]>[];
 }
@@ -202,6 +205,7 @@ export class Float<T extends Floats = Floats> extends DataType<T> {
             case Precision.SINGLE: return Float32Array;
             case Precision.DOUBLE: return Float64Array;
         }
+        // @ts-ignore
         throw new Error(`Unrecognized ${this[Symbol.toStringTag]} type`);
     }
     public toString() { return `Float${(this.precision << 5) || 16}`; }
@@ -405,7 +409,7 @@ export class IntervalDayTime extends Interval_<Type.IntervalDayTime> { construct
 export class IntervalYearMonth extends Interval_<Type.IntervalYearMonth> { constructor() { super(IntervalUnit.YEAR_MONTH); } }
 
 /** @ignore */
-export interface List<T extends DataType = any> extends DataType<Type.List, { [0]: T }>  { TArray: IterableArrayLike<T>; TValue: V<T>; }
+export interface List<T extends DataType = any> extends DataType<Type.List, { [0]: T }>  { TArray: IterableArrayLike<T>; TValue: Vector<T>; }
 /** @ignore */
 export class List<T extends DataType = any> extends DataType<Type.List, { [0]: T }> {
     constructor(child: Field<T>) {
@@ -424,10 +428,13 @@ export class List<T extends DataType = any> extends DataType<Type.List, { [0]: T
     })(List.prototype);
 }
 
+const kRowIndex = Symbol.for('rowIndex');
+
 /** @ignore */
-export interface Struct<T extends { [key: string]: DataType } = any> extends DataType<Type.Struct> { TArray: IterableArrayLike<RowLike<T>>; TValue: RowLike<T>; dataTypes: T; }
+export interface Struct<T extends { [key: string]: DataType } = any> extends DataType<Type.Struct, T> { TArray: IterableArrayLike<RowLike<T>>; TValue: RowLike<T>; dataTypes: T; }
 /** @ignore */
 export class Struct<T extends { [key: string]: DataType } = any> extends DataType<Type.Struct, T> {
+    private _row!: StructRow<T>;
     public readonly children: Field<T[keyof T]>[];
     constructor(children: Field<T[keyof T]>[]) {
         super();
@@ -435,6 +442,12 @@ export class Struct<T extends { [key: string]: DataType } = any> extends DataTyp
     }
     public get typeId() { return Type.Struct as Type.Struct; }
     public toString() { return `Struct<{${this.children.map((f) => `${f.name}:${f.type}`).join(`, `)}}>`; }
+    public createRow(data: Data<this>, index: number) {
+        const proto = this._row || (this._row = new StructRow<T>(data));
+        const bound = Object.create(proto);
+        bound[kRowIndex] = index;
+        return bound;
+    }
     protected static [Symbol.toStringTag] = ((proto: Struct) => {
         (<any> proto).children = null;
         return proto[Symbol.toStringTag] = 'Struct';
@@ -509,7 +522,7 @@ export class FixedSizeBinary extends DataType<Type.FixedSizeBinary> {
 }
 
 /** @ignore */
-export interface FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList> { TArray: IterableArrayLike<T['TArray']>; TValue: V<T>; }
+export interface FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList, { [0]: T }> { TArray: IterableArrayLike<T['TArray']>; TValue: Vector<T>; }
 /** @ignore */
 export class FixedSizeList<T extends DataType = any> extends DataType<Type.FixedSizeList, { [0]: T }> {
     public readonly children: Field<T>[];
@@ -546,9 +559,17 @@ export class Map_<TKey extends DataType = any, TValue extends DataType = any> ex
     public readonly keysSorted: boolean;
     public readonly children: Field<Struct<{ key: TKey, value: TValue }>>[];
     public get typeId() { return Type.Map as Type.Map; }
-    public get keyType(): TKey { return this.children[0].type.children[0].type as TKey; }
-    public get valueType(): TValue { return this.children[0].type.children[1].type as TValue; }
+    public get keyType(): TKey { return this.childType.children[0].type as TKey; }
+    public get valueType(): TValue { return this.childType.children[1].type as TValue; }
+    public get childType() { return this.children[0].type as Struct<{ key: TKey, value: TValue }>; }
     public toString() { return `Map<{${this.children[0].type.children.map((f) => `${f.name}:${f.type}`).join(`, `)}}>`; }
+    public createRow(data: Data<this>, index: number) {
+        const child = data.childData[0] as Data<this['childType']>;
+        const { [index]: begin, [index + 1]: end } = data.valueOffsets;
+        return new MapRow(child.slice(begin, end));
+        // const slice = child.slice(begin, end);
+        // return new MapRow(new Vector(slice.type, [slice], new Uint32Array([0, end - begin])));
+    }
     protected static [Symbol.toStringTag] = ((proto: Map_) => {
         (<any> proto).children = null;
         (<any> proto).keysSorted = null;

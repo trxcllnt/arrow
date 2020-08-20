@@ -21,17 +21,25 @@
     "inlineSourceMap": true,
 
     /* The most restrictive settings possible */
-    "strict": true,
+    // "strict": false,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "strictBindCallApply": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    
     "skipLibCheck": false,
     "importHelpers": true,
     "noEmitHelpers": true,
-    "noImplicitAny": true,
     "noUnusedLocals": true,
     "noImplicitReturns": true,
-    "allowUnusedLabels": false,
+    "noStrictGenericChecks": false,
     "noUnusedParameters": true,
+    "allowUnusedLabels": false,
     "allowUnreachableCode": false,
     "noFallthroughCasesInSwitch": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
   }
 }

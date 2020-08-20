@@ -19,9 +19,10 @@ import { Data } from './data';
 import { Type } from './enum';
 import * as type from './type';
 import { DataType } from './type';
-import { Vector } from './vector';
+import * as vecs from './vector/index';
 import * as builders from './builder/index';
 import { BuilderOptions } from './builder/index';
+import { AbstractVector } from './vector';
 
 /** @ignore */ type FloatArray = Float32Array | Float64Array;
 /** @ignore */ type IntArray = Int8Array | Int16Array | Int32Array;
@@ -113,9 +114,9 @@ export type ConstructorType<
 export type VectorCtorType<
     T extends VectorType<R>,
     R extends DataType = any,
-    TCtor extends new (type: R, data?: Data<R>[], offsets?: Uint32Array) => T =
-                  new (type: R, data?: Data<R>[], offsets?: Uint32Array) => T
-> = TCtor extends new (type: R, data?: Data<R>[], offsets?: Uint32Array) => T ? TCtor : never;
+    TCtor extends new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T =
+                  new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T
+> = TCtor extends new (data: Data<R>, ...args: VectorCtorArgs<T, R>) => T ? TCtor : never;
 
 /** @ignore */
 export type BuilderCtorType<
@@ -129,7 +130,7 @@ export type BuilderCtorType<
 export type VectorType<T extends Type | DataType = any> =
     T extends Type          ? TypeToVector<T>     :
     T extends DataType      ? DataTypeToVector<T> :
-                              Vector<any>
+                              vecs.BaseVector<any>
     ;
 
 /** @ignore */
@@ -144,7 +145,7 @@ export type VectorCtor<T extends Type | DataType | VectorType> =
     T extends VectorType    ? VectorCtorType<VectorType<T['TType']>> :
     T extends Type          ? VectorCtorType<VectorType<T>>          :
     T extends DataType      ? VectorCtorType<VectorType<T['TType']>> :
-                              VectorCtorType<Vector>
+                              VectorCtorType<vecs.BaseVector>
     ;
 
 /** @ignore */
@@ -155,107 +156,107 @@ export type BuilderCtor<T extends Type | DataType = any> =
     ;
 
 /** @ignore */
-export type DataTypeCtor<T extends Type | DataType | Vector = any> =
-    T extends DataType ? ConstructorType<T>                 :
-    T extends Vector   ? ConstructorType<T['type']>         :
-    T extends Type     ? ConstructorType<TypeToDataType<T>> :
-                         never
+export type DataTypeCtor<T extends Type | DataType | vecs.Vector = any> =
+    T extends DataType      ? ConstructorType<T>                 :
+    T extends vecs.Vector   ? ConstructorType<T['type']>         :
+    T extends Type          ? ConstructorType<TypeToDataType<T>> :
+                              never
     ;
 
 /** @ignore */
 type TypeToVector<T extends Type> = {
-    [key: number               ]: Vector ;
-    [Type.Null                 ]: Vector ;
-    [Type.Bool                 ]: Vector ;
-    [Type.Int8                 ]: Vector ;
-    [Type.Int16                ]: Vector ;
-    [Type.Int32                ]: Vector ;
-    [Type.Int64                ]: Vector ;
-    [Type.Uint8                ]: Vector ;
-    [Type.Uint16               ]: Vector ;
-    [Type.Uint32               ]: Vector ;
-    [Type.Uint64               ]: Vector ;
-    [Type.Int                  ]: Vector ;
-    [Type.Float16              ]: Vector ;
-    [Type.Float32              ]: Vector ;
-    [Type.Float64              ]: Vector ;
-    [Type.Float                ]: Vector ;
-    [Type.Utf8                 ]: Vector ;
-    [Type.Binary               ]: Vector ;
-    [Type.FixedSizeBinary      ]: Vector ;
-    [Type.Date                 ]: Vector ;
-    [Type.DateDay              ]: Vector ;
-    [Type.DateMillisecond      ]: Vector ;
-    [Type.Timestamp            ]: Vector ;
-    [Type.TimestampSecond      ]: Vector ;
-    [Type.TimestampMillisecond ]: Vector ;
-    [Type.TimestampMicrosecond ]: Vector ;
-    [Type.TimestampNanosecond  ]: Vector ;
-    [Type.Time                 ]: Vector ;
-    [Type.TimeSecond           ]: Vector ;
-    [Type.TimeMillisecond      ]: Vector ;
-    [Type.TimeMicrosecond      ]: Vector ;
-    [Type.TimeNanosecond       ]: Vector ;
-    [Type.Decimal              ]: Vector ;
-    [Type.Union                ]: Vector ;
-    [Type.DenseUnion           ]: Vector ;
-    [Type.SparseUnion          ]: Vector ;
-    [Type.Interval             ]: Vector ;
-    [Type.IntervalDayTime      ]: Vector ;
-    [Type.IntervalYearMonth    ]: Vector ;
-    [Type.Map                  ]: Vector ;
-    [Type.List                 ]: Vector ;
-    [Type.Struct               ]: Vector ;
-    [Type.Dictionary           ]: Vector ;
-    [Type.FixedSizeList        ]: Vector ;
+    [key: number               ]: vecs.BaseVector                 ;
+    [Type.Null                 ]: vecs.NullVector                 ;
+    [Type.Bool                 ]: vecs.BoolVector                 ;
+    [Type.Int8                 ]: vecs.Int8Vector                 ;
+    [Type.Int16                ]: vecs.Int16Vector                ;
+    [Type.Int32                ]: vecs.Int32Vector                ;
+    [Type.Int64                ]: vecs.Int64Vector                ;
+    [Type.Uint8                ]: vecs.Uint8Vector                ;
+    [Type.Uint16               ]: vecs.Uint16Vector               ;
+    [Type.Uint32               ]: vecs.Uint32Vector               ;
+    [Type.Uint64               ]: vecs.Uint64Vector               ;
+    [Type.Int                  ]: vecs.IntVector                  ;
+    [Type.Float16              ]: vecs.Float16Vector              ;
+    [Type.Float32              ]: vecs.Float32Vector              ;
+    [Type.Float64              ]: vecs.Float64Vector              ;
+    [Type.Float                ]: vecs.FloatVector                ;
+    [Type.Utf8                 ]: vecs.Utf8Vector                 ;
+    [Type.Binary               ]: vecs.BinaryVector               ;
+    [Type.FixedSizeBinary      ]: vecs.FixedSizeBinaryVector      ;
+    [Type.Date                 ]: vecs.DateVector                 ;
+    [Type.DateDay              ]: vecs.DateDayVector              ;
+    [Type.DateMillisecond      ]: vecs.DateMillisecondVector      ;
+    [Type.Timestamp            ]: vecs.TimestampVector            ;
+    [Type.TimestampSecond      ]: vecs.TimestampSecondVector      ;
+    [Type.TimestampMillisecond ]: vecs.TimestampMillisecondVector ;
+    [Type.TimestampMicrosecond ]: vecs.TimestampMicrosecondVector ;
+    [Type.TimestampNanosecond  ]: vecs.TimestampNanosecondVector  ;
+    [Type.Time                 ]: vecs.TimeVector                 ;
+    [Type.TimeSecond           ]: vecs.TimeSecondVector           ;
+    [Type.TimeMillisecond      ]: vecs.TimeMillisecondVector      ;
+    [Type.TimeMicrosecond      ]: vecs.TimeMicrosecondVector      ;
+    [Type.TimeNanosecond       ]: vecs.TimeNanosecondVector       ;
+    [Type.Decimal              ]: vecs.DecimalVector              ;
+    [Type.Union                ]: vecs.UnionVector                ;
+    [Type.DenseUnion           ]: vecs.DenseUnionVector           ;
+    [Type.SparseUnion          ]: vecs.SparseUnionVector          ;
+    [Type.Interval             ]: vecs.IntervalVector             ;
+    [Type.IntervalDayTime      ]: vecs.IntervalDayTimeVector      ;
+    [Type.IntervalYearMonth    ]: vecs.IntervalYearMonthVector    ;
+    [Type.Map                  ]: vecs.MapVector                  ;
+    [Type.List                 ]: vecs.ListVector                 ;
+    [Type.Struct               ]: vecs.StructVector               ;
+    [Type.Dictionary           ]: vecs.DictionaryVector           ;
+    [Type.FixedSizeList        ]: vecs.FixedSizeListVector        ;
 }[T];
 
 /** @ignore */
 type DataTypeToVector<T extends DataType = any> = {
-    [key: number               ]:                                       Vector<any>       ;
-    [Type.Null                 ]: T extends type.Null                 ? Vector<T> : never ;
-    [Type.Bool                 ]: T extends type.Bool                 ? Vector<T> : never ;
-    [Type.Int8                 ]: T extends type.Int8                 ? Vector<T> : never ;
-    [Type.Int16                ]: T extends type.Int16                ? Vector<T> : never ;
-    [Type.Int32                ]: T extends type.Int32                ? Vector<T> : never ;
-    [Type.Int64                ]: T extends type.Int64                ? Vector<T> : never ;
-    [Type.Uint8                ]: T extends type.Uint8                ? Vector<T> : never ;
-    [Type.Uint16               ]: T extends type.Uint16               ? Vector<T> : never ;
-    [Type.Uint32               ]: T extends type.Uint32               ? Vector<T> : never ;
-    [Type.Uint64               ]: T extends type.Uint64               ? Vector<T> : never ;
-    [Type.Int                  ]: T extends type.Int                  ? Vector<T> : never ;
-    [Type.Float16              ]: T extends type.Float16              ? Vector<T> : never ;
-    [Type.Float32              ]: T extends type.Float32              ? Vector<T> : never ;
-    [Type.Float64              ]: T extends type.Float64              ? Vector<T> : never ;
-    [Type.Float                ]: T extends type.Float                ? Vector<T> : never ;
-    [Type.Utf8                 ]: T extends type.Utf8                 ? Vector<T> : never ;
-    [Type.Binary               ]: T extends type.Binary               ? Vector<T> : never ;
-    [Type.FixedSizeBinary      ]: T extends type.FixedSizeBinary      ? Vector<T> : never ;
-    [Type.Date                 ]: T extends type.Date_                ? Vector<T> : never ;
-    [Type.DateDay              ]: T extends type.DateDay              ? Vector<T> : never ;
-    [Type.DateMillisecond      ]: T extends type.DateMillisecond      ? Vector<T> : never ;
-    [Type.Timestamp            ]: T extends type.Timestamp            ? Vector<T> : never ;
-    [Type.TimestampSecond      ]: T extends type.TimestampSecond      ? Vector<T> : never ;
-    [Type.TimestampMillisecond ]: T extends type.TimestampMillisecond ? Vector<T> : never ;
-    [Type.TimestampMicrosecond ]: T extends type.TimestampMicrosecond ? Vector<T> : never ;
-    [Type.TimestampNanosecond  ]: T extends type.TimestampNanosecond  ? Vector<T> : never ;
-    [Type.Time                 ]: T extends type.Time                 ? Vector<T> : never ;
-    [Type.TimeSecond           ]: T extends type.TimeSecond           ? Vector<T> : never ;
-    [Type.TimeMillisecond      ]: T extends type.TimeMillisecond      ? Vector<T> : never ;
-    [Type.TimeMicrosecond      ]: T extends type.TimeMicrosecond      ? Vector<T> : never ;
-    [Type.TimeNanosecond       ]: T extends type.TimeNanosecond       ? Vector<T> : never ;
-    [Type.Decimal              ]: T extends type.Decimal              ? Vector<T> : never ;
-    [Type.Union                ]: T extends type.Union                ? Vector<T> : never ;
-    [Type.DenseUnion           ]: T extends type.DenseUnion           ? Vector<T> : never ;
-    [Type.SparseUnion          ]: T extends type.SparseUnion          ? Vector<T> : never ;
-    [Type.Interval             ]: T extends type.Interval             ? Vector<T> : never ;
-    [Type.IntervalDayTime      ]: T extends type.IntervalDayTime      ? Vector<T> : never ;
-    [Type.IntervalYearMonth    ]: T extends type.IntervalYearMonth    ? Vector<T> : never ;
-    [Type.Map                  ]: T extends type.Map_                 ? Vector<T> : never ;
-    [Type.List                 ]: T extends type.List                 ? Vector<T> : never ;
-    [Type.Struct               ]: T extends type.Struct               ? Vector<T> : never ;
-    [Type.Dictionary           ]: T extends type.Dictionary           ? Vector<T> : never ;
-    [Type.FixedSizeList        ]: T extends type.FixedSizeList        ? Vector<T> : never ;
+    [key: number               ]:                                       vecs.BaseVector<any>                                        ;
+    [Type.Null                 ]: T extends type.Null                 ? vecs.NullVector                                     : never ;
+    [Type.Bool                 ]: T extends type.Bool                 ? vecs.BoolVector                                     : never ;
+    [Type.Int8                 ]: T extends type.Int8                 ? vecs.Int8Vector                                     : never ;
+    [Type.Int16                ]: T extends type.Int16                ? vecs.Int16Vector                                    : never ;
+    [Type.Int32                ]: T extends type.Int32                ? vecs.Int32Vector                                    : never ;
+    [Type.Int64                ]: T extends type.Int64                ? vecs.Int64Vector                                    : never ;
+    [Type.Uint8                ]: T extends type.Uint8                ? vecs.Uint8Vector                                    : never ;
+    [Type.Uint16               ]: T extends type.Uint16               ? vecs.Uint16Vector                                   : never ;
+    [Type.Uint32               ]: T extends type.Uint32               ? vecs.Uint32Vector                                   : never ;
+    [Type.Uint64               ]: T extends type.Uint64               ? vecs.Uint64Vector                                   : never ;
+    [Type.Int                  ]: T extends type.Int                  ? vecs.IntVector                                      : never ;
+    [Type.Float16              ]: T extends type.Float16              ? vecs.Float16Vector                                  : never ;
+    [Type.Float32              ]: T extends type.Float32              ? vecs.Float32Vector                                  : never ;
+    [Type.Float64              ]: T extends type.Float64              ? vecs.Float64Vector                                  : never ;
+    [Type.Float                ]: T extends type.Float                ? vecs.FloatVector                                    : never ;
+    [Type.Utf8                 ]: T extends type.Utf8                 ? vecs.Utf8Vector                                     : never ;
+    [Type.Binary               ]: T extends type.Binary               ? vecs.BinaryVector                                   : never ;
+    [Type.FixedSizeBinary      ]: T extends type.FixedSizeBinary      ? vecs.FixedSizeBinaryVector                          : never ;
+    [Type.Date                 ]: T extends type.Date_                ? vecs.DateVector                                     : never ;
+    [Type.DateDay              ]: T extends type.DateDay              ? vecs.DateDayVector                                  : never ;
+    [Type.DateMillisecond      ]: T extends type.DateMillisecond      ? vecs.DateMillisecondVector                          : never ;
+    [Type.Timestamp            ]: T extends type.Timestamp            ? vecs.TimestampVector                                : never ;
+    [Type.TimestampSecond      ]: T extends type.TimestampSecond      ? vecs.TimestampSecondVector                          : never ;
+    [Type.TimestampMillisecond ]: T extends type.TimestampMillisecond ? vecs.TimestampMillisecondVector                     : never ;
+    [Type.TimestampMicrosecond ]: T extends type.TimestampMicrosecond ? vecs.TimestampMicrosecondVector                     : never ;
+    [Type.TimestampNanosecond  ]: T extends type.TimestampNanosecond  ? vecs.TimestampNanosecondVector                      : never ;
+    [Type.Time                 ]: T extends type.Time                 ? vecs.TimeVector                                     : never ;
+    [Type.TimeSecond           ]: T extends type.TimeSecond           ? vecs.TimeSecondVector                               : never ;
+    [Type.TimeMillisecond      ]: T extends type.TimeMillisecond      ? vecs.TimeMillisecondVector                          : never ;
+    [Type.TimeMicrosecond      ]: T extends type.TimeMicrosecond      ? vecs.TimeMicrosecondVector                          : never ;
+    [Type.TimeNanosecond       ]: T extends type.TimeNanosecond       ? vecs.TimeNanosecondVector                           : never ;
+    [Type.Decimal              ]: T extends type.Decimal              ? vecs.DecimalVector                                  : never ;
+    [Type.Union                ]: T extends type.Union                ? vecs.UnionVector                                    : never ;
+    [Type.DenseUnion           ]: T extends type.DenseUnion           ? vecs.DenseUnionVector                               : never ;
+    [Type.SparseUnion          ]: T extends type.SparseUnion          ? vecs.SparseUnionVector                              : never ;
+    [Type.Interval             ]: T extends type.Interval             ? vecs.IntervalVector                                 : never ;
+    [Type.IntervalDayTime      ]: T extends type.IntervalDayTime      ? vecs.IntervalDayTimeVector                          : never ;
+    [Type.IntervalYearMonth    ]: T extends type.IntervalYearMonth    ? vecs.IntervalYearMonthVector                        : never ;
+    [Type.Map                  ]: T extends type.Map_                 ? vecs.MapVector<T['keyType'], T['valueType']>        : never ;
+    [Type.List                 ]: T extends type.List                 ? vecs.ListVector<T['valueType']>                     : never ;
+    [Type.Struct               ]: T extends type.Struct               ? vecs.StructVector<T['dataTypes']>                   : never ;
+    [Type.Dictionary           ]: T extends type.Dictionary           ? vecs.DictionaryVector<T['valueType'], T['indices']> : never ;
+    [Type.FixedSizeList        ]: T extends type.FixedSizeList        ? vecs.FixedSizeListVector<T['valueType']>            : never ;
 }[T['TType']];
 
 /** @ignore */

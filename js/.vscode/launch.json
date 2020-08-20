@@ -177,6 +177,13 @@
                 "${workspaceFolder}/bin/print-buffer-alignment.js",
                 "./test/data/cpp/stream/struct_example.arrow"
             ]
-        }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug tmp",
+            "program": "${workspaceFolder}/tmp.js",
+            "args": []
+        },
     ]
 }

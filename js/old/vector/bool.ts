@@ -16,20 +16,20 @@
 // under the License.
 
 import { Bool } from '../type';
-import { Chunked } from './chunked';
+// import { Chunked } from './chunked';
 import { BaseVector } from './base';
-import { VectorBuilderOptions } from './index';
-import { vectorFromValuesWithType } from './index';
-import { VectorBuilderOptionsAsync } from './index';
+// import { VectorBuilderOptions } from './index';
+// import { vectorFromValuesWithType } from './index';
+// import { VectorBuilderOptionsAsync } from './index';
 
 /** @ignore */
 export class BoolVector extends BaseVector<Bool> {
-    public static from<TNull = any>(input: Iterable<boolean | TNull>): BoolVector;
-    public static from<TNull = any>(input: AsyncIterable<boolean | TNull>): Promise<BoolVector>;
-    public static from<TNull = any>(input: VectorBuilderOptions<Bool, TNull>): Chunked<Bool>;
-    public static from<TNull = any>(input: VectorBuilderOptionsAsync<Bool, TNull>): Promise<Chunked<Bool>>;
-    /** @nocollapse */
-    public static from<TNull = any>(input: Iterable<boolean | TNull> | AsyncIterable<boolean | TNull> | VectorBuilderOptions<Bool, TNull> | VectorBuilderOptionsAsync<Bool, TNull>) {
-        return vectorFromValuesWithType(() => new Bool(), input);
-    }
+    // public static from<TNull = any>(input: Iterable<boolean | TNull>): BoolVector;
+    // public static from<TNull = any>(input: AsyncIterable<boolean | TNull>): Promise<BoolVector>;
+    // public static from<TNull = any>(input: VectorBuilderOptions<Bool, TNull>): Chunked<Bool>;
+    // public static from<TNull = any>(input: VectorBuilderOptionsAsync<Bool, TNull>): Promise<Chunked<Bool>>;
+    // /** @nocollapse */
+    // public static from<TNull = any>(input: Iterable<boolean | TNull> | AsyncIterable<boolean | TNull> | VectorBuilderOptions<Bool, TNull> | VectorBuilderOptionsAsync<Bool, TNull>) {
+    //     return vectorFromValuesWithType(() => new Bool(), input);
+    // }
 }

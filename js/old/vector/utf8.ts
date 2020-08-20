@@ -16,23 +16,23 @@
 // under the License.
 
 import { Vector } from '../vector';
-import { Chunked } from './chunked';
+// import { Chunked } from './chunked';
 import { BaseVector } from './base';
 import { Binary, Utf8 } from '../type';
-import { VectorBuilderOptions } from './index';
-import { vectorFromValuesWithType } from './index';
-import { VectorBuilderOptionsAsync } from './index';
+// import { VectorBuilderOptions } from './index';
+// import { vectorFromValuesWithType } from './index';
+// import { VectorBuilderOptionsAsync } from './index';
 
 /** @ignore */
 export class Utf8Vector extends BaseVector<Utf8> {
-    public static from<TNull = any>(input: Iterable<string | TNull>): Utf8Vector;
-    public static from<TNull = any>(input: AsyncIterable<string | TNull>): Promise<Utf8Vector>;
-    public static from<TNull = any>(input: VectorBuilderOptions<Utf8, TNull>): Chunked<Utf8>;
-    public static from<TNull = any>(input: VectorBuilderOptionsAsync<Utf8, TNull>): Promise<Chunked<Utf8>>;
-    /** @nocollapse */
-    public static from<TNull = any>(input: Iterable<string | TNull> | AsyncIterable<string | TNull> | VectorBuilderOptions<Utf8, TNull> | VectorBuilderOptionsAsync<Utf8, TNull>) {
-        return vectorFromValuesWithType(() => new Utf8(), input);
-    }
+    // public static from<TNull = any>(input: Iterable<string | TNull>): Utf8Vector;
+    // public static from<TNull = any>(input: AsyncIterable<string | TNull>): Promise<Utf8Vector>;
+    // public static from<TNull = any>(input: VectorBuilderOptions<Utf8, TNull>): Chunked<Utf8>;
+    // public static from<TNull = any>(input: VectorBuilderOptionsAsync<Utf8, TNull>): Promise<Chunked<Utf8>>;
+    // /** @nocollapse */
+    // public static from<TNull = any>(input: Iterable<string | TNull> | AsyncIterable<string | TNull> | VectorBuilderOptions<Utf8, TNull> | VectorBuilderOptionsAsync<Utf8, TNull>) {
+    //     return vectorFromValuesWithType(() => new Utf8(), input);
+    // }
     public asBinary() {
         return Vector.new(this.data.clone(new Binary()));
     }
