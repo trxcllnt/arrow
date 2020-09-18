@@ -42,7 +42,10 @@ export interface Vector<T extends DataType = any> {
 
 export class Vector<T extends DataType = any> {
 
-    constructor(type: T, chunks: Data<T>[] = [new Data(type, 0, 0)], offsets?: Uint32Array) {
+    constructor(type: T, data: Data<T>);
+    constructor(type: T, chunks?: Data<T>[], offsets?: Uint32Array);
+    constructor(type: T, dataOrChunks?: Data<T> | Data<T>[], offsets?: Uint32Array) {
+        const chunks = Array.isArray(dataOrChunks) ? dataOrChunks : dataOrChunks ? [dataOrChunks] : [];
         this.type = type;
         this._chunks = chunks;
         switch (chunks.length) {
@@ -208,8 +211,8 @@ if (typeof Proxy !== 'undefined') {
         get(target: {}, key: any, instance: any) {
             let p = key;
             switch (typeof key) {
-                // fall through if key can be cast to a number
                 // @ts-ignore
+                // fall through if key can be cast to a number
                 case 'string': if ((p = +key) !== p) { break; }
                 case 'number': return instance.get(p);
             }
@@ -218,8 +221,8 @@ if (typeof Proxy !== 'undefined') {
         set(target: {}, key: any, value: any, instance: any) {
             let p = key;
             switch (typeof key) {
-                // fall through if key can be cast to a number
                 // @ts-ignore
+                // fall through if key can be cast to a number
                 case 'string': if ((p = +key) !== p) { break; }
                 case 'number': return (instance.set(p, value), true);
             }
@@ -302,12 +305,12 @@ function wrapCall1<T extends DataType, F extends (c: Data<T>, _1: number) => any
 
 /** @ignore */
 function wrapCall2<T extends DataType, F extends (c: Data<T>, _1: number, _2: any) => any>(fn: F) {
-    let _1: any;
-    function chunkedFn(chunks: Data<T>[], i: number, j: number) { return fn(chunks[i], j, _1); }
+    let _2: any;
+    function chunkedFn(chunks: Data<T>[], i: number, j: number) { return fn(chunks[i], j, _2); }
     return function(this: Vector<T>, index: number, value: any) {
-        _1 = value;
+        _2 = value;
         const result = binarySearch(this._chunks, this._offsets, index, chunkedFn);
-        _1 = undefined;
+        _2 = undefined;
         return result;
     };
 }
