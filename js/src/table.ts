@@ -75,13 +75,13 @@ export class Table<T extends { [key: string]: DataType } = any> {
     constructor(...args: any[]) {
 
         if (args.length === 0) {
-            this.data = []
+            this.data = [];
             this.schema = new Schema([]);
             this._offsets = new Uint32Array([0]);
             return this;
         }
 
-        let data: RecordBatch<T>[] = [];
+        const data: RecordBatch<T>[] = [];
         let schema: Schema<T> | undefined = undefined;
         let offsets: Uint32Array | undefined = undefined;
 
@@ -135,45 +135,6 @@ export class Table<T extends { [key: string]: DataType } = any> {
         this.data = data;
         this.schema = schema;
         this._offsets = offsets ?? computeChunkOffsets(this.data.map((b) => b.data));
-
-        // if (args.length === 1 && !(args[0] instanceof Schema)) {
-        //     const [obj] = args as [{ [P in keyof T]: Vector<T[P]> }];
-        //     const batches = Object.keys(obj).reduce((batches, name: keyof T) => {
-        //         obj[name].data.forEach((data, batchIndex) => {
-        //             if (!batches[batchIndex]) {
-        //                 batches[batchIndex] = {} as { [P in keyof T]: Data<T[P]> };
-        //             }
-        //             batches[batchIndex][name] = new Vector(data).data[0];
-        //         });
-        //         return batches;
-        //     }, new Array<{ [P in keyof T]: Data<T[P]> }>());
-
-        //     args = [batches[0].schema, batches.map((data) => new RecordBatch<T>(data))];
-        // }
-
-        // let [schema, data, offsets] = args;
-
-        // if (!(schema instanceof Schema)) {
-        //     throw new TypeError('Table constructor expects a [Schema, RecordBatch[]] pair.');
-        // }
-
-        // this.schema = schema;
-
-        // [, data = [new _InternalEmptyPlaceholderRecordBatch(schema)]] = args;
-
-        // const batches: RecordBatch<T>[] = Array.isArray(data) ? data : [data];
-
-        // batches.forEach((batch: RecordBatch<T>) => {
-        //     if (!(batch instanceof RecordBatch)) {
-        //         throw new TypeError('Table constructor expects a [Schema, RecordBatch[]] pair.');
-        //     }
-        //     if (!compareSchemas(this.schema, batch.schema)) {
-        //         throw new TypeError('Table and all RecordBatch schemas must be equivalent.');
-        //     }
-        // });
-
-        // this.data = batches;
-        // this._offsets = offsets ?? computeChunkOffsets(this.data.map((b) => b.data));
     }
 
     declare protected _offsets: Uint32Array;
