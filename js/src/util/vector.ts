@@ -17,7 +17,7 @@
 
 import { Vector } from '../vector.js';
 import { MapRow } from '../row/map.js';
-import { StructRow } from '../row/struct.js';
+import { StructRow, kParent } from '../row/struct.js';
 import { compareArrayLike } from '../util/buffer.js';
 
 /** @ignore */
@@ -88,9 +88,11 @@ export function createElementComparator(search: any) {
     if (Array.isArray(search)) { return createArrayLikeComparator(search); }
     // Compare Vectors
     if (search instanceof Vector) { return createVectorComparator(search); }
-    return createObjectComparator(search, true);
-    // Compare non-empty Objects
-    // return createObjectComparator(search, search instanceof Proxy);
+    // Compare StructRows
+    if (search instanceof StructRow) {
+        return createObjectComparator(search, search[kParent].type.children.map((f: any) => f.name));
+    }
+    return createObjectComparator(search, Object.keys(search));
 }
 
 /** @ignore */
@@ -107,7 +109,7 @@ function createMapComparator(lhs: Map<any, any>) {
     let i = -1;
     const comparators = [] as ((x: any) => boolean)[];
     for (const v of lhs.values()) comparators[++i] = createElementComparator(v);
-    return createSubElementsComparator(comparators);
+    return createSubElementsComparator(comparators, [...lhs.keys()]);
 }
 
 /** @ignore */
@@ -120,10 +122,7 @@ function createVectorComparator(lhs: Vector<any>) {
 }
 
 /** @ignore */
-function createObjectComparator(lhs: any, allowEmpty = false) {
-    const keys = Object.keys(lhs);
-    // Only compare non-empty Objects
-    if (!allowEmpty && keys.length === 0) { return () => false; }
+function createObjectComparator(lhs: any, keys: string[]) {
     const comparators = [] as ((x: any) => boolean)[];
     for (let i = -1, n = keys.length; ++i < n;) {
         comparators[i] = createElementComparator(lhs[keys[i]]);
@@ -138,13 +137,12 @@ function createSubElementsComparator(comparators: ((x: any) => boolean)[], keys?
         }
         switch (rhs.constructor) {
             case Array: return compareArray(comparators, rhs);
-            case Map:
-                return compareObject(comparators, rhs, rhs.keys());
-            case MapRow:
-            case StructRow:
-            case Object:
-            case undefined: // support `Object.create(null)` objects
-                return compareObject(comparators, rhs, keys || Object.keys(rhs));
+            case Map: return compareToMap(comparators, rhs, keys);
+            case Object: return compareToObject(comparators, rhs, keys);
+            case MapRow: return compareToMapRow(comparators, rhs, keys);
+            case StructRow: return compareToStructRow(comparators, rhs, keys);
+            // support `Object.create(null)` objects
+            case undefined: return compareToObject(comparators, rhs, keys);
         }
         return rhs instanceof Vector ? compareVector(comparators, rhs) : false;
     };
@@ -168,29 +166,74 @@ function compareVector(comparators: ((x: any) => boolean)[], vec: Vector) {
     return true;
 }
 
-function compareObject(comparators: ((x: any) => boolean)[], obj: Map<any, any>, keys: Iterable<string>) {
+function compareToMap(comparators: ((x: any) => boolean)[], rhs: Map<string, any>, lhsKeys?: Iterable<string>) {
+    if (comparators.length !== rhs.size) { return false; }
+    return lhsKeys
+        ? compareKeysAndVals(comparators, rhs, lhsKeys)
+        : compareValsNotKeys(comparators, rhs);
+}
 
-    const lKeyItr = keys[Symbol.iterator]();
-    const rKeyItr = obj instanceof Map ? obj.keys() : Object.keys(obj)[Symbol.iterator]();
-    const rValItr = obj instanceof Map ? obj.values() : Object.values(obj)[Symbol.iterator]();
+function compareToObject(comparators: ((x: any) => boolean)[], rhs: any, lhsKeys?: Iterable<string>) {
+    rhs = Object.entries(rhs);
+    if (comparators.length !== rhs.length) { return false; }
+    return lhsKeys
+        ? compareKeysAndVals(comparators, rhs, lhsKeys)
+        : compareValsNotKeys(comparators, rhs);
+}
 
-    let i = 0;
+function compareToMapRow(comparators: ((x: any) => boolean)[], rhs: MapRow<any, any>, lhsKeys?: Iterable<string>) {
+    if (comparators.length !== rhs[MapRow.kKeys].length) { return false; }
+    return lhsKeys
+        ? compareKeysAndVals(comparators, rhs, lhsKeys)
+        : compareValsNotKeys(comparators, rhs);
+}
+
+function compareToStructRow(comparators: ((x: any) => boolean)[], rhs: StructRow<any>, lhsKeys?: Iterable<string>) {
+    if (comparators.length !== rhs[kParent].type.children.length) { return false; }
+    return lhsKeys
+        ? compareKeysAndVals(comparators, rhs, lhsKeys)
+        : compareValsNotKeys(comparators, rhs);
+}
+
+function compareValsNotKeys(comparators: ((x: any) => boolean)[], rhs: Iterable<[string, any]>) {
+
+    const rKVsItr = rhs[Symbol.iterator]();
     const n = comparators.length;
-    let rVal = rValItr.next();
-    let lKey = lKeyItr.next();
-    let rKey = rKeyItr.next();
+    let rKVs = rKVsItr.next();
 
-    for (; i < n && !lKey.done && !rKey.done && !rVal.done;
-        ++i, lKey = lKeyItr.next(), rKey = rKeyItr.next(), rVal = rValItr.next()) {
-        if (lKey.value !== rKey.value || !comparators[i](rVal.value)) {
+    for (let i = 0; i < n && !rKVs.done;
+        ++i, rKVs = rKVsItr.next()) {
+        if (!comparators[i](rKVs.value[1])) {
             break;
         }
     }
-    if (i === n && lKey.done && rKey.done && rVal.done) {
+    if (rKVs.done) {
+        return true;
+    }
+    rKVsItr.return && rKVsItr.return();
+    return false;
+}
+
+function compareKeysAndVals(comparators: ((x: any) => boolean)[], rhs: Iterable<[string, any]>, lhsKeys: Iterable<string>) {
+
+    const n = comparators.length;
+    const rKVsItr = rhs[Symbol.iterator]();
+    const lKeyItr = lhsKeys[Symbol.iterator]();
+
+    let lKey = lKeyItr.next();
+    let rKVs = rKVsItr.next();
+
+    for (let i = 0; i < n && !lKey.done && !rKVs.done;
+        ++i, lKey = lKeyItr.next(), rKVs = rKVsItr.next()) {
+        const [rKey, rVal] = rKVs.value;
+        if (lKey.value !== rKey || !comparators[i](rVal)) {
+            break;
+        }
+    }
+    if (lKey.done && rKVs.done) {
         return true;
     }
     lKeyItr.return && lKeyItr.return();
-    rKeyItr.return && rKeyItr.return();
-    rValItr.return && rValItr.return();
+    rKVsItr.return && rKVsItr.return();
     return false;
 }

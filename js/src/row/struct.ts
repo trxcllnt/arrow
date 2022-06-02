@@ -22,38 +22,38 @@ import { valueToString } from '../util/pretty.js';
 import { instance as getVisitor } from '../visitor/get.js';
 import { instance as setVisitor } from '../visitor/set.js';
 
-/** @ignore */ const kParent = Symbol.for('parent');
-/** @ignore */ const kRowIndex = Symbol.for('rowIndex');
+/** @ignore */ export const kParent = Symbol.for('parent');
+/** @ignore */ export const kRowIndex = Symbol.for('rowIndex');
+/** @ignore */ const kRowCache = Symbol.for('rowCache');
 
 export type StructRowProxy<T extends TypeMap = any> = StructRow<T> & {
-    [P in keyof T]: T[P]['TValue'];
+    [P in string & keyof T]: T[P]['TValue'];
 } & {
-    [key: symbol]: any;
+    [key: number | symbol]: any;
 };
 
 export class StructRow<T extends TypeMap = any> {
 
-    declare private [kRowIndex]: number;
-    declare private [kParent]: Data<Struct<T>>;
+    declare public [kRowIndex]: number;
+    declare public [kRowCache]: Array<any>;
+    declare public [kParent]: Data<Struct<T>>;
 
-    constructor(parent: Data<Struct<T>>, rowIndex: number) {
-        this[kParent] = parent;
-        this[kRowIndex] = rowIndex;
-        return new Proxy(this, new StructRowProxyHandler());
+    [key: string | number | symbol]: any;
+
+    constructor(type: Struct<T>) {
+        Object.defineProperties(this, type.children.reduce((descriptors, { name }, colIndex) => {
+            descriptors[name] = {
+                enumerable: true,
+                configurable: true,
+                get: bindGetter(colIndex),
+                set: bindSetter(colIndex),
+            };
+            return descriptors;
+        }, Object.create(null)));
     }
 
-    public toArray() { return Object.values(this.toJSON()); }
-
-    public toJSON() {
-        const i = this[kRowIndex];
-        const parent = this[kParent];
-        const keys = parent.type.children;
-        const json = {} as { [P in string & keyof T]: T[P]['TValue'] };
-        for (let j = -1, n = keys.length; ++j < n;) {
-            json[keys[j].name as string & keyof T] = getVisitor.visit(parent.children[j], i);
-        }
-        return json;
-    }
+    public toArray() { return Object.values(toJSON<T>(this)); }
+    public toJSON() { return toJSON<T>(this); }
 
     public toString() {
         return `{${[...this].map(([key, val]) =>
@@ -67,10 +67,21 @@ export class StructRow<T extends TypeMap = any> {
     }
 
     [Symbol.iterator](): IterableIterator<[
-        keyof T, { [P in keyof T]: T[P]['TValue'] | null }[keyof T]
+        string & keyof T, { [P in keyof T]: T[P]['TValue'] | null }[string & keyof T]
     ]> {
         return new StructRowIterator(this[kParent], this[kRowIndex]);
     }
+}
+
+function toJSON<T extends TypeMap = any>(row: StructRow<T>) {
+    const i = row[kRowIndex];
+    const parent = row[kParent];
+    const keys = parent.type.children;
+    const json = {} as { [P in string & keyof T]: T[P]['TValue'] };
+    for (let j = -1, n = keys.length; ++j < n;) {
+        json[keys[j].name as string & keyof T] = getVisitor.visit(parent.children[j], i);
+    }
+    return json;
 }
 
 class StructRowIterator<T extends TypeMap = any>
@@ -110,50 +121,35 @@ class StructRowIterator<T extends TypeMap = any>
     }
 }
 
+function bindGetter(colIndex: number) {
+    return function get(this: StructRow<any>) {
+        const cache = this[kRowCache] || (this[kRowCache] = new Array(this[kParent].children.length));
+        let value = cache[colIndex];
+        if (value === undefined) {
+            const child = this[kParent].children[colIndex];
+            value = child ? getVisitor.visit(child, this[kRowIndex]) : null;
+            // Cache key/val lookups
+            cache[colIndex] = value;
+        }
+        return value;
+    };
+}
+
+function bindSetter(colIndex: number) {
+    return function set(this: StructRow<any>, value: any) {
+        const cache = this[kRowCache] || (this[kRowCache] = new Array(this[kParent].children.length));
+        const child = this[kParent].children[colIndex];
+        // Cache key/val lookups
+        cache[colIndex] = value;
+        if (child) {
+            setVisitor.visit(child, this[kRowIndex], value);
+        }
+    };
+}
+
 Object.defineProperties(StructRow.prototype, {
     [Symbol.toStringTag]: { enumerable: false, configurable: false, value: 'Row' },
     [kParent]: { writable: true, enumerable: false, configurable: false, value: null },
     [kRowIndex]: { writable: true, enumerable: false, configurable: false, value: -1 },
+    [kRowCache]: { writable: true, enumerable: false, configurable: false, value: null },
 });
-
-class StructRowProxyHandler<T extends TypeMap = any> implements ProxyHandler<StructRow<T>> {
-    isExtensible() { return false; }
-    deleteProperty() { return false; }
-    preventExtensions() { return true; }
-    ownKeys(row: StructRow<T>) {
-        return row[kParent].type.children.map((f) => f.name);
-    }
-    has(row: StructRow<T>, key: string) {
-        return row[kParent].type.children.findIndex((f) => f.name === key) !== -1;
-    }
-    getOwnPropertyDescriptor(row: StructRow<T>, key: string) {
-        if (row[kParent].type.children.findIndex((f) => f.name === key) !== -1) {
-            return { writable: true, enumerable: true, configurable: true };
-        }
-        return;
-    }
-    get(row: StructRow<T>, key: string) {
-        // Look up key in row first
-        if (Reflect.has(row, key)) {
-            return (row as any)[key];
-        }
-        const idx = row[kParent].type.children.findIndex((f) => f.name === key);
-        if (idx !== -1) {
-            const val = getVisitor.visit(row[kParent].children[idx], row[kRowIndex]);
-            // Cache key/val lookups
-            Reflect.set(row, key, val);
-            return val;
-        }
-    }
-    set(row: StructRow<T>, key: string, val: any) {
-        const idx = row[kParent].type.children.findIndex((f) => f.name === key);
-        if (idx !== -1) {
-            setVisitor.visit(row[kParent].children[idx], row[kRowIndex], val);
-            // Cache key/val lookups
-            return Reflect.set(row, key, val);
-        } else if (Reflect.has(row, key) || typeof key === 'symbol') {
-            return Reflect.set(row, key, val);
-        }
-        return false;
-    }
-}

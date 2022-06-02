@@ -320,7 +320,7 @@ type DataTypeToBuilder<T extends DataType = any, TNull = any> = {
     [Type.IntervalYearMonth]: T extends type.IntervalYearMonth ? IntervalYearMonthBuilder<TNull> : never;
     [Type.Map]: T extends type.Map_ ? MapBuilder<T['keyType'], T['valueType'], TNull> : never;
     [Type.List]: T extends type.List ? ListBuilder<T['valueType'], TNull> : never;
-    [Type.Struct]: T extends type.Struct ? StructBuilder<T['dataTypes'], TNull> : never;
+    [Type.Struct]: T extends type.Struct ? StructBuilder<T['TChildren'], TNull> : never;
     [Type.Dictionary]: T extends type.Dictionary ? DictionaryBuilder<T, TNull> : never;
     [Type.FixedSizeList]: T extends type.FixedSizeList ? FixedSizeListBuilder<T['valueType'], TNull> : never;
 }[T['TType']];

@@ -27,10 +27,13 @@ import { instance as setVisitor } from '../visitor/set.js';
 
 export class MapRow<K extends DataType = any, V extends DataType = any> {
 
-    [key: string]: V['TValue'];
+    [key: string | number | symbol]: V['TValue'];
 
-    declare private [kKeys]: Vector<K>;
-    declare private [kVals]: Data<V>;
+    public static kKeys = kKeys;
+    public static kVals = kVals;
+
+    declare public [kKeys]: Vector<K>;
+    declare public [kVals]: Data<V>;
 
     constructor(slice: Data<Struct<{ key: K; value: V }>>) {
         this[kKeys] = new Vector([slice.children[0]]).memoize() as Vector<K>;

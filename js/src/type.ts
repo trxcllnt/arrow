@@ -461,7 +461,6 @@ export class List<T extends DataType = any> extends DataType<Type.List, { [0]: T
 export interface Struct<T extends TypeMap = any> extends DataType<Type.Struct, T> {
     TArray: Array<StructRowProxy<T>>;
     TValue: StructRowProxy<T>;
-    dataTypes: T;
 }
 
 /** @ignore */

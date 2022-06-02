@@ -20,7 +20,7 @@ import { BN } from '../util/bn.js';
 import { Vector } from '../vector.js';
 import { Visitor } from '../visitor.js';
 import { MapRow } from '../row/map.js';
-import { StructRow, StructRowProxy } from '../row/struct.js';
+import { StructRow, kParent, kRowIndex } from '../row/struct.js';
 import { decodeUtf8 } from '../util/utf8.js';
 import { TypeToDataType } from '../interfaces.js';
 import { uint16ToFloat64 } from '../util/math.js';
@@ -215,7 +215,7 @@ const getList = <T extends List>(data: Data<T>, index: number): T['TValue'] => {
     const { [index * stride]: begin, [index * stride + 1]: end } = valueOffsets;
     const child: Data<T['valueType']> = children[0];
     const slice = child.slice(begin, end - begin);
-    return new Vector([slice]) as T['TValue'];
+    return new Vector([slice]);
 };
 
 /** @ignore */
@@ -228,7 +228,11 @@ const getMap = <T extends Map_>(data: Data<T>, index: number): T['TValue'] => {
 
 /** @ignore */
 const getStruct = <T extends Struct>(data: Data<T>, index: number): T['TValue'] => {
-    return new StructRow(data, index) as StructRowProxy<T['TValue']>;
+    const proto = data.type._row || (data.type._row = new StructRow<T['TChildren']>(data.type));
+    const value = Object.create(proto);
+    value[kParent] = data;
+    value[kRowIndex] = index;
+    return value;
 };
 
 /* istanbul ignore next */
